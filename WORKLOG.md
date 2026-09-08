@@ -52,3 +52,39 @@ siteready is now usable both as a plain CLI and as an installed Claude Code
 skill triggerable from any project. Not yet verified against a real external
 website project end-to-end (only sanity-checked via subagents) — see
 HANDOFF.md Next Actions.
+
+---
+
+## v0.3.0 — First Real-World Dogfood: docs.doverunner.com
+
+**Date:** 2026-09-08
+
+### Changes
+
+- Ran the full `scan` → `enhance` → manual fixes → `rescan` loop against a
+  live production site (`docs.doverunner.com`, Astro+Starlight+Cloudflare
+  Pages) for the first time — previously only exercised against the
+  synthetic `examples/astro-starlight-cf-pages` fixture and subagent
+  sanity-checks.
+- `enhance .` correctly detected the stack, added the one fixer output the
+  target was missing (`functions/_middleware.js`), and correctly skipped
+  everything it already had without overwriting.
+- Identified three `is-agentic` checks with no fixer coverage yet
+  (`metadata-completeness` og:image, `agent-instruction` llms.txt
+  guidance, homepage Organization `json-ld`) — hand-patched in the target
+  repo this session, queued as real fixer work (see HANDOFF.md Next
+  Actions #1).
+- Identified an `is-agentic`-specific caching gotcha: `rescan` returned an
+  identical cached result twice across a real production deploy; the score
+  only moved (68 → 72, D → C) after a manual rescan trigger on
+  is-agentic.com itself. `afdocs` re-crawls live on every `rescan` call, so
+  this is isolated to the `is-agentic` scanner adapter.
+
+### Status
+
+First external validation that the scan/enhance/rescan loop holds up
+against a real, previously-hand-built site rather than a fixture built to
+exercise the fixer. Confirmed the fixer's "skip what's already there, never
+overwrite" behavior works correctly against a site with prior organic
+history. Fixer capability gaps and the is-agentic caching behavior are now
+tracked in HANDOFF.md rather than being one-off manual patches next time.

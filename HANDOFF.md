@@ -26,46 +26,71 @@ from 0/100 (F) to 97/100 (A) on afdocs.
 
 ## Last Session
 
-Wrote `SKILL.md` (repo root) so siteready can be driven as a Claude Code skill,
-not just a raw CLI — added "Standing Development Rules" to AGENTS.md pulled from
-README/plan first. Sanity-checked the skill with 3 fresh subagents against
-realistic prompts (URL-only scan, "fix it" with no local checkout, local checkout
-+ explicit "commit it" request) — all three followed the decision table correctly
-(right command chosen, `enhance` correctly withheld without a local checkout,
-never auto-committed). Found and fixed one real gap: SKILL.md didn't say how to
-handle a scan where checks report "failed to fetch" (unreachable/typo'd domain)
-vs. a genuine low score — added guidance to report that as "couldn't reach the
-site," not as a real finding. Also fixed a cwd-assumption bug: the first draft
-assumed commands run from inside the siteready repo, which breaks once installed
-at user level and invoked from an arbitrary target project — rewrote commands to
-use `<skill-dir>` (the skill's own base directory) for the CLI entrypoint while
-keeping path *arguments* relative to the target project's own cwd. Installed the
-skill at user level: `~/.claude/skills/siteready` is now a symlink to this repo
-(same pattern as the existing `agent-browser`/`find-skills` symlinked skills).
-`siteready-plan.md` updated (update 10) to record this work. Confirmed the repo
-is already public (flipped during the v1.0.0 launch, per plan update 9) — nothing
-outstanding there.
+First real-world dogfood of the installed skill (item 1 of the previous
+session's Next Actions): ran the full scan → enhance → rescan loop against
+`docs.doverunner.com` (the DoveRunner Docs Astro+Starlight+Cloudflare-Pages
+site, repo at `../docs-starlight`) — the skill's first use outside this repo
+and outside the synthetic `examples/` fixture. Baseline: `is-agentic` 68/100
+(D), `afdocs` 97/100 (A). `enhance .` correctly detected the stack and added
+`functions/_middleware.js` (the one fixer output the target didn't already
+have); everything else it supports (llms.txt endpoint, per-page `.md` route,
+Banner override) was already present from the target's own earlier work, and
+`enhance` correctly skipped those without overwriting. No auto-commit — diff
+was left for review as designed.
+
+Found real gaps in fixer coverage: three `is-agentic` checks
+(`metadata-completeness`'s `og:image`, `agent-instruction`'s "when to use"
+llms.txt section, and a homepage Organization `json-ld`) had no fixer, so
+they were hand-patched directly in the target repo instead. That's the
+signal to add them as real fixer capabilities — see Next Actions. Net result
+after a manual rescan trigger on is-agentic.com: 68 → 72 (D → C).
+
+Also found a real limitation in `rescan`: calling it against `is-agentic`
+twice — once right after `enhance` shipped, once after the target's
+production deploy went live — returned the *identical* cached result both
+times (same `scanned_at` timestamp), even though `curl` against the live
+site confirmed the fixes were already deployed. `is-agentic.com` is a hosted
+third-party scanner that caches per domain; our CLI has no lever to force a
+fresh crawl. The score only moved once the user manually clicked rescan on
+is-agentic.com's own page. `afdocs`, by contrast, re-crawls live every time
+(`rescan`'s own timestamp matched the actual invocation time) — this is an
+`is-agentic`-specific gotcha, not a general `rescan` bug.
 
 ---
 
 ## Next Actions
 
-1. Test the installed skill against a real, unrelated website project (the
-   original ask behind installing it at user level) — confirm it triggers
-   correctly and the `<skill-dir>`-relative commands actually work end-to-end
-   outside this repo, not just in the sanity-check subagents.
-2. Add fixers for additional frameworks/platforms as demand comes in (see
+1. Add three fixer capabilities to `astro-starlight.js` (hand-verified this
+   session on a live production site, not just the `examples/` fixture):
+   (a) `og:image` (+ ideally `og:type` if missing) meta tag via the Head
+   component override, (b) homepage Organization JSON-LD (name, url, logo,
+   sameAs, **and description** — `is-agentic` flagged missing `description`
+   even with name/url/logo present, confirm the exact required field set),
+   (c) an "when to use this" section injected into the generated `llms.txt`.
+2. Add an `agent-friendly-404` fixer for Cloudflare Pages — a custom 404
+   response with a short markdown recovery body (sitemap/llms.txt pointer)
+   to move that check from WARN/partial to full credit.
+3. Document (README or SKILL.md) that `is-agentic` results can lag a real
+   production change due to server-side caching with no forced-refresh
+   option from our CLI — tell users to manually rescan on is-agentic.com if
+   `siteready rescan` shows no movement they expect.
+4. Decide/document a policy for `org-schema-completeness` (`contactPoint`,
+   `address`) and `trust-anchors` on doc subdomains that intentionally defer
+   identity/legal pages to a separate corporate domain (this session's
+   target: `docs.doverunner.com` defers to `doverunner.com`) — right now
+   these just sit as permanent backlog with no way to mark them N/A.
+5. Test the installed skill against another unrelated real website project
+   to broaden dogfood coverage beyond this one Astro+Starlight site.
+6. Add fixers for additional frameworks/platforms as demand comes in (see
    CONTRIBUTING.md for the fixer contribution process).
-3. Consider expanding scanner coverage beyond afdocs + Vercel Is Agentic.
-4. Consider running SKILL.md's description through skill-creator's trigger-eval
-   optimizer (`references/schemas.md` / description-optimization loop) once it's
-   seen more real-world use — skipped this session as premature.
+7. Consider expanding scanner coverage beyond afdocs + Vercel Is Agentic.
 
 ---
 
 ## Open Issues
 
-- None currently tracked.
+- `is-agentic` scan results can be stale (server-side cache, no forced
+  refresh available) — see Last Session / Next Actions #3.
 
 ---
 

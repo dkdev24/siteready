@@ -28,10 +28,17 @@ async function stripFixerOutput(dir) {
 
   const configPath = path.join(dir, "astro.config.mjs");
   const source = await readFile(configPath, "utf8");
+  // \r?\n, not \n: git on Windows checks this file out with CRLF, and a
+  // strict \n match here silently fails to strip the Banner registration —
+  // caught by CI (windows-latest) leaving a dangling import to a file this
+  // function had just deleted.
   const stripped = source.replace(
-    /\n\t*components:\s*\{\n\t*Banner:\s*'\.\/src\/components\/Banner\.astro',\n\t*\},/,
+    /\r?\n\s*components:\s*\{\r?\n\s*Banner:\s*'\.\/src\/components\/Banner\.astro',\r?\n\s*\},/,
     ""
   );
+  if (stripped === source) {
+    throw new Error(`Failed to strip the Banner registration from ${configPath} — check the regex against its current content.`);
+  }
   await writeFile(configPath, stripped, "utf8");
 }
 

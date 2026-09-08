@@ -111,7 +111,7 @@ export function spawnNpxCli(packageSpec, args, { cwd } = {}) {
   const npxCli = resolveNpxCli();
   // Detached on POSIX so the caller can kill the whole process group (npx
   // itself spawns a child for the actual CLI) via `process.kill(-pid)`
-  // instead of leaving orphans behind — see `lib/local-server.js`.
+  // instead of leaving orphans behind — see `killProcessTree` below.
   const spawnOpts = { cwd, detached: process.platform !== "win32" };
 
   if (npxCli) {
@@ -124,4 +124,34 @@ export function spawnNpxCli(packageSpec, args, { cwd } = {}) {
   );
   const npxBin = process.platform === "win32" ? "npx.cmd" : "npx";
   return spawn(npxBin, ["--yes", packageSpec, ...args], { ...spawnOpts, shell: process.platform === "win32" });
+}
+
+/**
+ * Kills a process spawned via `spawnNpxCli` (and its child — npx spawns the
+ * actual CLI as its own subprocess), not just the immediate npx process.
+ * Shared by every long-running `spawnNpxCli` caller (`lib/local-server.js`'s
+ * `wrangler pages dev`, `lib/tunnel.js`'s `cloudflared`) since the teardown
+ * mechanics are identical regardless of which CLI is running.
+ */
+export function killProcessTree(child) {
+  return new Promise((resolve) => {
+    if (process.platform === "win32") {
+      // `child.kill()` alone leaves npx's own child process running on
+      // Windows — taskkill /t walks the tree.
+      spawn("taskkill", ["/pid", String(child.pid), "/t", "/f"]).on("exit", () => resolve());
+      return;
+    }
+    try {
+      // Negative pid = kill the whole process group `spawnNpxCli` created
+      // via `detached: true`, not just the immediate npx process.
+      process.kill(-child.pid, "SIGTERM");
+    } catch {
+      try {
+        child.kill("SIGTERM");
+      } catch {
+        /* already dead */
+      }
+    }
+    resolve();
+  });
 }

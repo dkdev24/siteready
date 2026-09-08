@@ -28,6 +28,86 @@ strict subset of the same Ora data). v1.3 adds a way to stay current with
 scanner-engine updates without editing siteready: `AFDOCS_VERSION`/
 `IS_AGENTIC_VERSION` env-var overrides plus `npm run check-scanner-versions`.
 
+**Not yet a version bump:** `loop` + Cloudflare Quick Tunnel support
+(`src/lib/tunnel.js`) is written, lint-clean, and doesn't regress the
+existing afdocs-only path (`verify-loop` still passes) — but its core
+mechanism (the tunnel actually being reachable) tested unreliable in this
+session (1 success in 4 attempts) and a fix-vs-fallback decision is
+pending. See Next Actions #1 (now the top item) before treating this as
+shipped. Package.json intentionally stays at `1.3.1` until that's resolved.
+
+---
+
+## Last Session (2026-09-09, loop + hosted scanners via tunnel — UNVERIFIED, decision pending)
+
+User's framing: `loop`'s scan→enhance→rescan→diff-report only works for
+afdocs (fetches the URL itself, `localhost` is fine); is-agentic/ora are
+*hosted* — their crawler runs on Vercel's/Ora's own infrastructure and can
+never reach `localhost` — so `loop` has hard-rejected them since v0.4,
+forcing a real deployment to validate a fix with those two. Asked whether
+that hurdle has a resolution short of production deployment or localhost.
+
+Landed on Cloudflare Quick Tunnels (`cloudflared tunnel --url`, no account/
+signup, ephemeral `*.trycloudflare.com` URL) as the mechanism — user chose
+this explicitly over `localtunnel` and over "just document the limitation."
+Built:
+- `src/lib/tunnel.js` (new): `startTunnel(localUrl)` spawns `cloudflared`
+  via `spawnNpxCli`, parses the `*.trycloudflare.com` URL from its log
+  output, self-checks reachability (`fetch`) before returning, plus a fixed
+  8s settle buffer (`PROPAGATION_BUFFER_MS`) — added after a first test hit
+  Ora returning `"Domain is not reachable"` on a scan attempted right after
+  the URL was printed, before the route had propagated to Ora's own network
+  path.
+- `killProcessTree` extracted from `lib/local-server.js` into
+  `lib/npx-runner.js` (shared, since `tunnel.js` needed the identical
+  Windows-`taskkill /t`-vs-POSIX-process-group teardown logic — no
+  behavior change to `local-server.js`, pure move).
+- `loop.js`: replaced the hard `throw` on `is-agentic`/`ora` with
+  `startScanTarget()` — starts the local server, and if a hosted scanner
+  was requested, layers a tunnel on top and scans through that URL instead.
+  Falls back to the plain local server (today's behavior) when only afdocs
+  is requested — **zero regression risk**, confirmed via `npm run
+  verify-loop` still passing after these changes.
+- `cli.js --help` updated to describe the tunnel behavior and its exposure
+  window.
+
+**Verification result: inconclusive, not a clean pass.** First full
+end-to-end test (`loop` against `examples/astro-cf-pages` with
+`--scanners ora`) failed: Ora's API returned `"Domain is not reachable"`.
+Root-caused to a propagation race (confirmed by hand: a `curl` against the
+same URL succeeded ~1s after cloudflared printed it, but Ora's crawler,
+hitting the tunnel from a different network path, hadn't converged yet) and
+added the reachability self-check + buffer above to fix it. Re-tested
+three more times (once through the real `loop`, twice via a standalone
+`startTunnel()` script) — all three hit a **DNS resolution failure**
+(`ENOTFOUND` for the `*.trycloudflare.com` hostname), reproduced identically
+via both `curl` and Node's `fetch` (ruling out a Node/`fetch`-specific
+bug). Net: 1 success out of 4 total attempts. cloudflared's own banner
+text says exactly this outright: "these account-less Tunnels have no
+uptime guarantee." Unclear how much of this is inherent to anonymous Quick
+Tunnels vs. this specific sandbox's network path — not something resolvable
+without testing from a normal, non-sandboxed network.
+
+Presented three options, none implemented pending the user's decision next
+session (see Next Actions #1):
+1. **Retry with a fresh tunnel on failure** (new random subdomain per
+   attempt — a failed resolution isn't obviously correlated with the next
+   attempt's subdomain, so a few retries should push effective reliability
+   much higher). Keeps zero-signup simplicity; adds latency on the unlucky
+   path. Not yet built.
+2. **Named Cloudflare Tunnel** (needs a free CF account +
+   `cloudflared tunnel login`, a real DNS record instead of an anonymous
+   quick-tunnel subdomain) — likely far more reliable, reintroduces the
+   account requirement Quick Tunnels exist to avoid.
+3. **Roll back** — drop `tunnel.js`/the `loop.js` wiring, restore the
+   hard-reject, document the limitation instead (real deployment still
+   required for is-agentic/ora validation, same as pre-this-session).
+
+Committed as WIP specifically because it's additive/opt-in and provably
+doesn't regress the default path — not because the feature itself is
+considered done. Do not describe "loop supports hosted scanners" as
+shipped/working until the reliability decision above is made and re-verified.
+
 ---
 
 ## Last Session (2026-09-09, value-proposition doc)
@@ -254,6 +334,16 @@ confirmed-live production deploy, with the concrete instruction to verify via
 
 ## Next Actions
 
+0. **[TOP PRIORITY, decision pending]** `loop`'s Cloudflare Quick Tunnel
+   support for hosted scanners (`src/lib/tunnel.js`, wired into `loop.js`)
+   tested unreliable this session — 1 success in 4 attempts, DNS resolution
+   failures on the `*.trycloudflare.com` hostname. Pick one (see Last
+   Session for full detail): (1) add retry-with-a-fresh-tunnel-per-attempt,
+   (2) switch to a named/authenticated Cloudflare Tunnel (needs a CF
+   account), or (3) roll back to the hard-reject and document the
+   limitation. Whichever is chosen, re-verify with a real `loop` run against
+   `examples/astro-cf-pages --scanners ora` (or `is-agentic`) before
+   considering this done or bumping the version.
 1. ~~Build a synthetic `examples/astro-cf-pages/` fixture~~ — done, see Last
    Session.
 2. Re-run `enhance` (plain-Astro fixer) against a **fresh** site that has

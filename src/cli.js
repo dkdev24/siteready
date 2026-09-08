@@ -54,8 +54,7 @@ Options (scan / rescan / loop):
                           (default: ${DEFAULT_SCANNERS.join(", ")} for scan/rescan — ora is opt-in,
                           since it's the same engine as is-agentic's full ranker and running both by
                           default just doubles the hosted-API cost for overlapping data; afdocs-only
-                          for loop, since is-agentic and ora are hosted services that can't reach a
-                          local preview server)
+                          for loop unless you opt in — see below)
   --port <n>              Local preview server port for loop (default: OS-assigned free port)
 
   AFDOCS_VERSION / IS_AGENTIC_VERSION env vars override those scanners' pinned CLI version for one
@@ -75,7 +74,12 @@ then writes a new report.json/report.md plus a diff-report.md/json comparing it 
 loop runs the whole scan -> enhance -> rescan -> diff-report cycle against a local repo checkout
 with no live deployment: builds the site, serves it locally (Cloudflare Pages via
 \`wrangler pages dev\`), scans it, applies the fixer, rebuilds, re-serves, re-scans, and writes a
-diff report — no manual steps, no live deployment.`);
+diff report — no manual steps, no live deployment.
+  --scanners is-agentic,ora (or afdocs,is-agentic,ora) for loop opens a Cloudflare Quick Tunnel
+          (no account needed) to the local preview server so those hosted scanners can reach it —
+          they run their own crawler on Vercel's/Ora's infrastructure, which can never reach
+          localhost otherwise. The site is briefly reachable by anyone with the random tunnel URL,
+          torn down right after the scan.`);
 }
 
 async function runScanCommand(target, args) {

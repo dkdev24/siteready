@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import net from "node:net";
 import path from "node:path";
-import { spawnNpxCli } from "./npx-runner.js";
+import { killProcessTree, spawnNpxCli } from "./npx-runner.js";
 
 /**
  * Asks the OS for a free TCP port instead of guessing one, so `loop` doesn't
@@ -66,29 +66,6 @@ async function waitForReady(url, { timeoutMs = 30_000, intervalMs = 500 } = {}) 
   );
 }
 
-function killTree(child) {
-  return new Promise((resolve) => {
-    if (process.platform === "win32") {
-      // `child.kill()` alone leaves npx's own child process (the actual
-      // wrangler CLI) running on Windows — taskkill /t walks the tree.
-      spawn("taskkill", ["/pid", String(child.pid), "/t", "/f"]).on("exit", () => resolve());
-      return;
-    }
-    try {
-      // Negative pid = kill the whole process group `spawnNpxCli` created
-      // via `detached: true`, not just the immediate npx process.
-      process.kill(-child.pid, "SIGTERM");
-    } catch {
-      try {
-        child.kill("SIGTERM");
-      } catch {
-        /* already dead */
-      }
-    }
-    resolve();
-  });
-}
-
 /**
  * Starts a local preview server for a repo's build output and resolves once
  * it's accepting connections. Supports Cloudflare Pages only
@@ -120,14 +97,14 @@ export async function startLocalServer(repoPath, { platform, distDir = "dist", p
   try {
     await waitForReady(url);
   } catch (err) {
-    await killTree(child);
+    await killProcessTree(child);
     throw exitError ?? err;
   }
 
   return {
     url,
     async stop() {
-      if (!exited) await killTree(child);
+      if (!exited) await killProcessTree(child);
     },
   };
 }

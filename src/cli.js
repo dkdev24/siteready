@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import path from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
-import { scanTarget, SUPPORTED_SCANNERS } from "./scan.js";
+import { scanTarget, SUPPORTED_SCANNERS, DEFAULT_SCANNERS } from "./scan.js";
 import { writeReport, writeRaw } from "./report.js";
 import { loadReport, buildDiffReport, writeDiffReport } from "./diff-report.js";
 import { enhance } from "./enhance.js";
@@ -51,9 +51,11 @@ Options (scan / rescan / loop):
   --sampling <strategy>   afdocs sampling strategy: random | deterministic | curated | none
                           (default: deterministic)
   --scanners <list>       Comma-separated scanner list (supported: ${SUPPORTED_SCANNERS.join(", ")})
-                          (default: all of them for scan/rescan; afdocs-only for loop, since
-                          is-agentic and ora are hosted services that can't reach a local preview
-                          server)
+                          (default: ${DEFAULT_SCANNERS.join(", ")} for scan/rescan — ora is opt-in,
+                          since it's the same engine as is-agentic's full ranker and running both by
+                          default just doubles the hosted-API cost for overlapping data; afdocs-only
+                          for loop, since is-agentic and ora are hosted services that can't reach a
+                          local preview server)
   --port <n>              Local preview server port for loop (default: OS-assigned free port)
 
 enhance requires a local checkout of the target site's own repo (not just a URL) — its fixes are
@@ -74,13 +76,13 @@ diff report — no manual steps, no live deployment.`);
 }
 
 async function runScanCommand(target, args) {
-  const unsupported = (args.scanners ?? SUPPORTED_SCANNERS).filter((s) => !SUPPORTED_SCANNERS.includes(s));
+  const unsupported = (args.scanners ?? DEFAULT_SCANNERS).filter((s) => !SUPPORTED_SCANNERS.includes(s));
   if (unsupported.length) {
     console.error(`Unsupported scanner(s): ${unsupported.join(", ")}. Supported: ${SUPPORTED_SCANNERS.join(", ")}`);
     process.exit(1);
   }
 
-  const scanners = args.scanners ?? SUPPORTED_SCANNERS;
+  const scanners = args.scanners ?? DEFAULT_SCANNERS;
   const outDir = args.out ?? outDirFor(target);
 
   console.log(`Scanning ${target} with: ${scanners.join(", ")}`);

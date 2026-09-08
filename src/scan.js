@@ -5,6 +5,13 @@ import { buildReport } from "./report.js";
 
 export const SUPPORTED_SCANNERS = ["is-agentic", "afdocs", "ora"];
 
+// ora and is-agentic hit the same underlying Ora API — is-agentic's score is
+// a strict subset (`include=essentials`) of ora's full 127-check ranker.
+// Running both by default doubles the hosted-API cost for overlapping data
+// with no fixer yet acting on ora's extra checks, so ora stays opt-in
+// (`--scanners ora`) until that changes.
+export const DEFAULT_SCANNERS = ["is-agentic", "afdocs"];
+
 /**
  * Runs the given scanners against a target and returns a normalized report,
  * plus each scanner's raw output keyed by name. Shared by the `scan` and

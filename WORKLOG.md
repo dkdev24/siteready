@@ -322,3 +322,32 @@ real live site end-to-end (adapter + CLI + report rendering) but has no
 fixture/CI coverage yet — `loop`/`verify-loop.js` can't reach hosted
 scanners at all, so this needs the same real-deploy step as HANDOFF.md's
 open Next Actions #2.
+
+---
+
+## v0.6.1 — ora Made Opt-In (Not a Default Scanner)
+
+**Date:** 2026-09-09
+
+### Changes
+
+- Added `DEFAULT_SCANNERS` (`is-agentic`, `afdocs`) to `src/scan.js`, distinct
+  from `SUPPORTED_SCANNERS` (all three). `ora` is now opt-in via
+  `--scanners ora` instead of running by default on every `scan`/`rescan`.
+- Reasoning (from user discussion): `is-agentic`'s score is computed from the
+  same Ora API with `include=essentials` — a strict subset of `ora`'s full
+  ranker, not independent data. With no fixer yet acting on `ora`'s extra
+  checks, running both by default just doubled hosted-API cost for
+  overlapping score data on every scan.
+- Updated `src/cli.js` help text and README.md (scanner table + a new Design
+  notes bullet) to document the opt-in status and the future consolidation
+  path: if an `ora`-specific fixer ever ships, retire `is-agentic.js` in
+  favor of `ora.js` requesting `include=essentials` in the same API call.
+- `package.json` bumped to `1.2.1` (patch — default-set behavior fix, no new
+  subsystem).
+
+### Status
+
+`scan`/`rescan` default to `is-agentic` + `afdocs`; `ora` available on
+request. No code changes to `ora.js` itself — this only changed which
+scanners run without `--scanners` specified.

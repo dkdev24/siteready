@@ -20,7 +20,7 @@ anything.
 
 | Piece | Status |
 |---|---|
-| Scanners | [afdocs](https://agentdocsspec.com/) (doc-heavy sites), [Vercel Is Agentic](https://is-agentic.com/) (any content site), [Ora](https://ora.ai/) (the engine behind Is Agentic — its full ranker, 127 checks incl. a payments layer Is Agentic's subset skips) — CLI-based or direct public API, no browser automation |
+| Scanners | [afdocs](https://agentdocsspec.com/) (doc-heavy sites), [Vercel Is Agentic](https://is-agentic.com/) (any content site) — both run by default. [Ora](https://ora.ai/) (the engine behind Is Agentic — its full ranker, 127 checks incl. a payments layer Is Agentic's subset skips) is opt-in (`--scanners ora`), see Design notes. CLI-based or direct public API, no browser automation |
 | Fixer | Astro + Starlight + Cloudflare Pages, and plain Astro (no Starlight) + Cloudflare Pages |
 | Loop | `scan → enhance → rescan → diff-report`, fully local (no live deployment needed) |
 | CI | Windows, macOS, and Linux, on every push — see `.github/workflows/ci.yml` |
@@ -138,6 +138,13 @@ framework having no fixer yet degrades to "unsupported," never breaks the pipeli
   directly against `POST https://ora.ai/api/scan?format=audit`. Rate-limited (10/min burst,
   30/day, 6 force-scans/day) — the adapter defaults `force: false` so repeated scans of the same
   URL lean on Ora's own 6-hour cache instead of burning quota.
+- **`ora` is opt-in, not in `DEFAULT_SCANNERS`.** `is-agentic`'s score is computed from the same
+  Ora API with `include=essentials` — it's a strict subset of `ora`'s full ranker, not an
+  independent measurement. Until a fixer targets some `ora`-specific check (ARD catalog, A2A agent
+  card, etc. — none of which the current fixers touch), running both by default would just double
+  the hosted-API cost for overlapping data. Pass `--scanners ora` explicitly to use it. If a fixer
+  for `ora`-specific checks ever ships, revisit retiring `is-agentic.js` in favor of `ora.js`
+  requesting `include=essentials` in the same call.
 - `detect-stack.js` + `enhance.js` + `fixers/*.js` + `platforms/*.js` split cleanly along a
   framework/platform axis: a fixer is framework-only (llms.txt, `.md` mirrors, a body-level
   directive), a platform module is platform-only (content-negotiation headers/Functions), and

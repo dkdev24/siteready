@@ -6,8 +6,8 @@ Cross-session context memory. Update this file at the end of every session.
 
 ## Current Version
 
-**0.6.0** (doc-tracking system's own version — see WORKLOG.md; the underlying
-CLI/engine is now at package.json's `1.2.0`, to be tagged `v1.2.0` in git)
+**0.6.1** (doc-tracking system's own version — see WORKLOG.md; the underlying
+CLI/engine is now at package.json's `1.2.1`, to be tagged `v1.2.1` in git)
 
 ---
 
@@ -63,6 +63,17 @@ Actions #1 for the plain-Astro fixer) — `verify-loop.js` only exercises
 `afdocs` today since `loop` can't reach hosted scanners at all. A
 live-URL smoke test would need the same "real deploy" prerequisite as
 Next Actions #2.
+
+**Follow-up same session:** user pushed back on `ora` being in the default
+scanner set — correctly pointed out `is-agentic`'s score is a strict subset
+of `ora`'s (same API, `include=essentials`), so running both by default on
+every `scan`/`rescan` just doubles hosted-API cost for overlapping data,
+with no fixer yet acting on `ora`'s extra checks to justify it. Added
+`DEFAULT_SCANNERS` (`is-agentic`, `afdocs`) separate from `SUPPORTED_SCANNERS`
+(all three) in `src/scan.js`; `ora` is now opt-in via `--scanners ora`.
+Documented the reasoning (and the future consolidation path — retire
+`is-agentic.js` in favor of `ora.js` + `include=essentials` if an
+`ora`-specific fixer ever ships) in README.md's Design notes.
 
 ---
 

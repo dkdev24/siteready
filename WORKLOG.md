@@ -279,3 +279,46 @@ Both Astro fixers now have automated, CI-covered reference fixtures via
 `npm run verify-loop`. HANDOFF.md Next Actions #1 closed. Next Actions #2
 (fresh real-site verification) still open, now with the added note that its
 score check should target individual afdocs checks, not `overall`.
+
+---
+
+## v0.6.0 — Third Scanner: Ora (Full Ranker Behind Vercel's Is Agentic)
+
+**Date:** 2026-09-08
+
+### Changes
+
+- Added `src/scanners/ora.js`. User found
+  https://ora.ai/blog/is-agentic-with-vercel: is-agentic.com is a Vercel
+  front end over Ora's public API (`POST /api/scan?include=essentials`,
+  80/20/5-point simplified scoring). This adapter calls the full ranker
+  instead — 127 checks across four layers (discovery, accessibility,
+  usability, payments) — via the same endpoint without the `include` filter,
+  using `format=audit` for the documented/versioned response shape. No CLI
+  exists for Ora, so this is the first scanner adapter to call `fetch()`
+  directly rather than going through `npx-runner.js`; the API is public and
+  keyless for reads.
+- Registered in `SUPPORTED_SCANNERS` (`src/scan.js`); added to `loop.js`'s
+  hosted-scanner guard (generalized from a single `is-agentic` check to a
+  list, since a second hosted-only scanner needed the same treatment).
+- Caught and fixed one bug via a real scan (`vercel.com`, both raw adapter
+  and full `node src/cli.js <url> --scanners ora` CLI path): Ora's `url`
+  response field is its own report-page URL, not the scanned site —
+  `finalUrl` is. `normalized.target` now reads `finalUrl`; added a
+  `reportUrl` field (matches `is-agentic.js`'s existing convention) carrying
+  the report-page URL separately.
+- README.md: scanner table, `raw/` output list, adapter-contract section
+  (documents the npx-runner exception for `ora.js` and why), and the
+  existing is-agentic caching caveat now notes Ora's API exposes a real
+  `force` param the adapter deliberately doesn't default to (rate-limited to
+  6 forced scans/day).
+- `package.json` bumped to `1.2.0` (minor — new scanner subsystem).
+
+### Status
+
+Three scanners now run side by side under one normalized report shape with
+zero changes to `report.js`/`diff-report.js`. `ora.js` verified against a
+real live site end-to-end (adapter + CLI + report rendering) but has no
+fixture/CI coverage yet — `loop`/`verify-loop.js` can't reach hosted
+scanners at all, so this needs the same real-deploy step as HANDOFF.md's
+open Next Actions #2.

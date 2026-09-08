@@ -1,8 +1,9 @@
 import { runAfdocsScan } from "./scanners/afdocs.js";
 import { runIsAgenticScan } from "./scanners/is-agentic.js";
+import { runOraScan } from "./scanners/ora.js";
 import { buildReport } from "./report.js";
 
-export const SUPPORTED_SCANNERS = ["is-agentic", "afdocs"];
+export const SUPPORTED_SCANNERS = ["is-agentic", "afdocs", "ora"];
 
 /**
  * Runs the given scanners against a target and returns a normalized report,
@@ -28,6 +29,8 @@ export async function scanTarget(target, scannerNames, { sampling = "determinist
       result = await runIsAgenticScan(target);
     } else if (scannerName === "afdocs") {
       result = await runAfdocsScan(target, { sampling });
+    } else if (scannerName === "ora") {
+      result = await runOraScan(target);
     }
     scannerResults.push(result);
     rawByScanner[scannerName] = result.raw;

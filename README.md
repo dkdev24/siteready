@@ -16,11 +16,11 @@ anything.
 4. Re-scan  — run the same scanners again, diff against baseline, produce a before/after report
 ```
 
-## Status: v1.1
+## Status: v1.2
 
 | Piece | Status |
 |---|---|
-| Scanners | [afdocs](https://agentdocsspec.com/) (doc-heavy sites), [Vercel Is Agentic](https://is-agentic.com/) (any content site) — both CLI-based, no browser automation |
+| Scanners | [afdocs](https://agentdocsspec.com/) (doc-heavy sites), [Vercel Is Agentic](https://is-agentic.com/) (any content site), [Ora](https://ora.ai/) (the engine behind Is Agentic — its full ranker, 127 checks incl. a payments layer Is Agentic's subset skips) — CLI-based or direct public API, no browser automation |
 | Fixer | Astro + Starlight + Cloudflare Pages, and plain Astro (no Starlight) + Cloudflare Pages |
 | Loop | `scan → enhance → rescan → diff-report`, fully local (no live deployment needed) |
 | CI | Windows, macOS, and Linux, on every push — see `.github/workflows/ci.yml` |
@@ -67,7 +67,7 @@ node src/cli.js loop ../my-astro-starlight-site
 Output (default `./out/<hostname-or-dir>-<timestamp>/`):
 - `report.md` — human-readable scorecard per scanner (overall score, category breakdown, failing/warning checks with fix hints)
 - `report.json` — normalized, machine-readable version of the same data
-- `raw/is-agentic.json`, `raw/afdocs.json` — the unmodified scanner CLI output, for debugging
+- `raw/is-agentic.json`, `raw/afdocs.json`, `raw/ora.json` — the unmodified scanner output, for debugging
 - `diff-report.md` / `diff-report.json` (from `rescan`, `diff-report`, or `loop`) — before/after
   score deltas plus per-check "Fixed" / "Regressed" / "Still failing" breakdowns
 
@@ -118,11 +118,11 @@ framework having no fixer yet degrades to "unsupported," never breaks the pipeli
 - The normalized schema (`{ target, generatedAt, scanners: { <name>: {...} } }`) holds multiple
   scanners side by side without a rewrite — adding a new scanner is a new entry under `scanners`,
   no changes to the ones already there.
-- `scanners/afdocs.js` and `scanners/is-agentic.js` are both instances of the adapter contract
-  every future scanner adapter should follow: export a `run*Scan(url, options)` that returns
-  `{ normalized, raw }`. `is-agentic`'s `issues[]` only lists non-passing checks (afdocs lists
-  every check it ran) — each adapter reconciles that into the same `checks[]`/`summary` shape so
-  `report.js` needs no scanner-specific branching.
+- `scanners/afdocs.js`, `scanners/is-agentic.js`, and `scanners/ora.js` are all instances of the
+  adapter contract every future scanner adapter should follow: export a `run*Scan(url, options)`
+  that returns `{ normalized, raw }`. `is-agentic`'s `issues[]` only lists non-passing checks
+  (afdocs and Ora list every check they ran) — each adapter reconciles that into the same
+  `checks[]`/`summary` shape so `report.js` needs no scanner-specific branching.
 - Both scanner CLIs are invoked at a **pinned version** (`afdocs@0.20.0`, `is-agentic@1.0.1`), not
   a bare package name — an unpinned `npx` call always fetches whatever's newest, and either CLI is
   young enough that a breaking JSON-schema change upstream could silently break every scan. Bump
@@ -132,6 +132,12 @@ framework having no fixer yet degrades to "unsupported," never breaks the pipeli
   instead of trusting a PATH-resolved `npx` (which can point at an entirely different Node/npm
   install), and it treats a scanned site's own failing checks (which make the scanner CLI exit
   non-zero) as the expected case, not a tool failure.
+- `scanners/ora.js` is the one exception to the npx-runner rule above: Ora
+  (https://ora.ai/, the engine Vercel's Is Agentic wraps with a simplified `include=essentials`
+  subset) has no CLI, only a public, keyless-for-reads API, so the adapter calls `fetch()`
+  directly against `POST https://ora.ai/api/scan?format=audit`. Rate-limited (10/min burst,
+  30/day, 6 force-scans/day) — the adapter defaults `force: false` so repeated scans of the same
+  URL lean on Ora's own 6-hour cache instead of burning quota.
 - `detect-stack.js` + `enhance.js` + `fixers/*.js` + `platforms/*.js` split cleanly along a
   framework/platform axis: a fixer is framework-only (llms.txt, `.md` mirrors, a body-level
   directive), a platform module is platform-only (content-negotiation headers/Functions), and
@@ -159,7 +165,9 @@ framework having no fixer yet degrades to "unsupported," never breaks the pipeli
   page, grep for the expected content) before concluding the fix didn't work — then, if it's
   confirmed live, either wait out the cache or manually trigger a rescan on is-agentic.com's own
   page. Its score has also shown double-digit swings scan-to-scan on an unchanged site — treat it as
-  noisier/less deterministic than afdocs, especially near category boundaries.
+  noisier/less deterministic than afdocs, especially near category boundaries. `ora.js` hits the
+  same underlying engine but its API does expose a `force` param to bypass the cache — `runOraScan`
+  just doesn't default to it, to conserve the 6/day force-scan quota.
 - **A hand-rolled markdown-mirror route (`.md.ts` serving `entry.body`/`doc.body` verbatim) will
   fail afdocs' `markdown-content-parity` check on any Astro site using the default markdown
   pipeline**, even when the served markdown is byte-for-byte the page's real source. Astro runs

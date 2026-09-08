@@ -20,11 +20,12 @@ export async function runLoop(
   if (!stack.supported) {
     throw new Error(`loop needs the same local repo checkout enhance needs. ${stack.reason}`);
   }
-  if (scanners.includes("is-agentic")) {
+  const hostedOnlyScanners = scanners.filter((s) => s === "is-agentic" || s === "ora");
+  if (hostedOnlyScanners.length) {
     throw new Error(
-      "loop scans a local preview server (no live deployment) — is-agentic's CLI submits to a hosted " +
-        "scan service that can't reach localhost. Use --scanners afdocs for loop, or scan/rescan a real " +
-        "deployed URL with is-agentic separately."
+      `loop scans a local preview server (no live deployment) — ${hostedOnlyScanners.join(", ")} ` +
+        "submit to a hosted scan service that can't reach localhost. Use --scanners afdocs for loop, " +
+        `or scan/rescan a real deployed URL with ${hostedOnlyScanners.join(", ")} separately.`
     );
   }
 

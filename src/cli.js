@@ -51,8 +51,9 @@ Options (scan / rescan / loop):
   --sampling <strategy>   afdocs sampling strategy: random | deterministic | curated | none
                           (default: deterministic)
   --scanners <list>       Comma-separated scanner list (supported: ${SUPPORTED_SCANNERS.join(", ")})
-                          (default: both for scan/rescan; afdocs-only for loop, since is-agentic
-                          can't reach a local preview server)
+                          (default: all of them for scan/rescan; afdocs-only for loop, since
+                          is-agentic and ora are hosted services that can't reach a local preview
+                          server)
   --port <n>              Local preview server port for loop (default: OS-assigned free port)
 
 enhance requires a local checkout of the target site's own repo (not just a URL) — its fixes are

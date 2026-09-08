@@ -6,21 +6,63 @@ Cross-session context memory. Update this file at the end of every session.
 
 ## Current Version
 
-**0.5.1** (doc-tracking system's own version — see WORKLOG.md; the underlying
-CLI/engine is now at package.json's `1.1.1`, to be tagged `v1.1.1` in git)
+**0.6.0** (doc-tracking system's own version — see WORKLOG.md; the underlying
+CLI/engine is now at package.json's `1.2.0`, to be tagged `v1.2.0` in git)
 
 ---
 
 ## Project Status
 
 siteready is a CLI orchestration + remediation layer for "agent-readiness" website
-scanning. It runs a site through multiple scanners (afdocs, Vercel Is Agentic),
+scanning. It runs a site through multiple scanners (afdocs, Vercel Is Agentic, Ora),
 normalizes results into one scorecard, auto-fixes issues its fixers support
 (Astro + Starlight, and now plain Astro without Starlight, both + Cloudflare
 Pages), then re-scans and produces a before/after diff — fully local, no live
 deployment required. v1.0 shipped the Astro+Starlight+Cloudflare-Pages fixer
 (fresh Starlight site: 0/100 F → 97/100 A on afdocs). v1.1 adds a second,
-intentionally-narrower fixer for plain Astro sites with no Starlight.
+intentionally-narrower fixer for plain Astro sites with no Starlight. v1.2 adds
+a third scanner, Ora (the engine behind Vercel's Is Agentic — its full
+127-check ranker instead of Is Agentic's simplified essentials-only subset).
+
+---
+
+## Last Session (2026-09-08, Ora scanner)
+
+Added `src/scanners/ora.js`: a third scanner adapter, direct-API (no CLI
+exists for Ora) against `POST https://ora.ai/api/scan?format=audit`,
+keyless for reads. Prompted by the user finding
+https://ora.ai/blog/is-agentic-with-vercel — is-agentic.com is a Vercel
+front end over this same Ora API with `include=essentials` (a simplified
+80/20/5-point subset); the full ranker scores 127 checks across four layers
+(discovery, accessibility, usability, payments), including an entire
+payments/checkout layer is-agentic's subset skips. Registered in
+`SUPPORTED_SCANNERS` (`src/scan.js`), and added to `loop.js`'s
+hosted-scanner-can't-reach-localhost guard alongside `is-agentic` (was a
+single `if`, now filters a list so a third hosted scanner doesn't need a
+third near-duplicate check).
+
+Verified against a real target (`https://vercel.com`) via both the raw
+adapter and the full `node src/cli.js <url> --scanners ora` CLI path —
+125 checks, correct score/grade/category rollup, `report.md` renders
+cleanly. One field-mapping bug caught this way: Ora's own `url` response
+field is its *report-page* URL (`https://ora.ai/vercel.com`), not the
+scanned site — the actually-scanned target is `finalUrl`. Fixed before
+committing; `normalized.target` now reads `finalUrl`, and a new
+`reportUrl` field carries Ora's `url` (matches `is-agentic.js`'s existing
+`reportUrl` convention).
+
+README.md updated: scanner table, `raw/` output list, adapter-contract
+section (new "exception to the npx-runner rule" note explaining why
+`ora.js` uses `fetch()` directly), and the existing `is-agentic` caching
+caveat now cross-references that Ora's API exposes a real `force` param
+(unlike is-agentic's CLI) — `runOraScan` just doesn't default to it, to
+conserve the API's 6-forced-scans/day quota.
+
+Not yet done: no CI fixture coverage for `ora.js` (parallel to Next
+Actions #1 for the plain-Astro fixer) — `verify-loop.js` only exercises
+`afdocs` today since `loop` can't reach hosted scanners at all. A
+live-URL smoke test would need the same "real deploy" prerequisite as
+Next Actions #2.
 
 ---
 
@@ -137,7 +179,17 @@ confirmed-live production deploy, with the concrete instruction to verify via
    to broaden dogfood coverage.
 6. Add fixers for additional frameworks/platforms as demand comes in (see
    CONTRIBUTING.md for the fixer contribution process).
-7. Consider expanding scanner coverage beyond afdocs + Vercel Is Agentic.
+7. ~~Consider expanding scanner coverage beyond afdocs + Vercel Is Agentic.~~ —
+   done, see Last Session (Ora scanner). No CI/fixture coverage for it yet
+   (same "needs a real deploy" gap as #2, since `loop` can't reach hosted
+   scanners at all) — fold into #2's real-deploy verification, or give it its
+   own pass once #2 happens.
+8. Confirm `ora.js`'s per-check `id`s are stable across the `format=audit`
+   schema version the docs mention — the adapter was built off the OpenAPI
+   spec + docs prose, not a pinned schema version number the way afdocs/
+   is-agentic pin CLI versions, since Ora is API-only with no version to pin
+   against. Worth a periodic sanity re-check against `ora.ai/api/openapi.json`
+   if `normalize()` ever starts producing unexpected nulls.
 
 ---
 

@@ -22,7 +22,11 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # 22, not 20: the example fixture's Astro dependency requires
+          # Node >=22.12.0 (this floated in on a caret-range bump — verify-loop
+          # failed identically on all three OSes on Node 20, confirming this
+          # wasn't a platform-specific issue).
+          node-version: 22
 
       - name: Install dependencies
         run: npm install

@@ -155,6 +155,12 @@ scanner/fixer needs its own OS branching:
   `shell: true` is set — plain executables don't need this, but anything invoked through npm's
   Windows batch-file shims does. `lib/local-server.js` sets it conditionally on `win32`.
 
+**Node version note:** siteready itself only needs Node ≥18, but `examples/astro-starlight-cf-pages`
+pins a floating Astro range that currently requires **Node ≥22.12** to build — CI runs on Node 22
+for exactly this reason. If `loop`/`verify-loop.js` fails with "Node.js vX is not supported by
+Astro," that's the fixture's own dependency, not siteready — upgrade Node, don't downgrade Astro's
+declared range.
+
 ## Contributing
 
 Adding a scanner adapter or a framework fixer is additive — new files under `scanners/` or

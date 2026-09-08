@@ -104,6 +104,16 @@
 > actually confirmed the macOS leg of §11's requirement, since no Mac was available to test by
 > hand. Tagged `v1.0.0`, then flipped the repo from private to public:
 > **https://github.com/dkdev24/siteready**. v1.0 is done; all future siteready work happens there.
+>
+> **2026-09-08 update 10:** the §9 scaffolding checklist's remaining item — `SKILL.md` — started
+> in this session. Since siteready is meant to be usable both as a plain CLI and as a Claude Code
+> skill (§1), `SKILL.md` at the repo root wraps the same four CLI commands (`scan`/`enhance`/
+> `rescan`/`loop`) with orchestration instructions for an agent: when to run each step, the
+> local-checkout precondition on `enhance` (§1, §6), and the safety rule that `enhance` never
+> commits/pushes on its own (§6). Written directly against `README.md`/`CONTRIBUTING.md` rather
+> than through the full skill-creator eval loop — the underlying tool is deterministic CLI
+> commands with no subjective output to benchmark, so that process is overkill here; a quick vibe
+> check against a couple of real prompts is enough before shipping it.
 
 ---
 

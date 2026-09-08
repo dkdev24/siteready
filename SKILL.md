@@ -13,8 +13,17 @@ description: >-
 
 # siteready
 
-`siteready` is a CLI, not a library — every step below is `node src/cli.js <command> ...` run from
-this repo. It orchestrates existing scanners and applies existing fixes; it is not itself a scanner.
+`siteready` is a CLI, not a library — every step below is `node <skill-dir>/src/cli.js <command>
+...`, where `<skill-dir>` is this skill's own base directory (the one you were told when this skill
+loaded — siteready's own repo, wherever it's installed). It orchestrates existing scanners and
+applies existing fixes; it is not itself a scanner.
+
+**Run every command with the target site's own project as your working directory, not from inside
+`<skill-dir>`.** siteready is a separate tool from whatever site you're testing — only the `node
+.../src/cli.js` invocation itself points into `<skill-dir>`; every path *argument* (a repo checkout
+for `enhance`/`loop`, `--out`, `--baseline`) should be relative to the target project (`.` for "the
+project I'm already in"), so reports and diffs land next to the site being tested, not buried
+inside the siteready installation.
 
 ## Decide which commands apply
 
@@ -35,23 +44,23 @@ and `diff-report` never need this — they only ever hit the live URL over HTTP.
 ## Commands
 
 ```bash
-# scan + report (any public URL — no local repo needed)
-node src/cli.js https://example.com
-node src/cli.js https://example.com --out ./out/my-scan --sampling deterministic
-node src/cli.js https://example.com --scanners is-agentic   # or: afdocs, or both (default)
+# scan + report (any public URL — no local repo needed, run from wherever)
+node <skill-dir>/src/cli.js https://example.com
+node <skill-dir>/src/cli.js https://example.com --out ./out/my-scan --sampling deterministic
+node <skill-dir>/src/cli.js https://example.com --scanners is-agentic   # or: afdocs, or both (default)
 
-# enhance a local repo checkout — requires the actual repo on disk, see above
-node src/cli.js enhance ../my-astro-starlight-site
-node src/cli.js enhance ../my-astro-starlight-site --pr   # open a PR instead of an unstaged diff
+# enhance a local repo checkout — run with that repo as your cwd, target it as "."
+node <skill-dir>/src/cli.js enhance .
+node <skill-dir>/src/cli.js enhance . --pr   # open a PR instead of an unstaged diff
 
 # rescan a URL against a prior baseline report (re-runs that baseline's own scanner set)
-node src/cli.js rescan https://example.com --baseline ./out/example.com-.../report.json
+node <skill-dir>/src/cli.js rescan https://example.com --baseline ./out/example.com-.../report.json
 
 # diff two already-written report.json files directly
-node src/cli.js diff-report ./out/before/report.json ./out/after/report.json
+node <skill-dir>/src/cli.js diff-report ./out/before/report.json ./out/after/report.json
 
 # full local loop: scan -> enhance -> rescan -> diff-report, no live deployment, no manual steps
-node src/cli.js loop ../my-astro-starlight-site
+node <skill-dir>/src/cli.js loop .
 ```
 
 Read every command's own output before deciding what to do next — `enhance` prints exactly what it

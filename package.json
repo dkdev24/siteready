@@ -1,0 +1,23 @@
+{
+  "name": "siteready",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "description": "Scan a website with agent-readiness scanners, generate a baseline scorecard report, enhance a local repo checkout with a matching framework/platform fixer, then re-scan and diff against the baseline. v0.4 closes the loop: rescan + diff-report + an end-to-end local `loop` command, plus an opt-in PR-based apply flow for enhance.",
+  "license": "MIT",
+  "bin": {
+    "siteready": "./src/cli.js"
+  },
+  "scripts": {
+    "scan": "node src/cli.js",
+    "enhance": "node src/cli.js enhance",
+    "rescan": "node src/cli.js rescan",
+    "diff-report": "node src/cli.js diff-report",
+    "loop": "node src/cli.js loop",
+    "lint": "node scripts/check-syntax.js",
+    "verify-loop": "node scripts/verify-loop.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

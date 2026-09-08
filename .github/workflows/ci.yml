@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    # ubuntu-latest is best-effort only — windows-latest and macos-latest are
+    # the required MVP platforms (Windows/npx-resolution and macOS/Homebrew
+    # layout bugs are what this matrix exists to catch).
+    continue-on-error: ${{ matrix.os == 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Syntax check (lint)
+        run: npm run lint
+
+      - name: Scan smoke test (both scanners, stable target)
+        run: node src/cli.js https://example.com --scanners is-agentic,afdocs --sampling none --out ./out/ci-smoke
+
+      - name: Full loop smoke test (asserts the fixer improves the score)
+        run: node scripts/verify-loop.js

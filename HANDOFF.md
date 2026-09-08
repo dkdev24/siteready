@@ -6,8 +6,8 @@ Cross-session context memory. Update this file at the end of every session.
 
 ## Current Version
 
-**0.7.0** (doc-tracking system's own version — see WORKLOG.md; the underlying
-CLI/engine is now at package.json's `1.3.0`, to be tagged `v1.3.0` in git)
+**0.7.1** (doc-tracking system's own version — see WORKLOG.md; the underlying
+CLI/engine is now at package.json's `1.3.1`, to be tagged `v1.3.1` in git)
 
 ---
 
@@ -27,6 +27,27 @@ made opt-in rather than default in v1.2.1, since is-agentic's score is a
 strict subset of the same Ora data). v1.3 adds a way to stay current with
 scanner-engine updates without editing siteready: `AFDOCS_VERSION`/
 `IS_AGENTIC_VERSION` env-var overrides plus `npm run check-scanner-versions`.
+
+---
+
+## Last Session (2026-09-09, weekly CI wiring)
+
+Wired `check-scanner-versions.js` into `.github/workflows/scanner-version-check.yml`
+(scheduled, Monday 09:00 UTC + `workflow_dispatch`): runs the script, and
+when a pin is behind, files or updates a single `scanner-version-drift`-labeled
+issue (`actions/github-script`, dedupes by searching for an existing open
+issue with that label before creating a new one) — never bumps the pin
+itself, same "re-verify `normalize()` first" rule as everywhere else.
+
+Added a small `GITHUB_OUTPUT` write to `check-scanner-versions.js` (only
+fires when that env var is set, i.e. inside Actions — a plain local
+`npm run check-scanner-versions` is unaffected) so the workflow can branch
+on `steps.check.outputs.behind` without re-parsing stdout. Validated the
+new workflow YAML with `npx js-yaml` (no local `yamllint`/PyYAML available)
+and confirmed the `GITHUB_OUTPUT` write with a manual env-var simulation
+before committing — couldn't dry-run the actual scheduled trigger locally.
+`package.json` bumped to `1.3.1` (patch — wiring existing tooling into CI,
+not new functionality).
 
 ---
 
@@ -239,6 +260,12 @@ confirmed-live production deploy, with the concrete instruction to verify via
    is-agentic pin CLI versions, since Ora is API-only with no version to pin
    against. Worth a periodic sanity re-check against `ora.ai/api/openapi.json`
    if `normalize()` ever starts producing unexpected nulls.
+9. Confirm `.github/workflows/scanner-version-check.yml` actually fires and
+   behaves as intended once merged to `main` — validated the YAML structure
+   and the `GITHUB_OUTPUT`/`behind` signal locally, but the scheduled
+   trigger, the label auto-creation on first issue, and the dedupe-by-label
+   search were never exercised against a real Actions run. Trigger it once
+   manually via `workflow_dispatch` after merge and check the result.
 
 ---
 

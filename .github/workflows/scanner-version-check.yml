@@ -1,0 +1,73 @@
+name: Scanner Version Check
+
+# Agent-readiness scanning is a young, fast-moving category — afdocs/
+# is-agentic are pinned to exact CLI versions (see AGENTS.md's Standing
+# Development Rules) to avoid a breaking upstream schema change silently
+# corrupting normalize(). This runs scripts/check-scanner-versions.js on a
+# schedule and files/updates a tracking issue when a pin falls behind npm's
+# latest — it never bumps the pin itself, since that needs normalize()
+# re-verified against the new output first.
+on:
+  schedule:
+    - cron: "0 9 * * 1" # Monday 09:00 UTC
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Check scanner versions
+        id: check
+        run: npm run check-scanner-versions | tee scanner-versions.txt
+
+      - name: File or update tracking issue on drift
+        if: steps.check.outputs.behind == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const report = fs.readFileSync("scanner-versions.txt", "utf8");
+            const label = "scanner-version-drift";
+            const title = "Scanner CLI version(s) behind npm latest";
+            const body =
+              "`npm run check-scanner-versions` found a pinned scanner CLI behind npm's latest release:\n\n" +
+              "```\n" + report + "\n```\n\n" +
+              "Bump `PINNED_VERSION` in the relevant `src/scanners/*.js` file deliberately and " +
+              "re-verify `normalize()` against the new output (`npm run verify-loop`, plus a manual " +
+              "scan) before committing — see AGENTS.md's Standing Development Rules.";
+
+            const { data: existing } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              labels: label,
+            });
+
+            if (existing.length) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing[0].number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: [label],
+              });
+            }

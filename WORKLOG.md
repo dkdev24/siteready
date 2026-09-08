@@ -386,3 +386,35 @@ Three scanners, two of them CLI-pinned with an escape hatch + drift
 visibility, one (`ora`) always current by construction. No scanner pins
 were actually behind at the time of this change (`check-scanner-versions`
 reported both up to date).
+
+---
+
+## v0.7.1 — Weekly CI Wiring for check-scanner-versions.js
+
+**Date:** 2026-09-09
+
+### Changes
+
+- Added `.github/workflows/scanner-version-check.yml`: runs
+  `check-scanner-versions.js` on a schedule (Monday 09:00 UTC) plus
+  `workflow_dispatch`, and files or updates a single
+  `scanner-version-drift`-labeled GitHub issue when a pin is behind
+  (`actions/github-script`, searches for an existing open issue with that
+  label before creating a new one — no duplicate weekly issues). Never
+  bumps the pin itself.
+- `scripts/check-scanner-versions.js` now writes `behind=<bool>` to
+  `$GITHUB_OUTPUT` when that env var is set, so the workflow step can
+  branch on `steps.check.outputs.behind` instead of re-parsing stdout.
+  Local `npm run check-scanner-versions` is unaffected (no `GITHUB_OUTPUT`
+  outside Actions).
+- Validated the workflow YAML with `npx js-yaml` and the `GITHUB_OUTPUT`
+  write with a manual env-var simulation — no local GitHub Actions runner
+  available to dry-run the scheduled trigger itself; flagged in HANDOFF.md
+  Next Actions #9 to confirm via a manual `workflow_dispatch` after merge.
+- `package.json` bumped to `1.3.1` (patch — wiring already-shipped tooling
+  into CI, not new functionality).
+
+### Status
+
+`check-scanner-versions.js` (v0.7.0) now runs unattended weekly instead of
+only on manual invocation. Not yet confirmed against a real Actions run.

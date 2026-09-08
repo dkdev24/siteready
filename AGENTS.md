@@ -47,9 +47,11 @@ Two documents maintain cross-session state. Read them at the start of every sess
   adapter's `normalize()` against the new output — both CLIs are young enough for breaking schema
   changes upstream. `npm run check-scanner-versions` reports drift against npm's latest without
   changing the pin; `AFDOCS_VERSION`/`IS_AGENTIC_VERSION` env vars override one run's version
-  without editing source, for trying a newer release ahead of a deliberate bump. Ora (`scanners/ora.js`)
-  has no pin at all — it's a live API call, so it's always on the latest engine by construction; this
-  scheme only applies to versioned CLI-based scanners.
+  without editing source, for trying a newer release ahead of a deliberate bump.
+  `.github/workflows/scanner-version-check.yml` runs that check weekly and files/updates a
+  `scanner-version-drift`-labeled issue on drift — it never bumps the pin itself. Ora
+  (`scanners/ora.js`) has no pin at all — it's a live API call, so it's always on the latest engine
+  by construction; this scheme only applies to versioned CLI-based scanners.
 - **`enhance` never commits or pushes on its own.** It writes to the working tree and either opens
   a PR (`--pr`, needs a git remote + authenticated `gh`) or leaves an unstaged diff for review. It
   also never overwrites a file the target repo already has — it skips and reports instead.

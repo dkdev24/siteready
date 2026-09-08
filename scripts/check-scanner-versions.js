@@ -4,6 +4,12 @@
 // normalize() re-verified against the new output first (see
 // scanners/afdocs.js's PACKAGE_SPEC comment and AGENTS.md). ora has no
 // pinned version to check — it's a live API, always the latest engine.
+//
+// Run weekly by .github/workflows/scanner-version-check.yml, which files/
+// updates a GitHub issue when `behind` comes back true. That's the only
+// consumer of the GITHUB_OUTPUT write below — plain `npm run
+// check-scanner-versions` locally ignores it (GITHUB_OUTPUT is unset).
+import { appendFileSync } from "node:fs";
 import { PACKAGE_NAME as AFDOCS_NAME, PINNED_VERSION as AFDOCS_PINNED } from "../src/scanners/afdocs.js";
 import { PACKAGE_NAME as IS_AGENTIC_NAME, PINNED_VERSION as IS_AGENTIC_PINNED } from "../src/scanners/is-agentic.js";
 
@@ -40,6 +46,10 @@ async function main() {
       "\nA pin is behind. Bump PINNED_VERSION in the scanner's file deliberately and re-verify " +
         "normalize() against the new output (npm run verify-loop, plus a manual scan) before committing."
     );
+  }
+
+  if (process.env.GITHUB_OUTPUT) {
+    appendFileSync(process.env.GITHUB_OUTPUT, `behind=${behind}\n`);
   }
 }
 

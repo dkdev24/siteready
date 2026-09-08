@@ -6,8 +6,8 @@ Cross-session context memory. Update this file at the end of every session.
 
 ## Current Version
 
-**0.6.1** (doc-tracking system's own version — see WORKLOG.md; the underlying
-CLI/engine is now at package.json's `1.2.1`, to be tagged `v1.2.1` in git)
+**0.7.0** (doc-tracking system's own version — see WORKLOG.md; the underlying
+CLI/engine is now at package.json's `1.3.0`, to be tagged `v1.3.0` in git)
 
 ---
 
@@ -22,7 +22,45 @@ deployment required. v1.0 shipped the Astro+Starlight+Cloudflare-Pages fixer
 (fresh Starlight site: 0/100 F → 97/100 A on afdocs). v1.1 adds a second,
 intentionally-narrower fixer for plain Astro sites with no Starlight. v1.2 adds
 a third scanner, Ora (the engine behind Vercel's Is Agentic — its full
-127-check ranker instead of Is Agentic's simplified essentials-only subset).
+127-check ranker instead of Is Agentic's simplified essentials-only subset;
+made opt-in rather than default in v1.2.1, since is-agentic's score is a
+strict subset of the same Ora data). v1.3 adds a way to stay current with
+scanner-engine updates without editing siteready: `AFDOCS_VERSION`/
+`IS_AGENTIC_VERSION` env-var overrides plus `npm run check-scanner-versions`.
+
+---
+
+## Last Session (2026-09-09, scanner-version freshness)
+
+User asked how to keep scan results on the latest scanner engines without
+having to update siteready itself — agent-readiness scanning is a young,
+fast-moving category. Answer split by scanner type:
+
+- **Ora already solved:** no version pin at all — direct API call, so every
+  scan is automatically on Ora's latest engine. Nothing to build.
+- **afdocs/is-agentic are deliberately pinned** (see AGENTS.md's Standing
+  Development Rules) because both CLIs are young enough that a breaking
+  JSON-schema change upstream could silently corrupt `normalize()`. Floating
+  the pin re-opens exactly the risk it exists to prevent, so didn't do that.
+
+Built the middle path instead, in both `scanners/afdocs.js` and
+`scanners/is-agentic.js`:
+- Exported `PACKAGE_NAME`/`PINNED_VERSION` constants (previously an
+  unexported single `PACKAGE_SPEC` string).
+- `PACKAGE_SPEC` now resolves as `` `${PACKAGE_NAME}@${process.env.<X>_VERSION ?? PINNED_VERSION}` ``
+  — an `AFDOCS_VERSION`/`IS_AGENTIC_VERSION` env var overrides one run's
+  CLI version with no source edit, while the default stays pinned for
+  everyone else.
+- Added `scripts/check-scanner-versions.js` (`npm run check-scanner-versions`):
+  fetches each package's latest version from `registry.npmjs.org/<pkg>/latest`
+  and diffs against the pinned constant — reports drift, changes nothing.
+  Doesn't cover `ora` (nothing to check — no pin exists).
+
+Documented the decision in three places so it doesn't need re-explaining:
+AGENTS.md's pinned-CLI-versions rule, README.md's Design notes (new
+"Staying current without floating the pin" bullet), and `cli.js --help`.
+`package.json` bumped to `1.3.0` (minor — new tooling/mechanism, not just a
+fix).
 
 ---
 

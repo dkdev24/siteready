@@ -4,8 +4,14 @@ import { runNpxCli } from "../lib/npx-runner.js";
 // fetches whatever's newest, and this CLI is young enough that a breaking
 // JSON-schema change upstream could silently break every scan. Bump
 // deliberately, re-verify normalize() against the new output, don't let npx
-// auto-float this.
-const PACKAGE_SPEC = "afdocs@0.20.0";
+// auto-float this. `npm run check-scanner-versions` reports when this pin
+// falls behind npm's latest published version.
+export const PACKAGE_NAME = "afdocs";
+export const PINNED_VERSION = "0.20.0";
+// One-off override for trying a newer release without editing source — the
+// default stays pinned for everyone else. Re-verify normalize() before
+// promoting an override to the new PINNED_VERSION.
+const PACKAGE_SPEC = `${PACKAGE_NAME}@${process.env.AFDOCS_VERSION ?? PINNED_VERSION}`;
 
 /**
  * Runs the afdocs CLI (https://agentdocsspec.com/) against a URL and returns

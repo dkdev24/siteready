@@ -351,3 +351,38 @@ open Next Actions #2.
 `scan`/`rescan` default to `is-agentic` + `afdocs`; `ora` available on
 request. No code changes to `ora.js` itself — this only changed which
 scanners run without `--scanners` specified.
+
+---
+
+## v0.7.0 — Scanner-Version Freshness (Override + Drift Check)
+
+**Date:** 2026-09-09
+
+### Changes
+
+- `scanners/afdocs.js` and `scanners/is-agentic.js` now export
+  `PACKAGE_NAME`/`PINNED_VERSION`; `PACKAGE_SPEC` resolves from an
+  `AFDOCS_VERSION`/`IS_AGENTIC_VERSION` env var when set, falling back to
+  the pinned constant otherwise. Lets a single run try a newer CLI release
+  with no source edit, without changing the safe pinned default.
+- Added `scripts/check-scanner-versions.js` (`npm run
+  check-scanner-versions`): compares each pinned version against npm's
+  latest published release (`registry.npmjs.org/<pkg>/latest`) and reports
+  drift. Read-only — never touches the pin; a bump still needs
+  `normalize()` re-verified against the new output first, per the existing
+  pinned-CLI-versions rule.
+- Motivation: user asked how to stay on the latest scanner engines without
+  updating siteready itself, given agent-readiness scanning is a young,
+  fast-moving category. `ora.js` already had no version to pin (direct API
+  call); this closes the same gap for the two CLI-based scanners without
+  reopening the silent-schema-break risk the pin exists to prevent.
+- Documented in AGENTS.md (Standing Development Rules), README.md (new
+  Design notes bullet), and `cli.js --help`.
+- `package.json` bumped to `1.3.0` (minor — new tooling/mechanism).
+
+### Status
+
+Three scanners, two of them CLI-pinned with an escape hatch + drift
+visibility, one (`ora`) always current by construction. No scanner pins
+were actually behind at the time of this change (`check-scanner-versions`
+reported both up to date).

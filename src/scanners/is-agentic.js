@@ -1,8 +1,10 @@
 import { runNpxCli } from "../lib/npx-runner.js";
 
 // Pinned for the same reason afdocs.js pins its packageSpec — see that
-// file's comment.
-const PACKAGE_SPEC = "is-agentic@1.0.1";
+// file's comment. Same override/check-version pattern too.
+export const PACKAGE_NAME = "is-agentic";
+export const PINNED_VERSION = "1.0.1";
+const PACKAGE_SPEC = `${PACKAGE_NAME}@${process.env.IS_AGENTIC_VERSION ?? PINNED_VERSION}`;
 
 /**
  * Runs the Vercel Is Agentic CLI (https://is-agentic.com/) against a URL and

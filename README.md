@@ -127,6 +127,13 @@ framework having no fixer yet degrades to "unsupported," never breaks the pipeli
   a bare package name — an unpinned `npx` call always fetches whatever's newest, and either CLI is
   young enough that a breaking JSON-schema change upstream could silently break every scan. Bump
   deliberately, re-verify the adapter's `normalize()` against the new output.
+- **Staying current without floating the pin.** Agent-readiness scanning is a new-enough category
+  that these engines update often, so two things soften the pin above without weakening it:
+  `npm run check-scanner-versions` diffs the pinned versions against npm's latest and tells you
+  when a bump is due (doesn't change anything itself); `AFDOCS_VERSION=x.y.z` /
+  `IS_AGENTIC_VERSION=x.y.z` env vars override the version for one run, so you can try a newer
+  release ahead of a deliberate bump without editing source. `ora.js` needs neither — it's a
+  direct API call with no version to pin, so it's always on Ora's latest engine automatically.
 - **Every scanner adapter must invoke its CLI through `src/lib/npx-runner.js`**, not its own
   `child_process` call — it resolves npm's `npx-cli.js` relative to the running Node binary
   instead of trusting a PATH-resolved `npx` (which can point at an entirely different Node/npm

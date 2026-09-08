@@ -58,6 +58,9 @@ Options (scan / rescan / loop):
                           local preview server)
   --port <n>              Local preview server port for loop (default: OS-assigned free port)
 
+  AFDOCS_VERSION / IS_AGENTIC_VERSION env vars override those scanners' pinned CLI version for one
+  run, no source edit needed. \`npm run check-scanner-versions\` reports when the pins are behind npm.
+
 enhance requires a local checkout of the target site's own repo (not just a URL) — its fixes are
 source-file edits, so there's no way to apply them against a URL alone. Supports one fixer: Astro +
 Starlight + Cloudflare Pages. It never commits or pushes unless --pr is passed explicitly; without

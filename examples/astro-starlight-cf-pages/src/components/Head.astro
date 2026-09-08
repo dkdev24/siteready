@@ -1,0 +1,28 @@
+---
+import Default from '@astrojs/starlight/components/Head.astro';
+import type { Props } from '@astrojs/starlight/props';
+import { getEntry } from 'astro:content';
+
+// `starlightRoute.id` is the docs collection slug — '' for the
+// default-locale homepage. Route data lives on `Astro.locals`, not
+// `Astro.props`, on current Starlight versions.
+const isHomepage = Astro.locals.starlightRoute?.id === '';
+const ogImage = new URL('/favicon.svg', Astro.site).href;
+
+const homeEntry = isHomepage ? await getEntry('docs', 'index') : null;
+
+const organizationSchema = {
+	'@context': 'https://schema.org',
+	'@type': 'Organization',
+	name: "My Docs",
+	url: "https://siteready-example.pages.dev",
+	logo: ogImage,
+	sameAs: ["https://github.com/withastro/starlight"],
+	...(homeEntry?.data.description ? { description: homeEntry.data.description } : {}),
+};
+---
+<Default {...Astro.props} />
+<meta property="og:image" content={ogImage} />
+{isHomepage && (
+	<script type="application/ld+json" set:html={JSON.stringify(organizationSchema)} />
+)}

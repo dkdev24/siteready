@@ -91,6 +91,92 @@ import Default from '@astrojs/starlight/components/Banner.astro';
 <Default><slot /></Default>
 `;
 
+// `is-agentic`'s `metadata-completeness` and `json-ld`/`org-schema-completeness`
+// checks want an og:image tag site-wide and an Organization schema on the
+// homepage. The org's name/url/social links aren't guessable — they're read
+// out of the site's own `starlight({ title, social })` config by
+// `extractOrgInfo` and baked in as literals below. If that extraction comes
+// up empty (non-standard config layout), we still emit the og:image tag but
+// skip the JSON-LD block rather than publish a schema with invented data.
+function buildHeadOverride({ name, url, sameAs }) {
+  const hasOrgInfo = Boolean(name && url);
+
+  const orgSetup = hasOrgInfo
+    ? `
+const homeEntry = isHomepage ? await getEntry('docs', 'index') : null;
+
+const organizationSchema = {
+	'@context': 'https://schema.org',
+	'@type': 'Organization',
+	name: ${JSON.stringify(name)},
+	url: ${JSON.stringify(url)},
+	logo: ogImage,
+	sameAs: ${JSON.stringify(sameAs ?? [])},
+	...(homeEntry?.data.description ? { description: homeEntry.data.description } : {}),
+};`
+    : "";
+
+  const jsonLdMarkup = hasOrgInfo
+    ? `
+{isHomepage && (
+	<script type="application/ld+json" set:html={JSON.stringify(organizationSchema)} />
+)}`
+    : "";
+
+  return `---
+import Default from '@astrojs/starlight/components/Head.astro';
+import type { Props } from '@astrojs/starlight/props';
+import { getEntry } from 'astro:content';
+
+// \`starlightRoute.id\` is the docs collection slug — '' for the
+// default-locale homepage. Route data lives on \`Astro.locals\`, not
+// \`Astro.props\`, on current Starlight versions.
+const isHomepage = Astro.locals.starlightRoute?.id === '';
+const ogImage = new URL('/favicon.svg', Astro.site).href;
+${orgSetup}
+---
+<Default {...Astro.props} />
+<meta property="og:image" content={ogImage} />${jsonLdMarkup}
+`;
+}
+
+// Starlight's own 404-page convention: a \`404.md\`/\`.mdx\` in the docs
+// collection replaces the framework's generic not-found page. Kept
+// deliberately generic (no product-specific section links) since a fixer
+// can't know the site's own navigation structure.
+const NOT_FOUND_PAGE = `---
+title: Page Not Found
+description: The page you requested doesn't exist.
+template: splash
+editUrl: false
+---
+
+This page doesn't exist — it may have moved or been renamed.
+
+- Start from the [homepage](/)
+- Check [\`/llms.txt\`](/llms.txt) for a machine-readable index of this site
+`;
+
+// Pulls the org's name/url/social links out of the site's own
+// \`starlight({ title, social })\` config via regex — same string-patching
+// approach \`patchAstroConfig\` already uses below, not a full AST parse.
+// ponytail: regex extraction, breaks on unusual config formatting — swap for
+// an AST-based parse (e.g. recast) if that ever bites.
+function extractOrgInfo(source) {
+  const titleMatch = source.match(/title:\s*(['"\`])((?:(?!\1).)*)\1/);
+  const siteMatch = source.match(/site:\s*(['"\`])((?:(?!\1).)*)\1/);
+  const socialBlockMatch = source.match(/social:\s*\[([\s\S]*?)\]/);
+  const sameAs = socialBlockMatch
+    ? Array.from(socialBlockMatch[1].matchAll(/href:\s*(['"\`])((?:(?!\1).)*)\1/g)).map((m) => m[2])
+    : [];
+
+  return {
+    name: titleMatch?.[2],
+    url: siteMatch?.[2],
+    sameAs,
+  };
+}
+
 /**
  * Applies the Astro+Starlight framework-side agent-readiness fixes to a
  * local repo checkout: llms.txt generation, .md mirror routes, and a
@@ -106,9 +192,23 @@ export async function applyAstroStarlightFixes(repoPath) {
   const skipped = [];
   const warnings = [];
 
+  const configPath = ["astro.config.mjs", "astro.config.ts", "astro.config.js"]
+    .map((f) => path.join(repoPath, f))
+    .find((f) => existsSync(f));
+  const configSource = configPath ? await readFile(configPath, "utf8") : "";
+  const orgInfo = extractOrgInfo(configSource);
+  if (configPath && !(orgInfo.name && orgInfo.url)) {
+    warnings.push(
+      `Could not read both \`title\` and \`site\` out of ${configPath} — Head.astro was written without an ` +
+        "Organization JSON-LD block. Add name/url manually if you want full org-schema credit."
+    );
+  }
+
   await writeIfAbsent(path.join(repoPath, "src/pages/llms.txt.ts"), LLMS_TXT_ENDPOINT, written, skipped);
   await writeIfAbsent(path.join(repoPath, "src/pages/[...slug].md.ts"), MD_MIRROR_ENDPOINT, written, skipped);
   await writeIfAbsent(path.join(repoPath, "src/components/Banner.astro"), BANNER_OVERRIDE, written, skipped);
+  await writeIfAbsent(path.join(repoPath, "src/components/Head.astro"), buildHeadOverride(orgInfo), written, skipped);
+  await writeIfAbsent(path.join(repoPath, "src/content/docs/404.md"), NOT_FOUND_PAGE, written, skipped);
 
   const configResult = await patchAstroConfig(repoPath);
   written.push(...configResult.written);
@@ -151,30 +251,36 @@ async function patchAstroConfig(repoPath) {
     );
   }
 
-  if (/Banner\s*:\s*['"`]\.\/src\/components\/Banner\.astro['"`]/.test(source)) {
-    skipped.push(`${configPath} (Banner override already registered)`);
+  const componentOverrides = [
+    { key: "Banner", value: "./src/components/Banner.astro" },
+    { key: "Head", value: "./src/components/Head.astro" },
+  ];
+  const toRegister = componentOverrides.filter(
+    ({ key, value }) => !new RegExp(`${key}\\s*:\\s*['"\`]${value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}['"\`]`).test(source)
+  );
+
+  if (toRegister.length === 0) {
+    skipped.push(`${configPath} (Banner/Head overrides already registered)`);
     return { written, skipped, warnings };
   }
 
   const starlightCallMatch = source.match(/starlight\(\s*\{/);
   if (!starlightCallMatch) {
-    warnings.push(`Could not find a \`starlight({ ... })\` call in ${configPath} — register the Banner override manually.`);
+    warnings.push(`Could not find a \`starlight({ ... })\` call in ${configPath} — register the overrides manually.`);
     return { written, skipped, warnings };
   }
 
+  const entries = toRegister.map(({ key, value }) => `\n\t\t\t\t${key}: '${value}',`).join("");
   const componentsBlockMatch = source.match(/components\s*:\s*\{/);
   if (componentsBlockMatch) {
     const insertAt = componentsBlockMatch.index + componentsBlockMatch[0].length;
-    source = source.slice(0, insertAt) + `\n\t\t\t\tBanner: './src/components/Banner.astro',` + source.slice(insertAt);
+    source = source.slice(0, insertAt) + entries + source.slice(insertAt);
   } else {
     const insertAt = starlightCallMatch.index + starlightCallMatch[0].length;
-    source =
-      source.slice(0, insertAt) +
-      `\n\t\t\tcomponents: {\n\t\t\t\tBanner: './src/components/Banner.astro',\n\t\t\t},` +
-      source.slice(insertAt);
+    source = source.slice(0, insertAt) + `\n\t\t\tcomponents: {${entries}\n\t\t\t},` + source.slice(insertAt);
   }
 
   await writeFile(configPath, source, "utf8");
-  written.push(`${configPath} (registered Banner override)`);
+  written.push(`${configPath} (registered ${toRegister.map((c) => c.key).join(", ")} override${toRegister.length > 1 ? "s" : ""})`);
   return { written, skipped, warnings };
 }

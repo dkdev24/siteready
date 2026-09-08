@@ -88,3 +88,71 @@ exercise the fixer. Confirmed the fixer's "skip what's already there, never
 overwrite" behavior works correctly against a site with prior organic
 history. Fixer capability gaps and the is-agentic caching behavior are now
 tracked in HANDOFF.md rather than being one-off manual patches next time.
+
+---
+
+## v0.4.0 — Fixer Coverage: og:image, Organization JSON-LD, agent-friendly 404
+
+**Date:** 2026-09-08
+
+### Changes
+
+Closed the three fixer gaps identified in v0.3.0 (HANDOFF.md Next Actions
+#1-2), all in `src/fixers/astro-starlight.js`:
+
+- Added a `Head.astro` override template (site-wide `og:image` meta tag,
+  homepage-only Organization JSON-LD) — `writeIfAbsent`'d, same as the
+  existing Banner override.
+- Added an `extractOrgInfo(source)` helper: regex-extracts `title`/`site`/
+  `social[].href` out of the target's own `starlight({...})` config and
+  bakes them into the written Head.astro as literals (name/url/sameAs).
+  `description` is read live at request time via `getEntry('docs', 'index')`
+  instead of extracted, since the homepage's own frontmatter description is
+  already reliably present and stays in sync automatically. If `title`/
+  `site` can't be found, the fixer still writes the og:image tag but skips
+  the JSON-LD block and returns a warning — never invents org data.
+- Added a `NOT_FOUND_PAGE` template written to `src/content/docs/404.md`
+  (Starlight's own 404-page convention) — a short, deliberately generic
+  recovery body (homepage link + `/llms.txt` pointer only, no product-specific
+  section links a fixer can't know about).
+- Generalized `patchAstroConfig` from Banner-only to a list of component
+  overrides (`Banner`, `Head`), each independently skip-if-already-registered,
+  sharing one `components: {}` block insert/creation path.
+- Updated `scripts/verify-loop.js`'s `stripFixerOutput` to also strip
+  `Head.astro`, `404.md`, and the `Head:` config line so the CI loop test
+  still exercises a genuine before/after across all seven fixer outputs.
+- Applied the new fixer to `examples/astro-starlight-cf-pages` (the
+  checked-in reference fixture) so it stays a complete "fully enhanced"
+  target, consistent with the four pre-existing fixer outputs already
+  committed there.
+
+### Verification
+
+- `Astro.props.id` does **not** carry the homepage slug on current Starlight
+  (0.42) — it's `Astro.locals.starlightRoute?.id === ''`; caught this only by
+  actually building the fixture and grepping the output HTML for the JSON-LD
+  script tag (it was silently absent on the first pass). `Astro.props` route
+  data access is deprecated in favor of `Astro.locals.starlightRoute` per
+  `@astrojs/starlight/props.ts`'s own deprecation note — worth remembering
+  for any future Head/Banner-style override work.
+- Ran a full `enhance` → `npm install` → `astro build` on both a scratch copy
+  of the fixture and the checked-in fixture itself; confirmed in the built
+  HTML: `og:image` present on every page, Organization JSON-LD present only
+  on `/index.html` with `name`/`url`/`logo`/`sameAs`/`description` all
+  populated from the fixture's own config + frontmatter, and `/404.html`
+  carrying the recovery body.
+- `node scripts/check-syntax.js` and `node scripts/verify-loop.js` both pass
+  (afdocs score 0 → 96 on the stripped-and-rebuilt fixture).
+- Not re-verified against `is-agentic` (the scanner these three fixes
+  actually target) — that scanner is a live, third-party, non-deterministic
+  service (see v0.3.0's caching note); `verify-loop.js` only asserts against
+  `afdocs`, which doesn't score these checks.
+
+### Status
+
+All three fixer gaps from the docs.doverunner.com dogfood are now real,
+tested fixer capabilities rather than one-off hand patches. Next real-world
+validation is re-running `enhance` against a *fresh* (never hand-patched)
+Astro+Starlight+Cloudflare-Pages site and confirming the `is-agentic`
+`metadata-completeness`/`json-ld`/`agent-friendly-404` checks move as
+expected — see HANDOFF.md Next Actions.

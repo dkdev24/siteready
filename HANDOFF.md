@@ -6,7 +6,7 @@ Cross-session context memory. Update this file at the end of every session.
 
 ## Current Version
 
-**0.2.0** (doc-tracking system's own version — see WORKLOG.md; the underlying
+**0.4.0** (doc-tracking system's own version — see WORKLOG.md; the underlying
 CLI/engine remains at package.json's `1.0.0`, tagged `v1.0.0` in git)
 
 ---
@@ -26,24 +26,34 @@ from 0/100 (F) to 97/100 (A) on afdocs.
 
 ## Last Session
 
-First real-world dogfood of the installed skill (item 1 of the previous
-session's Next Actions): ran the full scan → enhance → rescan loop against
-`docs.doverunner.com` (the DoveRunner Docs Astro+Starlight+Cloudflare-Pages
-site, repo at `../docs-starlight`) — the skill's first use outside this repo
-and outside the synthetic `examples/` fixture. Baseline: `is-agentic` 68/100
-(D), `afdocs` 97/100 (A). `enhance .` correctly detected the stack and added
-`functions/_middleware.js` (the one fixer output the target didn't already
-have); everything else it supports (llms.txt endpoint, per-page `.md` route,
-Banner override) was already present from the target's own earlier work, and
-`enhance` correctly skipped those without overwriting. No auto-commit — diff
-was left for review as designed.
+Closed the fixer-coverage gaps found in the v0.3.0 dogfood session against
+`docs.doverunner.com` (see WORKLOG.md v0.4.0). Added to `astro-starlight.js`:
+a `Head.astro` override (site-wide `og:image`, homepage-only Organization
+JSON-LD with name/url/logo/sameAs auto-extracted from the target's own
+`starlight({title, social})` config, `description` read live from the
+homepage's own frontmatter), a `src/content/docs/404.md` with a short
+agent-recovery body (homepage + `/llms.txt` links), and generalized
+`patchAstroConfig` to register both `Banner` and `Head` overrides. Applied
+the result to the checked-in `examples/astro-starlight-cf-pages` fixture so
+it stays a complete reference target, and updated
+`scripts/verify-loop.js`'s strip step to match.
 
-Found real gaps in fixer coverage: three `is-agentic` checks
-(`metadata-completeness`'s `og:image`, `agent-instruction`'s "when to use"
-llms.txt section, and a homepage Organization `json-ld`) had no fixer, so
-they were hand-patched directly in the target repo instead. That's the
-signal to add them as real fixer capabilities — see Next Actions. Net result
-after a manual rescan trigger on is-agentic.com: 68 → 72 (D → C).
+Real gotcha hit and fixed: `Astro.props.id` does **not** carry the homepage
+route slug on current Starlight (0.42) — route data lives on
+`Astro.locals.starlightRoute` now (`Astro.props` for route data is
+deprecated per `@astrojs/starlight/props.ts`). Only caught by actually
+building the fixture and grepping the HTML output; the first version
+silently never rendered the JSON-LD block. Lesson: for any Head/Banner-style
+override work, verify against a real `astro build`, not just a syntax check
+— an Astro override that reads the wrong prop/local fails silently at
+runtime with no compile-time signal.
+
+**Not yet done**: re-verifying these three fixes against the live
+`is-agentic` scanner on a fresh site (only verified via local `astro build`
+HTML inspection + the `afdocs`-only CI loop so far — see Next Actions #1).
+Separately, this session's `is-agentic` rescans of `docs.doverunner.com`
+itself swung 68 → 72 → 62 with no site changes between the last two scans —
+logged as scanner-side volatility, not a regression, see Open Issues.
 
 Also found a real limitation in `rescan`: calling it against `is-agentic`
 twice — once right after `enhance` shipped, once after the target's
@@ -60,16 +70,19 @@ is-agentic.com's own page. `afdocs`, by contrast, re-crawls live every time
 
 ## Next Actions
 
-1. Add three fixer capabilities to `astro-starlight.js` (hand-verified this
-   session on a live production site, not just the `examples/` fixture):
-   (a) `og:image` (+ ideally `og:type` if missing) meta tag via the Head
-   component override, (b) homepage Organization JSON-LD (name, url, logo,
-   sameAs, **and description** — `is-agentic` flagged missing `description`
-   even with name/url/logo present, confirm the exact required field set),
-   (c) an "when to use this" section injected into the generated `llms.txt`.
-2. Add an `agent-friendly-404` fixer for Cloudflare Pages — a custom 404
-   response with a short markdown recovery body (sitemap/llms.txt pointer)
-   to move that check from WARN/partial to full credit.
+1. Re-run `enhance` against a **fresh** (never hand-patched) Astro+Starlight+
+   Cloudflare-Pages site and confirm on `is-agentic` that
+   `metadata-completeness` (og:image), `json-ld`/`org-schema-completeness`,
+   and `agent-friendly-404` actually move — v0.4.0 added these fixers and
+   proved them via `astro build` output inspection + the `afdocs`-only CI
+   loop, but never against the live `is-agentic` scanner end-to-end (that
+   scanner is non-deterministic/cached — see Open Issues — so this needs a
+   real before/after on a real deploy, not just a local build check).
+2. The "when to use this" `llms.txt` section (originally Next Actions #1c)
+   is **not** a generic fixer candidate — it requires product-specific prose
+   (what the site's product areas are) that a fixer can't invent. Leave as
+   manual guidance (SKILL.md / README) rather than fixer scope, unless a
+   safe generic heuristic turns up.
 3. Document (README or SKILL.md) that `is-agentic` results can lag a real
    production change due to server-side caching with no forced-refresh
    option from our CLI — tell users to manually rescan on is-agentic.com if
@@ -91,6 +104,16 @@ is-agentic.com's own page. `afdocs`, by contrast, re-crawls live every time
 
 - `is-agentic` scan results can be stale (server-side cache, no forced
   refresh available) — see Last Session / Next Actions #3.
+- `is-agentic`'s score has shown double-digit swings (68 → 72 → 62) across
+  scans of the same unchanged-in-the-interim site (`docs.doverunner.com`),
+  concentrated in its API-surface `essential`/`recommended` checks
+  (openapi-spec, oauth-support, json-error-responses, etc.) — checks that
+  are structurally inapplicable to a docs-only site with no public API.
+  Looks like scoring/weighting volatility (possibly LLM-judged) on that
+  scanner's end, not something our fixer output caused — the two checks we
+  did target (`json-ld`, `agent-friendly-404`) both moved the *right*
+  direction across that same window. No action item beyond awareness; can't
+  do anything about a third party's scoring stability from our side.
 
 ---
 

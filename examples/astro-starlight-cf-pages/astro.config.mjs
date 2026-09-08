@@ -10,6 +10,7 @@ export default defineConfig({
 			title: 'My Docs',
 			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/withastro/starlight' }],
 			components: {
+				Head: './src/components/Head.astro',
 				Banner: './src/components/Banner.astro',
 			},
 			sidebar: [

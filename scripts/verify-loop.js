@@ -18,6 +18,8 @@ async function stripFixerOutput(dir) {
     "src/pages/llms.txt.ts",
     "src/pages/[...slug].md.ts",
     "src/components/Banner.astro",
+    "src/components/Head.astro",
+    "src/content/docs/404.md",
     "functions/_middleware.js",
   ];
   for (const rel of filesToRemove) {
@@ -29,15 +31,16 @@ async function stripFixerOutput(dir) {
   const configPath = path.join(dir, "astro.config.mjs");
   const source = await readFile(configPath, "utf8");
   // \r?\n, not \n: git on Windows checks this file out with CRLF, and a
-  // strict \n match here silently fails to strip the Banner registration —
+  // strict \n match here silently fails to strip the Banner/Head registration —
   // caught by CI (windows-latest) leaving a dangling import to a file this
   // function had just deleted.
-  const stripped = source.replace(
+  let stripped = source.replace(/\r?\n\s*Head:\s*'\.\/src\/components\/Head\.astro',/, "");
+  stripped = stripped.replace(
     /\r?\n\s*components:\s*\{\r?\n\s*Banner:\s*'\.\/src\/components\/Banner\.astro',\r?\n\s*\},/,
     ""
   );
   if (stripped === source) {
-    throw new Error(`Failed to strip the Banner registration from ${configPath} — check the regex against its current content.`);
+    throw new Error(`Failed to strip the Banner/Head registration from ${configPath} — check the regex against its current content.`);
   }
   await writeFile(configPath, stripped, "utf8");
 }

@@ -1,9 +1,9 @@
 {
   "name": "siteready",
-  "version": "0.4.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Scan a website with agent-readiness scanners, generate a baseline scorecard report, enhance a local repo checkout with a matching framework/platform fixer, then re-scan and diff against the baseline. v0.4 closes the loop: rescan + diff-report + an end-to-end local `loop` command, plus an opt-in PR-based apply flow for enhance.",
+  "description": "Scan a website with agent-readiness scanners (afdocs, Vercel Is Agentic), get a unified scorecard, auto-fix supported issues (Astro + Starlight + Cloudflare Pages), then re-scan and diff against the baseline -- fully local, no live deployment required to verify the loop.",
   "license": "MIT",
   "bin": {
     "siteready": "./src/cli.js"

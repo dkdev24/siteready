@@ -16,13 +16,14 @@ anything.
 4. Re-scan  — run the same scanners again, diff against baseline, produce a before/after report
 ```
 
-## Status: v0.4 (pre-1.0)
+## Status: v1.0
 
 | Piece | Status |
 |---|---|
 | Scanners | [afdocs](https://agentdocsspec.com/) (doc-heavy sites), [Vercel Is Agentic](https://is-agentic.com/) (any content site) — both CLI-based, no browser automation |
 | Fixer | Astro + Starlight + Cloudflare Pages |
 | Loop | `scan → enhance → rescan → diff-report`, fully local (no live deployment needed) |
+| CI | Windows, macOS, and Linux, on every push — see `.github/workflows/ci.yml` |
 | Other frameworks/platforms | Not yet — additive, by demand (see Contributing) |
 
 **Real numbers:** the Astro+Starlight+Cloudflare-Pages fixer takes a fresh Starlight site from

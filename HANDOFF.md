@@ -30,6 +30,35 @@ scanner-engine updates without editing siteready: `AFDOCS_VERSION`/
 
 ---
 
+## Last Session (2026-09-09, value-proposition doc)
+
+User asked a sharp question: since every scanner already returns a
+`fix`/`recommendation` string per failing check, does siteready still add
+anything over an agent with repo access just calling the scanners directly
+and acting on that text? Talked it through, then wrote the conclusion into
+README.md as a new "Why use this, instead of pointing an agent at the
+scanners directly?" section (right after Status, before Usage — read before
+Usage instructions, not buried after them). Docs-only change, no version
+bump — nothing about the running tool changed.
+
+The honest conclusion, now in the README: the scan/report/normalization
+layer is genuinely weaker as a pitch in an agent-native world (an agent
+doesn't need one unified JSON schema across three scanners — it can read
+each one's own `fix` field directly). The real, defensible value is the
+**fixers** — turning a one-line scanner suggestion into idempotent,
+cross-platform-verified code, backed by this project's own history of real
+bugs an ad hoc fix would've hit (`smartQuotes()`'s smartypants-parity bug,
+the false-positive `.md.ts` heuristic, the CRLF fixture-stripping bug,
+`taskkill /t`, `is-agentic`'s caching trap, Ora's `url`-vs-`finalUrl` trap)
+— plus the local **loop** proving a fix worked before anything ships. Also
+wrote the honest limit: outside the Astro(+Starlight)+Cloudflare-Pages
+combos a fixer covers, siteready is just a wrapper around scanner output
+today — which reframes the roadmap as "fixer/platform coverage is the
+moat," not scanner count (ties back to `ora` being made opt-in rather than
+a fourth default scanner).
+
+---
+
 ## Last Session (2026-09-09, weekly CI wiring)
 
 Wired `check-scanner-versions.js` into `.github/workflows/scanner-version-check.yml`

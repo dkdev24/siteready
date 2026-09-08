@@ -42,6 +42,47 @@ notes" below for why). Verified against a real production Astro (non-Starlight) 
 site: correctly detects the stack, skips everything already present, and a second `enhance` run is
 a clean no-op.
 
+## Why use this, instead of pointing an agent at the scanners directly?
+
+Every scanner here already returns a `fix`/`recommendation` string on each failing check — so an
+agent with repo access could, in principle, call `afdocs`/`is-agentic`/Ora directly and act on that
+text itself, no siteready in the loop. Worth asking honestly where that leaves this tool, because
+the answer isn't the same for every layer of it.
+
+**The scan/report layer is genuinely weaker in an agent-native world.** Normalizing three scanners'
+different JSON shapes into one scorecard is mostly a *human-readability* win (`report.md`, a diffable
+schema) — an agent doesn't care that afdocs and is-agentic disagree on field names; it can just read
+both raw outputs and act on each `fix` field. If your only user is an agent, not a person reading a
+report, this part of siteready is convenience, not unique capability.
+
+**The fixers are where the real value is, and it isn't close.** A scanner's `fix` field is a
+one-line suggestion — "add an llms.txt directive," "serve markdown on `.md` URLs." Turning that into
+working code is where the actual difficulty lives, and this project's own history is the evidence:
+`fixers/astro.js`'s `smartQuotes()` exists because Astro's default `remark-smartypants` curls quotes
+on rendered HTML only, silently failing afdocs' `markdown-content-parity` check on 43–49% of a real
+site's blog posts — a plausible-looking hand fix would have missed that entirely. Add the false-positive
+`.md.ts`-detection heuristic that had to be corrected once, the CRLF-vs-`\n` fixture-stripping bug
+caught by Windows CI, `taskkill /t` for orphaned `wrangler` processes, `is-agentic`'s server-side
+caching trap (a confirmed-live fix can rescan as unchanged), and Ora's `url` field being a
+report-page link rather than the scanned site (see `scanners/ora.js`). An agent improvising a fix
+from a scanner's one-sentence suggestion has to rediscover every one of those the hard way, against
+a real site, in production. siteready's fixers are that already-paid-for cost, applied idempotently
+(skip what already exists, never overwrite), verified cross-platform in CI.
+
+**The loop is the other asset an ad hoc fix session doesn't have.** `scan → enhance → rescan →
+diff-report` proves a fix worked — locally, before anything ships, with no live deployment needed
+(`examples/*/README.md` reproduce real before/after numbers this way). An agent applying suggestions
+by hand has no equivalent: it has to deploy live and diff two scans itself, and it won't know about
+`is-agentic`'s caching trap above unless it's already been burned by it once.
+
+**Where this argument fully favors "just use an agent directly": outside the framework/platform
+combos a fixer covers.** Today that's Astro (with or without Starlight) + Cloudflare Pages only —
+anything else and `enhance` reports `unsupported`, and siteready really is just a nicer wrapper
+around scanner output for that site. That's the honest scope limit, and it's also the roadmap: this
+tool's value scales with fixer/platform coverage (see Contributing), not with scanner count — `ora`
+was deliberately made opt-in rather than a fourth default scanner for exactly this reason (see
+Design notes).
+
 ## Usage
 
 ```bash

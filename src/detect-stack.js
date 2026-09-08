@@ -23,7 +23,7 @@ export async function detectStack(repoPath) {
   }
 
   const deps = { ...pkg.dependencies, ...pkg.devDependencies };
-  const framework = deps.astro && deps["@astrojs/starlight"] ? "astro-starlight" : null;
+  const framework = deps.astro ? (deps["@astrojs/starlight"] ? "astro-starlight" : "astro") : null;
 
   let platform = null;
   if (existsSync(path.join(repoPath, "wrangler.toml")) || existsSync(path.join(repoPath, "wrangler.jsonc"))) {
@@ -41,10 +41,10 @@ export async function detectStack(repoPath) {
     platform = "cloudflare-pages";
   }
 
-  const supported = framework === "astro-starlight" && platform === "cloudflare-pages";
+  const supported = (framework === "astro-starlight" || framework === "astro") && platform === "cloudflare-pages";
   const reason = supported
     ? null
-    : `No fixer for framework=${framework ?? "unknown"} + platform=${platform ?? "unknown"} yet (v0.3 supports astro-starlight + cloudflare-pages only)`;
+    : `No fixer for framework=${framework ?? "unknown"} + platform=${platform ?? "unknown"} yet (supports astro-starlight and plain astro, both + cloudflare-pages only)`;
 
   return { framework, platform, supported, reason };
 }

@@ -156,3 +156,86 @@ validation is re-running `enhance` against a *fresh* (never hand-patched)
 Astro+Starlight+Cloudflare-Pages site and confirming the `is-agentic`
 `metadata-completeness`/`json-ld`/`agent-friendly-404` checks move as
 expected — see HANDOFF.md Next Actions.
+
+---
+
+## v0.5.0 — Plain-Astro Fixer + Documented is-agentic Caching / smartypants Parity Gotchas
+
+**Date:** 2026-09-08
+
+### Changes
+
+Dogfooded siteready against a real production Astro (no Starlight) +
+Cloudflare Pages personal site during an unrelated agent-readiness fix
+session there, then generalized what was learned back into siteready itself:
+
+- Added `src/fixers/astro.js`, `applyAstroFixes(repoPath)` — the framework
+  fixer for plain Astro sites with no `@astrojs/starlight` dependency:
+  - `src/pages/404.astro` — real not-found page (Astro's own convention),
+    written only if absent.
+  - `public/robots.txt` — `Allow: /` for all agents, plus a `Sitemap:` line
+    only when both a `site` value and `@astrojs/sitemap` are found in
+    `astro.config.*` (never invents a sitemap URL that doesn't exist).
+  - `src/utils/smartquotes.ts` + targeted warnings — written only if the
+    repo has at least one `*.md.ts` route under `src/pages` that echoes a
+    collection entry's raw `.body`/`entry.body` back verbatim and doesn't
+    already reference "smart quotes"; each such route gets a named warning
+    to wrap its served body in `smartQuotes()`. Deliberately does not edit
+    the route itself — fixers only ever add new files, per CONTRIBUTING.md.
+- `src/detect-stack.js`: `framework` is now `"astro-starlight"` (has
+  `@astrojs/starlight`), `"astro"` (has `astro`, no Starlight), or `null`.
+  `supported` now covers both, still gated on `platform === "cloudflare-pages"`.
+- `src/enhance.js`: dispatches to the matching framework fixer via a
+  `FRAMEWORK_FIXERS` lookup instead of hardcoding
+  `applyAstroStarlightFixes` — the platform fixer call is unchanged and
+  already framework-agnostic.
+- Documented two real scanner/gotcha findings from the dogfood session in
+  README.md ("Design notes") and SKILL.md:
+  - **`is-agentic` caching**: rescanning right after a confirmed-live deploy
+    returned the *identical* cached result (same `scanned_at`) as the scan
+    taken before the deploy — closes the v0.4.0 Next Actions #3 item that had
+    been open since the first time this was observed against
+    `docs.doverunner.com`. `afdocs` re-crawls live every time and doesn't
+    have this problem.
+  - **markdown-content-parity vs. Astro's default smartypants**: a `.md.ts`
+    route serving a collection entry's raw body will fail afdocs'
+    `markdown-content-parity` check on quote-heavy content even when the
+    served markdown is byte-for-byte correct, because Astro's default
+    `remark-smartypants` curls quotes/apostrophes on rendered HTML only, not
+    on the raw collection body. Root cause found by `curl`-diffing the live
+    `.md` route against the live rendered page; this is what `smartQuotes()`
+    exists to close. A smaller residual gap on Markdown-footnote-heavy posts
+    (`[^1]` source vs. a bare rendered number) looks like a structural limit
+    of that specific check rather than something fixable.
+
+### Verification
+
+- `node scripts/check-syntax.js` passes.
+- Manually verified (not yet a `scripts/verify-loop.js`-covered fixture — see
+  Next Actions): `rsync`'d a real production Astro+Cloudflare-Pages site into
+  a scratch directory and ran `enhance` against the copy twice.
+  - First run: correctly detected `astro + cloudflare-pages`; wrote
+    `public/robots.txt` (with the correct `Sitemap:` URL, extracted from the
+    site's own `astro.config.mjs`) and `functions/_middleware.js`; correctly
+    skipped `src/pages/404.astro` (already present in the target) and did
+    **not** write `smartquotes.ts` or warn about anything, because the
+    target's two real markdown-mirror routes already referenced
+    `smartQuotes()` by hand and its index/listing/about routes correctly
+    don't match the `.body`-echoing heuristic.
+  - Caught and fixed one false-positive round before that: an earlier
+    version of the heuristic flagged *any* `*.md.ts` file, which incorrectly
+    warned about listing routes and a data-driven `about.md.ts` with no raw
+    body content at all. Requiring a `.body`/`entry.body` reference in the
+    file before warning fixed it — confirmed zero warnings against the
+    (already-fixed) real target and correct exclusion of its listing routes.
+  - Second run: clean no-op — everything skipped, nothing rewritten.
+
+### Status
+
+siteready now has two Astro fixers (Starlight and plain) sharing one
+Cloudflare Pages platform fixer, `package.json` at `1.1.0`. Not yet backed by
+an automated fixture/CI test the way the Starlight fixer is (see HANDOFF.md
+Next Actions #1) — verification so far is a real site's scratch copy, not a
+`scripts/verify-loop.js`-covered synthetic project, and not yet re-verified
+against a live scanner's before/after score delta on a site missing all
+three fixes from scratch.

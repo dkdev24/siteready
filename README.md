@@ -16,12 +16,12 @@ anything.
 4. Re-scan  — run the same scanners again, diff against baseline, produce a before/after report
 ```
 
-## Status: v1.0
+## Status: v1.1
 
 | Piece | Status |
 |---|---|
 | Scanners | [afdocs](https://agentdocsspec.com/) (doc-heavy sites), [Vercel Is Agentic](https://is-agentic.com/) (any content site) — both CLI-based, no browser automation |
-| Fixer | Astro + Starlight + Cloudflare Pages |
+| Fixer | Astro + Starlight + Cloudflare Pages, and plain Astro (no Starlight) + Cloudflare Pages |
 | Loop | `scan → enhance → rescan → diff-report`, fully local (no live deployment needed) |
 | CI | Windows, macOS, and Linux, on every push — see `.github/workflows/ci.yml` |
 | Other frameworks/platforms | Not yet — additive, by demand (see Contributing) |
@@ -29,6 +29,18 @@ anything.
 **Real numbers:** the Astro+Starlight+Cloudflare-Pages fixer takes a fresh Starlight site from
 **0/100 (F) → 97/100 (A)** on afdocs — see `examples/astro-starlight-cf-pages/README.md` for how to
 reproduce that yourself with no deployment required.
+
+The plain-Astro fixer (`src/fixers/astro.js`) is deliberately smaller: without Starlight's `docs`
+content collection and component-override system, a fixer can't safely generate a content-aware
+`llms.txt` or `.md` mirror routes for an arbitrary Astro site — it would have to guess the site's
+own routing/slug conventions, and a wrong guess produces broken links, which is worse than no fix.
+It covers what's safe regardless of content shape: a real `404.astro`, a permissive `robots.txt`
+(with a `Sitemap:` line if `site` + `@astrojs/sitemap` are both present), and — only if the repo
+already has a hand-rolled markdown-mirror route that echoes a collection entry's raw `.body` — a
+`smartQuotes()` typography-normalization util plus a named warning to wire it in (see "Design
+notes" below for why). Verified against a real production Astro (non-Starlight) + Cloudflare Pages
+site: correctly detects the stack, skips everything already present, and a second `enhance` run is
+a clean no-op.
 
 ## Usage
 
@@ -138,6 +150,29 @@ framework having no fixer yet degrades to "unsupported," never breaks the pipeli
 - `pr.js` is the opt-in `--pr` flow for `enhance` — it degrades to "left as an unstaged diff"
   (never throws) if there's no git remote or `gh` isn't authenticated, so a user without those
   configured still gets the default behavior.
+- **`is-agentic` rescans can lag a real production change with no way to force a fresh crawl.**
+  It's a hosted third-party scanner (`npx is-agentic@1.0.1`) that caches results per domain
+  server-side; `rescan` calling it twice — once right after a fix ships, once after the deploy is
+  confirmed live via `curl` — can return the *identical* cached result both times (same
+  `scanned_at`). `afdocs`, by contrast, re-crawls live on every call. If `rescan`/`loop` shows zero
+  movement on `is-agentic` for a check you know you fixed, verify the live site directly (`curl` the
+  page, grep for the expected content) before concluding the fix didn't work — then, if it's
+  confirmed live, either wait out the cache or manually trigger a rescan on is-agentic.com's own
+  page. Its score has also shown double-digit swings scan-to-scan on an unchanged site — treat it as
+  noisier/less deterministic than afdocs, especially near category boundaries.
+- **A hand-rolled markdown-mirror route (`.md.ts` serving `entry.body`/`doc.body` verbatim) will
+  fail afdocs' `markdown-content-parity` check on any Astro site using the default markdown
+  pipeline**, even when the served markdown is byte-for-byte the page's real source. Astro runs
+  `remark-smartypants` by default, curling straight quotes/apostrophes (`"`/`'` → `“”`/`’`) and
+  collapsing `...` → `…` on the *rendered HTML* only — the raw collection body a `.md.ts` route
+  echoes back keeps the straight characters, so a parity checker diffing rendered text against raw
+  markdown sees every quote-bearing paragraph as "missing" (seen at 43–49% missing on real
+  quote-heavy blog posts). Root cause, not the route's content actually being stale — fix is
+  typographic normalization on the served body (see `fixers/astro.js`'s `smartQuotes()`), not
+  regenerating content. A residual, much smaller gap can remain on posts using Markdown footnotes
+  (`[^1]`): the parity checker extracts rendered footnote references as a bare visible number (no
+  brackets), which will never text-match the raw `[^1]:` source syntax — this looks like a
+  structural limit of that specific check rather than something a fixer can close further.
 
 ## Cross-platform notes
 

@@ -3,9 +3,9 @@ name: siteready
 description: >-
   Scan any website for "agent readiness" (can an AI agent actually read and use this site — llms.txt,
   markdown mirrors, structured data, agent-friendly errors, per afdocs and Vercel's Is Agentic
-  standards), get one unified scorecard, and — for a local Astro + Starlight + Cloudflare Pages
-  checkout — auto-fix the issues a fixer supports and prove the improvement with a before/after
-  diff. Use this whenever the user asks to check, audit, or improve a site's readiness for AI
+  standards), get one unified scorecard, and — for a local Astro (with or without Starlight) +
+  Cloudflare Pages checkout — auto-fix the issues a fixer supports and prove the improvement with a
+  before/after diff. Use this whenever the user asks to check, audit, or improve a site's readiness for AI
   agents/crawlers/LLMs, mentions llms.txt, the AFDocs spec, is-agentic.com, "agent-friendly docs,"
   or wants a doc site scored and remediated for AI/agent consumption — even if they just paste a
   URL and ask "how agent-ready is this?" or "can Claude read this site properly?"
@@ -83,14 +83,29 @@ wrote, skipped (already present, won't overwrite), or warned about, and exits wi
   ran — that decision is theirs.
 - After `loop`/`diff-report`: lead with the score delta and the "Fixed" / "Still failing" /
   "Regressed" breakdown from `diff-report.md`, not just the raw JSON.
+- **If a `rescan`/`loop` shows zero movement on `is-agentic` for a check you know was fixed and
+  deployed, don't report it as "the fix didn't work."** `is-agentic` is a hosted third-party scanner
+  that caches results per domain server-side with no forced-refresh lever from this CLI — it can
+  return the identical cached result (same `scanned_at`) even after a confirmed-live deploy. Verify
+  the live site directly first (`curl` the page/route, grep for the expected content) — if it's
+  genuinely live, tell the user the scanner result is stale/cached, not that the fix regressed or
+  failed, and that a manual rescan on is-agentic.com's own page may be needed to see it move.
+  `afdocs` re-crawls live on every call and doesn't have this problem.
 
 ## Supported fixer today
 
-Only **Astro + Starlight + Cloudflare Pages** has an auto-fixer right now (see `README.md` "Status:
-v1.0"). If `detect-stack` / `enhance` reports the target framework or platform as unsupported, say
-so directly — don't try to hand-write the equivalent fix yourself outside the tool; that's exactly
-the kind of one-off `enhance` is meant to replace. Point the user at `CONTRIBUTING.md` if they want
-to add a new scanner adapter or fixer themselves.
+**Astro + Starlight + Cloudflare Pages**, and **plain Astro (no Starlight) + Cloudflare Pages**,
+have auto-fixers (see `README.md` "Status"). The plain-Astro fixer is intentionally narrower — no
+`docs` collection or component-override convention to build on means it can't safely generate a
+content-aware `llms.txt` or `.md` mirror routes without guessing the site's own routing (a wrong
+guess produces broken links). It covers what's safe for any Astro site regardless of content shape:
+a real `404.astro`, a permissive `robots.txt`, and — only if the repo already has a hand-rolled
+markdown-mirror route — a `smartQuotes()` typography util plus a warning to wire it in (see
+README's "Design notes" for the smartypants/markdown-parity gotcha this exists for). If
+`detect-stack` / `enhance` reports the target framework or platform as unsupported, say so
+directly — don't try to hand-write the equivalent fix yourself outside the tool; that's exactly the
+kind of one-off `enhance` is meant to replace. Point the user at `CONTRIBUTING.md` if they want to
+add a new scanner adapter or fixer themselves.
 
 ## More detail
 

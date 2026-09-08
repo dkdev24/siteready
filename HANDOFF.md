@@ -6,8 +6,8 @@ Cross-session context memory. Update this file at the end of every session.
 
 ## Current Version
 
-**0.4.0** (doc-tracking system's own version — see WORKLOG.md; the underlying
-CLI/engine remains at package.json's `1.0.0`, tagged `v1.0.0` in git)
+**0.5.0** (doc-tracking system's own version — see WORKLOG.md; the underlying
+CLI/engine is now at package.json's `1.1.0`, to be tagged `v1.1.0` in git)
 
 ---
 
@@ -16,84 +16,94 @@ CLI/engine remains at package.json's `1.0.0`, tagged `v1.0.0` in git)
 siteready is a CLI orchestration + remediation layer for "agent-readiness" website
 scanning. It runs a site through multiple scanners (afdocs, Vercel Is Agentic),
 normalizes results into one scorecard, auto-fixes issues its fixers support
-(currently Astro + Starlight + Cloudflare Pages), then re-scans and produces a
-before/after diff — fully local, no live deployment required. v1.0 is complete:
-scan/enhance/rescan/diff-report loop works end-to-end, CI passes on Windows/macOS/
-Linux, and the Astro+Starlight+Cloudflare-Pages fixer takes a fresh Starlight site
-from 0/100 (F) to 97/100 (A) on afdocs.
+(Astro + Starlight, and now plain Astro without Starlight, both + Cloudflare
+Pages), then re-scans and produces a before/after diff — fully local, no live
+deployment required. v1.0 shipped the Astro+Starlight+Cloudflare-Pages fixer
+(fresh Starlight site: 0/100 F → 97/100 A on afdocs). v1.1 adds a second,
+intentionally-narrower fixer for plain Astro sites with no Starlight.
 
 ---
 
 ## Last Session
 
-Closed the fixer-coverage gaps found in the v0.3.0 dogfood session against
-`docs.doverunner.com` (see WORKLOG.md v0.4.0). Added to `astro-starlight.js`:
-a `Head.astro` override (site-wide `og:image`, homepage-only Organization
-JSON-LD with name/url/logo/sameAs auto-extracted from the target's own
-`starlight({title, social})` config, `description` read live from the
-homepage's own frontmatter), a `src/content/docs/404.md` with a short
-agent-recovery body (homepage + `/llms.txt` links), and generalized
-`patchAstroConfig` to register both `Banner` and `Head` overrides. Applied
-the result to the checked-in `examples/astro-starlight-cf-pages` fixture so
-it stays a complete reference target, and updated
-`scripts/verify-loop.js`'s strip step to match.
+Added `src/fixers/astro.js` — the framework fixer for plain Astro (no
+Starlight): `detectStack` now returns `framework: "astro"` for any repo with
+an `astro` dependency but no `@astrojs/starlight`, and `enhance.js` dispatches
+by framework (`astro-starlight` vs `astro`) instead of hardcoding the
+Starlight fixer. Unlike `astro-starlight.js`, this fixer can't generate a
+content-aware `llms.txt` or `.md` mirror routes — no `docs` collection or
+component-override convention to build on, and guessing at an arbitrary
+site's routing produces broken links, which is worse than no fix (same
+reasoning as the already-documented "when to use this" stance below). It
+covers three things that are safe regardless of content shape: a real
+`src/pages/404.astro`, a permissive `public/robots.txt` (with a `Sitemap:`
+line only when both `site` and `@astrojs/sitemap` are present in
+`astro.config.*`), and — only when the repo already has a hand-rolled
+markdown-mirror route (`*.md.ts` under `src/pages` that echoes a collection
+entry's `.body`/`entry.body` verbatim) — a new `smartQuotes()` typography
+util plus a named warning to wire it into that specific route.
 
-Real gotcha hit and fixed: `Astro.props.id` does **not** carry the homepage
-route slug on current Starlight (0.42) — route data lives on
-`Astro.locals.starlightRoute` now (`Astro.props` for route data is
-deprecated per `@astrojs/starlight/props.ts`). Only caught by actually
-building the fixture and grepping the HTML output; the first version
-silently never rendered the JSON-LD block. Lesson: for any Head/Banner-style
-override work, verify against a real `astro build`, not just a syntax check
-— an Astro override that reads the wrong prop/local fails silently at
-runtime with no compile-time signal.
+The `smartQuotes()` fix exists because of a real bug found dogfooding a
+production Astro (non-Starlight) site this session: Astro runs
+`remark-smartypants` by default, curling straight quotes/apostrophes on
+*rendered HTML* only — a route serving a collection entry's raw `.body` never
+gets that transform, so afdocs' `markdown-content-parity` check flagged
+43–49% of quote-heavy blog posts as "missing content" that was actually
+present verbatim, just with different quote characters. Confirmed via `curl`
+diffing the live `.md` route against the live rendered page. Traced and fixed
+by hand in the target repo first, then generalized into this fixer. A
+residual, smaller gap remains on posts using Markdown footnotes (`[^1]`
+source vs. a bare rendered number with no brackets) — looks like a structural
+limit of that specific check, not something worth chasing further.
 
-**Not yet done**: re-verifying these three fixes against the live
-`is-agentic` scanner on a fresh site (only verified via local `astro build`
-HTML inspection + the `afdocs`-only CI loop so far — see Next Actions #1).
-Separately, this session's `is-agentic` rescans of `docs.doverunner.com`
-itself swung 68 → 72 → 62 with no site changes between the last two scans —
-logged as scanner-side volatility, not a regression, see Open Issues.
+Detection heuristic for "does this route need the warning" went through one
+false-positive round: originally any `*.md.ts` file was flagged, which
+incorrectly warned about index/listing routes and a data-driven `about.md.ts`
+that don't echo raw body content at all. Fixed by requiring a `.body` (or
+`entry.body`) reference in the file before warning — verified against the
+real target repo (which has both false-positive-shaped routes and two
+genuine `.body`-echoing routes) that this correctly warns on zero files after
+the target's own routes were already fixed by hand, and zero routes are
+flagged on the listing/about routes.
 
-Also found a real limitation in `rescan`: calling it against `is-agentic`
-twice — once right after `enhance` shipped, once after the target's
-production deploy went live — returned the *identical* cached result both
-times (same `scanned_at` timestamp), even though `curl` against the live
-site confirmed the fixes were already deployed. `is-agentic.com` is a hosted
-third-party scanner that caches per domain; our CLI has no lever to force a
-fresh crawl. The score only moved once the user manually clicked rescan on
-is-agentic.com's own page. `afdocs`, by contrast, re-crawls live every time
-(`rescan`'s own timestamp matched the actual invocation time) — this is an
-`is-agentic`-specific gotcha, not a general `rescan` bug.
+Tested via a scratch `rsync` copy of a real production Astro+Cloudflare-Pages
+site (not a synthetic fixture — none built yet, see Next Actions): `enhance`
+correctly detects `astro + cloudflare-pages`, writes `robots.txt` +
+`functions/_middleware.js`, skips the already-present `404.astro` and
+`smartquotes.ts`, and a second `enhance` run is a clean no-op (everything
+skipped, nothing rewritten) — matches CONTRIBUTING.md's testing bar.
+
+Also closed out the long-open Next Actions #3 from v0.4.0: documented in both
+README.md ("Design notes") and SKILL.md ("What to tell the user afterward")
+that `is-agentic` rescans can return an identical cached result even after a
+confirmed-live production deploy, with the concrete instruction to verify via
+`curl` before reporting a fix as not-working.
 
 ---
 
 ## Next Actions
 
-1. Re-run `enhance` against a **fresh** (never hand-patched) Astro+Starlight+
-   Cloudflare-Pages site and confirm on `is-agentic` that
-   `metadata-completeness` (og:image), `json-ld`/`org-schema-completeness`,
-   and `agent-friendly-404` actually move — v0.4.0 added these fixers and
-   proved them via `astro build` output inspection + the `afdocs`-only CI
-   loop, but never against the live `is-agentic` scanner end-to-end (that
-   scanner is non-deterministic/cached — see Open Issues — so this needs a
-   real before/after on a real deploy, not just a local build check).
-2. The "when to use this" `llms.txt` section (originally Next Actions #1c)
-   is **not** a generic fixer candidate — it requires product-specific prose
-   (what the site's product areas are) that a fixer can't invent. Leave as
-   manual guidance (SKILL.md / README) rather than fixer scope, unless a
-   safe generic heuristic turns up.
-3. Document (README or SKILL.md) that `is-agentic` results can lag a real
-   production change due to server-side caching with no forced-refresh
-   option from our CLI — tell users to manually rescan on is-agentic.com if
-   `siteready rescan` shows no movement they expect.
+1. Build a synthetic `examples/astro-cf-pages/` fixture (plain Astro, no
+   Starlight) mirroring `examples/astro-starlight-cf-pages/`, and wire it into
+   `scripts/verify-loop.js` for CI coverage of the new fixer — currently only
+   verified by hand against a real site's scratch copy (see Last Session),
+   not by the automated loop.
+2. Re-run `enhance` (plain-Astro fixer) against a **fresh** site that has
+   none of these fixes yet and confirm the `is-agentic`/`afdocs` score
+   actually moves on a real deploy — this session's verification was
+   structural (file writes, idempotency) against a site that already had
+   most of the content-side fixes applied by hand, not a full before/after
+   score delta.
+3. The "when to use this" `llms.txt` section is **not** a generic fixer
+   candidate for either Astro fixer — it requires product-specific prose a
+   fixer can't invent. Leave as manual guidance, unless a safe generic
+   heuristic turns up.
 4. Decide/document a policy for `org-schema-completeness` (`contactPoint`,
    `address`) and `trust-anchors` on doc subdomains that intentionally defer
-   identity/legal pages to a separate corporate domain (this session's
-   target: `docs.doverunner.com` defers to `doverunner.com`) — right now
-   these just sit as permanent backlog with no way to mark them N/A.
+   identity/legal pages to a separate corporate domain — right now these
+   just sit as permanent backlog with no way to mark them N/A.
 5. Test the installed skill against another unrelated real website project
-   to broaden dogfood coverage beyond this one Astro+Starlight site.
+   to broaden dogfood coverage.
 6. Add fixers for additional frameworks/platforms as demand comes in (see
    CONTRIBUTING.md for the fixer contribution process).
 7. Consider expanding scanner coverage beyond afdocs + Vercel Is Agentic.

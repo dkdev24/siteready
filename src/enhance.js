@@ -2,7 +2,13 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { detectStack } from "./detect-stack.js";
 import { applyAstroStarlightFixes } from "./fixers/astro-starlight.js";
+import { applyAstroFixes } from "./fixers/astro.js";
 import { applyCloudflarePagesFixes } from "./platforms/cloudflare-pages.js";
+
+const FRAMEWORK_FIXERS = {
+  "astro-starlight": applyAstroStarlightFixes,
+  astro: applyAstroFixes,
+};
 
 /**
  * Detects the target repo's framework + platform and applies the matching
@@ -21,11 +27,11 @@ export async function enhance(repoPath) {
   if (!stack.supported) {
     throw new Error(
       `enhance needs a local checkout of the target site's repo, and only supports ` +
-        `Astro+Starlight+Cloudflare Pages in v0.3. ${stack.reason}`
+        `Astro (with or without Starlight) + Cloudflare Pages today. ${stack.reason}`
     );
   }
 
-  const framework = await applyAstroStarlightFixes(resolved);
+  const framework = await FRAMEWORK_FIXERS[stack.framework](resolved);
   const platform = await applyCloudflarePagesFixes(resolved);
 
   return {

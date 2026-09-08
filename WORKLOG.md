@@ -239,3 +239,43 @@ Next Actions #1) — verification so far is a real site's scratch copy, not a
 `scripts/verify-loop.js`-covered synthetic project, and not yet re-verified
 against a live scanner's before/after score delta on a site missing all
 three fixes from scratch.
+
+---
+
+## v0.5.1 — Plain-Astro Fixer: CI Fixture Coverage
+
+**Date:** 2026-09-08
+
+### Changes
+
+- Added `examples/astro-cf-pages/` — a from-scratch, minimal plain-Astro
+  (no Starlight) reference fixture: home + about + a 3-entry `posts`
+  collection with hand-rolled `.md.ts` mirror routes (including a root
+  `index.md.ts`, needed so afdocs' single-page crawl — it only discovers
+  more pages via `llms.txt`, which this fixer never writes — has a markdown
+  mirror to test against). Checked in with `src/fixers/astro.js`'s output
+  already applied, matching the Starlight fixture's "checked in after"
+  convention.
+- Rewrote `scripts/verify-loop.js` to loop over both reference fixtures
+  (Starlight + plain) instead of hardcoding the Starlight one, each with its
+  own strip/verify functions.
+- Finding: afdocs' `overall` score is gated on `llms-txt-exists` — every
+  other `categoryScores` entry comes back `null` whenever that check fails.
+  Since `astro.js` deliberately never writes `llms.txt` (no content
+  collection convention to build one from without guessing the site's
+  routing), `overall` reads `0` before and after this fixer runs regardless
+  of its actual fixes. Confirmed by hand-diffing the full check list: the
+  fixer's real targets (`http-status-codes` via `404.astro`,
+  `content-negotiation` via the Cloudflare Pages middleware) do flip from
+  `fail` to `pass`. `verify-loop.js`'s `astro-cf-pages` fixture asserts on
+  those individual checks instead of the gated `overall` score; documented
+  in `examples/astro-cf-pages/README.md`.
+- `package.json` bumped to `1.1.1` (patch — CI coverage for an already-
+  shipped fixer, not a new subsystem).
+
+### Status
+
+Both Astro fixers now have automated, CI-covered reference fixtures via
+`npm run verify-loop`. HANDOFF.md Next Actions #1 closed. Next Actions #2
+(fresh real-site verification) still open, now with the added note that its
+score check should target individual afdocs checks, not `overall`.

@@ -6,8 +6,8 @@ Cross-session context memory. Update this file at the end of every session.
 
 ## Current Version
 
-**0.5.0** (doc-tracking system's own version — see WORKLOG.md; the underlying
-CLI/engine is now at package.json's `1.1.0`, to be tagged `v1.1.0` in git)
+**0.5.1** (doc-tracking system's own version — see WORKLOG.md; the underlying
+CLI/engine is now at package.json's `1.1.1`, to be tagged `v1.1.1` in git)
 
 ---
 
@@ -24,7 +24,37 @@ intentionally-narrower fixer for plain Astro sites with no Starlight.
 
 ---
 
-## Last Session
+## Last Session (2026-09-08, continued)
+
+Closed Next Actions #1: added `examples/astro-cf-pages/` — a from-scratch,
+minimal plain-Astro (no Starlight) site (home + about + a 3-entry `posts`
+collection with hand-rolled `.md.ts` mirror routes), checked in with
+`astro.js`'s fixer output already applied (matches the Starlight fixture's
+"checked in after" convention). Wired it into `scripts/verify-loop.js`,
+which now loops over both reference fixtures instead of hardcoding the
+Starlight one.
+
+Key finding while wiring this up: afdocs' `overall` score is **gated** on
+`llms-txt-exists` — every other `categoryScores` entry comes back `null`
+whenever that check fails, so `overall` reads `0` both before and after
+`astro.js` runs, even though the fixer's actual targets
+(`http-status-codes` via the new `404.astro`, `content-negotiation` via the
+Cloudflare Pages middleware) genuinely flip from `fail` to `pass`. Confirmed
+by hand: added a `src/pages/index.md.ts` mirror for the root page (afdocs'
+crawler apparently only tests the single seed page when there's no
+`llms.txt` to discover more from) and diffed the full check list before vs.
+after — `overall` stayed `0 -> 0` while the two targeted checks flipped
+correctly. `scripts/verify-loop.js`'s `astro-cf-pages` fixture now asserts
+on those individual checks instead of the gated `overall` score; documented
+the same reasoning in `examples/astro-cf-pages/README.md` so it isn't
+re-discovered from scratch next time. `markdown-url-support` was originally
+in the target-check list too but dropped — it already passes pre-enhance
+since the fixture's `.md` mirror routes are pre-existing site content, not
+something `astro.js` creates.
+
+---
+
+## Last Session (2026-09-08)
 
 Added `src/fixers/astro.js` — the framework fixer for plain Astro (no
 Starlight): `detectStack` now returns `framework: "astro"` for any repo with
@@ -83,17 +113,18 @@ confirmed-live production deploy, with the concrete instruction to verify via
 
 ## Next Actions
 
-1. Build a synthetic `examples/astro-cf-pages/` fixture (plain Astro, no
-   Starlight) mirroring `examples/astro-starlight-cf-pages/`, and wire it into
-   `scripts/verify-loop.js` for CI coverage of the new fixer — currently only
-   verified by hand against a real site's scratch copy (see Last Session),
-   not by the automated loop.
+1. ~~Build a synthetic `examples/astro-cf-pages/` fixture~~ — done, see Last
+   Session.
 2. Re-run `enhance` (plain-Astro fixer) against a **fresh** site that has
    none of these fixes yet and confirm the `is-agentic`/`afdocs` score
    actually moves on a real deploy — this session's verification was
    structural (file writes, idempotency) against a site that already had
    most of the content-side fixes applied by hand, not a full before/after
-   score delta.
+   score delta. Note from this session: `afdocs`' `overall` score is gated
+   on `llms.txt` existing (see Last Session) — a "real deploy" check for this
+   fixer should look at individual checks (`http-status-codes`,
+   `content-negotiation`) moving, not `overall`, since the plain-Astro fixer
+   never writes `llms.txt` by design.
 3. The "when to use this" `llms.txt` section is **not** a generic fixer
    candidate for either Astro fixer — it requires product-specific prose a
    fixer can't invent. Leave as manual guidance, unless a safe generic

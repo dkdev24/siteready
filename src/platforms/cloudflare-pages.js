@@ -46,20 +46,26 @@ export async function onRequest(context) {
 /**
  * Applies the Cloudflare Pages platform-side fix: a `functions/_middleware.js`
  * that serves the framework fixer's `.md` mirrors on `Accept: text/markdown`.
- * Skips (never overwrites) if a `_middleware.js` already exists — this repo's
- * own middleware may already do something else, and blind overwrite risks
- * destroying it. Never writes to git — see `astro-starlight.js`'s docstring.
+ * Skips (never overwrites) if a `_middleware.js` OR `_middleware.ts` already
+ * exists — Cloudflare Pages Functions accept either extension, so a `.ts`
+ * middleware is this repo's own and blind-writing `.js` alongside it just
+ * duplicates the file. Never writes to git — see `astro-starlight.js`'s
+ * docstring.
  */
 export async function applyCloudflarePagesFixes(repoPath) {
   const written = [];
   const skipped = [];
   const warnings = [];
 
-  const middlewarePath = path.join(repoPath, "functions", "_middleware.js");
-  if (existsSync(middlewarePath)) {
-    skipped.push(`${middlewarePath} (already exists — not overwritten; merge the negotiation logic in manually if wanted)`);
+  const functionsDir = path.join(repoPath, "functions");
+  const middlewarePath = path.join(functionsDir, "_middleware.js");
+  const existing = ["_middleware.js", "_middleware.ts"]
+    .map((name) => path.join(functionsDir, name))
+    .find(existsSync);
+  if (existing) {
+    skipped.push(`${existing} (already exists — not overwritten; merge the negotiation logic in manually if wanted)`);
   } else {
-    await mkdir(path.dirname(middlewarePath), { recursive: true });
+    await mkdir(functionsDir, { recursive: true });
     await writeFile(middlewarePath, MIDDLEWARE, "utf8");
     written.push(middlewarePath);
   }

@@ -735,3 +735,52 @@ Two things corrected mid-write rather than shipped wrong:
    per-scanner error state, partial scoring, and `diff-report` refusing to
    compare a baseline against a re-scan missing a scanner — so it's a design
    decision, not a patch.
+
+## 2026-09-09 — Real-deploy verification of `enhance` score delta (no version bump)
+
+Ran NEXT_ACTIONS.md #2 end to end against `danielkimdev-astro` (public URL
+`danielkimdev.com`, plain Astro + Cloudflare Pages, sibling repo in the same
+parent folder as this one): baseline `scan` -> `enhance` (no `--pr`) ->
+reviewed the diff -> committed + pushed directly to `main` (user chose this
+over `--pr` since it's their own site) -> waited for the Cloudflare Pages
+deploy -> `rescan --baseline` -> `diff-report`.
+
+`enhance` wrote two new files (`public/robots.txt`, `functions/_middleware.js`
+for content negotiation); `src/pages/404.astro` already existed and was
+skipped. Both `is-agentic` (94/100) and `afdocs` (98/100) came back **bit-for-
+bit identical** pre- and post-deploy, including the full backlog list. Checked
+`http-status-codes` and `content-negotiation` directly in both report.jsons:
+both were already `pass` at baseline, so the new files didn't move anything.
+
+Conclusion: the scan -> enhance -> deploy -> rescan -> diff pipeline itself
+works correctly (this is the first time it's been run against a real prod
+deploy rather than a local `loop` fixture) — but this site was already too
+close to fully-fixed to serve as the "does the score move" test case.
+NEXT_ACTIONS.md #2 is closed; a follow-up (finding/building a genuinely
+fixer-naive site) would be a new item if pursued.
+
+## 2026-09-09 — Fix: `enhance` duplicated `_middleware.js` next to existing `_middleware.ts` (no version bump)
+
+The real-deploy test above (previous entry) had a bug: `enhance` wrote
+`functions/_middleware.js` on `danielkimdev-astro` even though the repo
+already had a hand-written `functions/_middleware.ts` doing the same job
+(content negotiation, with a more complete section-index fallback). Root
+cause: `src/platforms/cloudflare-pages.js`'s pre-existing-middleware check
+(`applyCloudflarePagesFixes`) only ever tested `existsSync` on the literal
+`_middleware.js` path — it never accounted for `.ts`, which Cloudflare Pages
+Functions support equally.
+
+This dedup logic was previously verified (v0.3.0, `docs.doverunner.com`) but
+only against a `.js`-vs-nothing case; neither `examples/astro-cf-pages` nor
+`examples/astro-starlight-cf-pages` has ever had a `.ts` middleware fixture,
+so `verify-loop` never exercised this branch.
+
+Fix: the check now looks for `_middleware.js` OR `_middleware.ts` and skips
+if either exists. Cleaned up the duplicate on `danielkimdev-astro` directly
+(removed `_middleware.js`, kept the pre-existing `.ts`, pushed). Added
+`scripts/check-middleware-dedup.js` (new, wired into `npm run lint`) — a
+small `assert`-based check exercising `applyCloudflarePagesFixes` directly
+against temp dirs for the three cases (no middleware / `.js` exists / `.ts`
+exists) rather than extending `verify-loop`'s fixtures, since seeding a
+working `.ts` middleware into a fixture would change that fixture's baseline
+`content-negotiation` score and break its existing assertions.

@@ -20,8 +20,14 @@ No blocker. `loop`'s hosted-scanner support via Cloudflare Quick Tunnel is
 `loop examples/astro-cf-pages --scanners ora` run completed end to end. It's
 fair to describe hosted-scanner `loop` support as shipped now.
 
-Next up: **NEXT_ACTIONS.md #2** (real before/after score delta on a fresh
-site) and **#13** (Next.js + Vercel fixer — the competitive gap).
+**NEXT_ACTIONS.md #2 done** (2026-09-09): real deploy pipeline (scan ->
+enhance -> push -> rescan -> diff) verified end-to-end against
+`danielkimdev.com`, but that site was already too fixed (94/98) to show a
+score delta — a genuinely fixer-naive site is still needed to see one move.
+That run also caught a real bug: `enhance` duplicated `_middleware.js` next
+to an existing `_middleware.ts` — **fixed**, see WORKLOG.md.
+
+Next up: **#13** (Next.js + Vercel fixer — the competitive gap).
 
 Settled, don't reopen: internal references in git history are accepted as-is
 (#11) — no rewrite. New writing still avoids them (AGENTS.md).

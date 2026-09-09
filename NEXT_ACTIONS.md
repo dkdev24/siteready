@@ -19,16 +19,15 @@ items are done but kept briefly for context; drop them once superseded.
    rather than rare, the fallback is still option (2), a named/authenticated
    tunnel (needs a CF account).
 1. ~~Build a synthetic `examples/astro-cf-pages/` fixture~~ — done.
-2. Re-run `enhance` (plain-Astro fixer) against a **fresh** site that has
-   none of these fixes yet and confirm the `is-agentic`/`afdocs` score
-   actually moves on a real deploy — verification so far has been structural
-   (file writes, idempotency) against a site that already had most of the
-   content-side fixes applied by hand, not a full before/after score delta.
-   Note: `afdocs`' `overall` score is gated on `llms.txt` existing (see
-   WORKLOG.md) — a "real deploy" check for this fixer should look at
-   individual checks (`http-status-codes`, `content-negotiation`) moving,
-   not `overall`, since the plain-Astro fixer never writes `llms.txt` by
-   design.
+2. ~~Re-run `enhance` (plain-Astro fixer) against a fresh site and confirm
+   score movement on a real deploy~~ — **DONE 2026-09-09**, see WORKLOG.md.
+   Result: mechanically verified (baseline scan -> enhance -> commit/push ->
+   live Cloudflare Pages deploy -> rescan -> diff-report), but
+   `danielkimdev.com` wasn't fresh enough to show movement — it already
+   scored 94/98 and both `http-status-codes` and `content-negotiation` were
+   already `pass` pre-fix, so the new `robots.txt`/`_middleware.js` didn't
+   flip anything. Still open: find (or build) a genuinely fixer-naive Astro
+   site to see an actual score delta.
 3. The "when to use this" `llms.txt` section is **not** a generic fixer
    candidate for either Astro fixer — it requires product-specific prose a
    fixer can't invent. Leave as manual guidance, unless a safe generic

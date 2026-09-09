@@ -1,6 +1,9 @@
 # WORKLOG.md
 
-Persistent project history. Append entries; do not edit past entries.
+Persistent project history. Append entries; do not edit past entries. Most
+entries mark a version milestone (`## vX.X.X — Title`); a session that doesn't
+ship a version bump still gets an entry, at the end, headed by date + title
+instead (e.g. `## 2026-09-09 — Title (no version bump)`).
 
 ---
 
@@ -418,3 +421,186 @@ reported both up to date).
 
 `check-scanner-versions.js` (v0.7.0) now runs unattended weekly instead of
 only on manual invocation. Not yet confirmed against a real Actions run.
+
+---
+
+## 2026-09-09 — Value-Proposition Doc (no version bump)
+
+**Date:** 2026-09-09
+
+### Changes
+
+User asked a sharp question: since every scanner already returns a
+`fix`/`recommendation` string per failing check, does siteready still add
+anything over an agent with repo access just calling the scanners directly
+and acting on that text? Talked it through, then wrote the conclusion into
+README.md as a new "Why use this, instead of pointing an agent at the
+scanners directly?" section (right after Status, before Usage). Docs-only
+change — nothing about the running tool changed, so no version bump.
+
+The honest conclusion, now in the README: the scan/report/normalization
+layer is genuinely weaker as a pitch in an agent-native world (an agent
+doesn't need one unified JSON schema across three scanners — it can read
+each one's own `fix` field directly). The real, defensible value is the
+**fixers** — turning a one-line scanner suggestion into idempotent,
+cross-platform-verified code, backed by this project's own history of real
+bugs an ad hoc fix would've hit (`smartQuotes()`'s smartypants-parity bug,
+the false-positive `.md.ts` heuristic, the CRLF fixture-stripping bug,
+`taskkill /t`, `is-agentic`'s caching trap, Ora's `url`-vs-`finalUrl` trap)
+— plus the local **loop** proving a fix worked before anything ships. Also
+wrote the honest limit: outside the Astro(+Starlight)+Cloudflare-Pages
+combos a fixer covers, siteready is just a wrapper around scanner output
+today.
+
+### Status
+
+Docs-only; `package.json` stays at `1.3.1`. Reframes the roadmap as
+"fixer/platform coverage is the moat," not scanner count.
+
+---
+
+## 2026-09-09 — loop + Hosted Scanners via Tunnel (WIP, no version bump — decision pending)
+
+**Date:** 2026-09-09
+
+### Changes
+
+User's framing: `loop`'s scan→enhance→rescan→diff-report only works for
+afdocs (fetches the URL itself, `localhost` is fine); is-agentic/ora are
+*hosted* — their crawler runs on Vercel's/Ora's own infrastructure and can
+never reach `localhost` — so `loop` has hard-rejected them since v0.4,
+forcing a real deployment to validate a fix with those two. Landed on
+Cloudflare Quick Tunnels (`cloudflared tunnel --url`, no account/signup,
+ephemeral `*.trycloudflare.com` URL) as the mechanism, chosen explicitly
+over `localtunnel` and over "just document the limitation." Built:
+
+- `src/lib/tunnel.js` (new): `startTunnel(localUrl)` spawns `cloudflared`
+  via `spawnNpxCli`, parses the tunnel URL from its log output, self-checks
+  reachability before returning, plus an 8s settle buffer
+  (`PROPAGATION_BUFFER_MS`) added after Ora returned "Domain is not
+  reachable" on a scan attempted before the route had propagated.
+- `killProcessTree` extracted from `lib/local-server.js` into
+  `lib/npx-runner.js` (shared Windows-`taskkill /t`-vs-POSIX-process-group
+  teardown logic — pure move, no behavior change).
+- `loop.js`: replaced the hard `throw` on `is-agentic`/`ora` with
+  `startScanTarget()` — layers a tunnel on top of the local server when a
+  hosted scanner is requested; falls back to the plain local server
+  otherwise. Zero regression risk, confirmed via `npm run verify-loop`.
+- `cli.js --help` updated to describe the tunnel behavior.
+
+### Verification
+
+Inconclusive, not a clean pass. First end-to-end test (`loop` against
+`examples/astro-cf-pages --scanners ora`) failed with "Domain is not
+reachable" — root-caused to a propagation race and fixed via the
+reachability check + buffer above. Re-tested three more times (1 via `loop`,
+2 via a standalone `startTunnel()` script) — all three hit a DNS resolution
+failure (`ENOTFOUND`) for the `*.trycloudflare.com` hostname, reproduced
+identically via `curl` and Node's `fetch`. Net: 1 success in 4 attempts.
+cloudflared's own banner text: "these account-less Tunnels have no uptime
+guarantee." Unclear how much is inherent to anonymous Quick Tunnels vs. this
+sandbox's network path.
+
+### Status
+
+Committed as WIP — additive/opt-in, provably doesn't regress the default
+path, but not verified reliable. Three options on the table, none
+implemented: (1) retry with a fresh tunnel per attempt, (2) a named/
+authenticated Cloudflare Tunnel (needs a CF account), (3) roll back to the
+hard-reject. `package.json` stays at `1.3.1` until this is resolved — see
+NEXT_ACTIONS.md #0. Do not describe "loop supports hosted scanners" as
+shipped until re-verified.
+
+---
+
+## 2026-09-09 — Positioning, Tool Identity, and a Public-Repo Sanitization Miss (no version bump)
+
+### Context
+
+Docs-and-positioning session, no engine changes. Three threads, in order:
+competitive differentiation against GEO skill packs; resolving whether this
+project is a "skill" or a "tool"; and a review of the long-unmaintained
+`siteready-plan.md`, which turned up a disclosure problem.
+
+### Changes
+
+**Positioning vs. GEO tooling.** Prompted by
+`github.com/Cognitic-Labs/geoskills` — six prompt-only skills (`geo-audit`,
+`geo-fix-*`, `geo-compare`, `geo-monitor`) that score a URL and emit
+recommendations. Added a README section (`How this differs from GEO /
+prompt-based audit skills`) naming it explicitly and arguing four axes:
+third-party scanner scores vs. a model grading itself (reproducible and
+citable vs. neither); fixes as debugged code vs. templates (the
+`smartQuotes()`/`remark-smartypants` case is the standing proof); the loop as
+a falsification step an advisory tool structurally can't add; and
+agent *action* (negotiation, `.md` mirrors, Ora's payments/ARD/A2A layer) vs.
+GEO's agent *citation*. Closes by conceding where a URL-only pack wins:
+coverage outside the supported fixer stacks, plus compare/monitor features
+siteready lacks. Also added a positioning paragraph to the intro.
+
+**Tool-vs-skill identity resolved: it's a tool.** The code already agreed
+(shebang, real `bin`, no library exports) — the ambiguity was packaging and
+docs. `package.json`: dropped `private: true`, added
+`repository`/`homepage`/`bugs`/`keywords` and a `files` whitelist (`npm pack
+--dry-run`: 25 files, 42.5 kB, no `examples/`, `out/`, or internal docs).
+README: new `What this is: a tool, not a skill` section framing two equal
+front doors onto one engine (humans → the `siteready` binary, agents →
+`SKILL.md`), an `Install` section, and every usage example rewritten to
+`siteready <command>` with `node src/cli.js` noted as the from-source form.
+`SKILL.md`: opening reframed as a thin adapter with no logic of its own, and
+it now prefers a PATH `siteready` binary over the `node <skill-dir>/src/cli.js`
+form. `AGENTS.md`: added as standing rule #1, including the invariant that
+keeps it honest — **`SKILL.md` never implements behavior; new capability lands
+in `src/` so both front doors get it in the same commit.**
+
+**`siteready-plan.md` frozen, and sanitized.** The plan hadn't been updated
+since the v1.0 cut and had drifted into contradicting the codebase (it called
+the project "a Claude Code **skill**" in §1/§4, and described a TypeScript
+`scripts/`-based architecture that was never built). Rather than revive it as
+a live doc — `HANDOFF`/`NEXT_ACTIONS`/`ISSUES`/`WORKLOG` already own that
+role, and a second live plan just re-creates the drift — it was frozen: a
+header routing readers to the live docs, the design rationale that exists
+nowhere else preserved (CLI-first over UI scraping, the framework/platform
+axis split, `enhance` never commits, the npx-layout bug, CF Pages' inability
+to branch on `Accept`), the ten dated update notes folded into the sections
+they belonged to, the v1.0 scaffolding checklist finally checked off, and a
+new §13 tabulating the nine places the plan is now known to be wrong.
+
+### The disclosure finding
+
+Reviewing that file surfaced the real issue: **it was sitting at the root of
+the public `dkdev24/siteready` repo still carrying the origin project's
+identity** — the internal docs hostname, internal planning/report document
+filenames, objective/KPI references, internal wiki mentions, and relative
+links into the private source repo's `references/` tree. §3 of that very file
+is the sanitization boundary it violated. Root cause: the v1.0 sanitization
+pass (v1.0 entry, "update 7") deliberately covered the README, the example
+fixture, and code comments — but not the plan, because at that point the plan
+still lived in the private repo and only moved across later, after the
+boundary had been declared satisfied. Two smaller leaks of the same hostname
+were found and fixed in `ISSUES.md` and `NEXT_ACTIONS.md`.
+
+All sanitized in the working tree. **Not resolved:** `git log -S` confirms the
+strings remain in already-pushed public commits, so history and forks still
+expose them — logged as NEXT_ACTIONS.md #11 (DECISION NEEDED) with the two
+options (accept, or `git filter-repo` + force-push). History was deliberately
+left untouched: destructive, irreversible, and needs an explicit go-ahead.
+`WORKLOG.md`'s own four mentions were also left in place on purpose — past
+entries are append-only per AGENTS.md, and unlike the plan they're honest
+historical record rather than a design doc presented as current state.
+
+### Verification
+
+`npm run lint` clean (17 files). `npm pack --dry-run` clean. Repo visibility
+confirmed PUBLIC via `gh repo view`. `npm` names `siteready` and `site-ready`
+both confirmed unclaimed. No `src/` changes, so `verify-loop` was not re-run.
+
+### Status
+
+Docs only; `package.json` stays at `1.3.1`. NEXT_ACTIONS gained four items:
+#11 (git-history sanitization decision), #12 (npm publish decision — the
+package is publishable but unpublished, so the README's `npm install -g`
+instructions are a promise not yet kept), #13 (fixer coverage as the real
+competitive gap, Next.js + Vercel highest-leverage), #14 (compare + monitor
+parity). NEXT_ACTIONS #0 (the tunnel decision) is untouched and still the top
+blocker.

@@ -4,23 +4,47 @@ Instructions for AI agents (Claude Code, OpenCode, and others) working in this r
 
 ## System Documents
 
-Two documents maintain cross-session state. Read them at the start of every session. Update them at the end.
+`HANDOFF.md` is the only one read at the start of every session — kept under 50
+lines on purpose, it's a dashboard of current state plus pointers into the docs
+below (`NEXT_ACTIONS.md`, `ISSUES.md`, `WORKLOG.md`). Update it at the end of
+every session. The other documents are read only when the task at hand needs
+their detail; don't load them just because a session started.
 
 ### HANDOFF.md
 
 - Location: `HANDOFF.md`
-- Purpose: Cross-session context memory.
-- Contains: current version, project status, last session summary, next actions, open issues, key paths.
+- Purpose: Cross-session dashboard — current version, top blocker, and a table
+  pointing at the documents below.
 - **Read at the start of every session.**
-- **Update at the end of every session.** Replace the Last Session and Next Actions sections. Append to Open Issues as needed.
+- **Update at the end of every session.** Keep it under 50 lines — if an update
+  would blow the budget, the content belongs in one of the docs below instead,
+  with just a pointer left in HANDOFF.md.
+
+### NEXT_ACTIONS.md
+
+- Location: `NEXT_ACTIONS.md`
+- Purpose: Open TODOs, numbered, oldest-unresolved first.
+- **Update at the end of a session that closes, adds, or reprioritizes an item.**
+  Replace the file's contents (not append-only, unlike WORKLOG.md).
+
+### ISSUES.md
+
+- Location: `ISSUES.md`
+- Purpose: Known open issues/limitations not yet actioned.
+- **Append as needed.** Remove an entry only once it's actually resolved (not
+  just worked around) and record the fix in WORKLOG.md.
 
 ### WORKLOG.md
 
 - Location: `WORKLOG.md`
-- Purpose: Persistent project history.
-- Contains: one entry per version milestone, with date, changes, and status.
-- **Do not load at session start.** Read only when version history is directly relevant to the current task.
-- **Append a new entry when a version milestone is reached.** Never edit past entries.
+- Purpose: Persistent project history — the single narrative log of what
+  happened each session, why, and how it was verified.
+- Contains: one entry per version milestone (`## vX.X.X — Title`), plus one
+  per session that doesn't ship a version bump (`## <date> — Title (no
+  version bump)`) so the history stays complete without a second log.
+- **Do not load at session start.** Read only when history is directly relevant to the current task.
+- **Append a new entry at the end of every session that changes the code or
+  makes a significant decision.** Never edit past entries.
 - Version format: `x.x.x` — increment the patch for small changes, minor for new subsystems, major for engine-complete milestones.
 
 ## Project Notes
@@ -31,8 +55,30 @@ Two documents maintain cross-session state. Read them at the start of every sess
 - Run `node scripts/check-syntax.js` (aliased as `npm run lint`) and `node scripts/verify-loop.js`
   (`npm run verify-loop`) before committing changes to core logic.
 
+### Key Paths
+
+| Path | Purpose |
+|---|---|
+| `src/cli.js` | CLI entrypoint (scan / enhance / rescan / diff-report / loop) |
+| `src/scan.js`, `src/scanners/` | Scanner orchestration (afdocs, is-agentic, ora) |
+| `src/enhance.js`, `src/fixers/` | Framework/platform detection + auto-fixers |
+| `src/report.js`, `src/diff-report.js` | Scorecard normalization + before/after diffing |
+| `src/loop.js` | Full local scan→enhance→rescan→diff-report loop |
+| `examples/astro-starlight-cf-pages/`, `examples/astro-cf-pages/` | Reference fixer targets + reproduction steps |
+| `scripts/verify-loop.js` | CI verification of the full loop |
+| `siteready-plan.md` | Original design plan — **frozen, not maintained.** Historical design rationale only; its §13 lists where it's now wrong. Don't update it; don't cite it as current state |
+| `SKILL.md` | Claude Code skill entrypoint — orchestration instructions for running siteready as an agent, cwd-agnostic (uses `<skill-dir>`) |
+
 ## Standing Development Rules
 
+- **siteready is a tool, not a skill — and `SKILL.md` never implements behavior.** The project's
+  identity is a runnable CLI (real `bin`, real code, CI) with two equal front doors onto one
+  engine: humans invoke the `siteready` binary (or `node src/cli.js`) directly, agents read
+  `SKILL.md`. `SKILL.md` is a thin adapter — *when* to run which command and how to interpret the
+  output — and must never contain logic, heuristics, or a workaround that isn't in `src/`. New
+  capability lands in `src/` as a CLI command or flag, so the human CLI and the agent path get it
+  in the same commit. If a change would only work when an agent is driving, it's in the wrong
+  place.
 - **Scanners and fixers are additive plugins.** Adding a new scanner adapter (`src/scanners/`) or
   framework fixer (`src/fixers/` + `src/platforms/`) means new files only — never modify the
   contract or behavior of scanners/fixers already shipped.

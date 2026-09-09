@@ -1,13 +1,40 @@
 {
   "name": "siteready",
   "version": "1.3.1",
-  "private": true,
   "type": "module",
   "description": "Scan a website with agent-readiness scanners (afdocs, Vercel Is Agentic, Ora), get a unified scorecard, auto-fix supported issues (Astro + Starlight, or plain Astro, + Cloudflare Pages), then re-scan and diff against the baseline -- fully local, no live deployment required to verify the loop.",
   "license": "MIT",
+  "keywords": [
+    "agent-readiness",
+    "llms.txt",
+    "afdocs",
+    "is-agentic",
+    "ora",
+    "ai-agents",
+    "cli",
+    "astro",
+    "cloudflare-pages",
+    "claude-skill"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dkdev24/siteready.git"
+  },
+  "homepage": "https://github.com/dkdev24/siteready#readme",
+  "bugs": {
+    "url": "https://github.com/dkdev24/siteready/issues"
+  },
   "bin": {
     "siteready": "./src/cli.js"
   },
+  "files": [
+    "src/",
+    "scripts/",
+    "SKILL.md",
+    "README.md",
+    "CONTRIBUTING.md",
+    "LICENSE"
+  ],
   "scripts": {
     "scan": "node src/cli.js",
     "enhance": "node src/cli.js enhance",

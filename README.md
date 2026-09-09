@@ -9,6 +9,50 @@ because no single scanner covers the whole "can an AI agent actually use this si
 (discoverability, machine-readable content, controlled interaction), and none of them auto-fix
 anything.
 
+siteready doesn't advise — it ships the fix and proves it worked. Scores come from the standards'
+own scanners ([afdocs](https://agentdocsspec.com/), [Is Agentic](https://is-agentic.com/) /
+[Ora](https://ora.ai/)), not from a model grading itself; fixes are real code, applied
+idempotently, verified cross-platform in CI; and the local loop shows you the before/after diff
+before anything deploys.
+
+## What this is: a tool, not a skill
+
+siteready is a **runnable CLI** — real code with a real binary, a pinned scanner contract, and CI.
+It is deliberately *not* a prompt-only "skill," because the value here is in code that has already
+been debugged against real sites (see "Why use this…" below), and instructions alone can't carry
+that.
+
+It has **two front doors onto the same engine**, and neither is privileged:
+
+| Audience | Entry point | Notes |
+|---|---|---|
+| **Humans** | the `siteready` binary (or `node src/cli.js` from a source checkout) | Every command below works standalone in any terminal. No agent, no LLM, no API key. |
+| **Agents** | `SKILL.md` | A thin adapter — *when* to run which command and how to read the output. It contains no logic of its own; it shells out to the same CLI. |
+
+The rule that keeps this honest: **`SKILL.md` never implements behavior.** If an agent needs
+siteready to do something new, that's a change in `src/`, exposed as a CLI flag or command, which
+the human CLI gets for free in the same commit. Anything an agent can do here, a human can do by
+typing the same command — and vice versa.
+
+## Install
+
+```bash
+# as a tool, globally
+npm install -g siteready
+siteready https://example.com
+
+# or without installing
+npx siteready https://example.com
+
+# from a source checkout (contributors, or to use it as a Claude Code skill)
+git clone https://github.com/dkdev24/siteready.git
+cd siteready && npm link      # puts `siteready` on your PATH
+```
+
+Needs Node ≥18. No API keys and no accounts for the default scanners — they're invoked via `npx`
+on demand. Using it as a Claude Code skill means pointing Claude at a checkout containing
+`SKILL.md`; the skill then invokes the CLI the same way you would.
+
 ```
 1. Scan     — run the site through multiple agent-readiness scanners
 2. Report   — normalize results into one scorecard (score, grade, failing/warning checks, evidence)
@@ -83,27 +127,71 @@ tool's value scales with fixer/platform coverage (see Contributing), not with sc
 was deliberately made opt-in rather than a fourth default scanner for exactly this reason (see
 Design notes).
 
+## How this differs from GEO / prompt-based audit skills
+
+There's a growing category of GEO ("Generative Engine Optimization") skill packs — e.g.
+[Cognitic-Labs/geoskills](https://github.com/Cognitic-Labs/geoskills), a suite of prompt skills
+(`geo-audit`, `geo-fix-content`, `geo-fix-schema`, `geo-fix-llmstxt`, `geo-compare`,
+`geo-monitor`) that score a URL and emit recommendations and templates. They overlap with
+siteready enough to be worth an explicit comparison, but they're aimed at a different question.
+
+**The short version: a GEO skill pack is a prompt-driven advisor for AI *visibility*; siteready
+is a build tool for AI *usability*.** Four concrete consequences:
+
+1. **Third-party scores, not self-graded ones.** A prompt-based audit's 0–100 comes from the model
+   doing the judging — not reproducible run-to-run, not auditable, and no external party stands
+   behind it. siteready's numbers come from afdocs / Is Agentic / Ora: same URL, same score,
+   anyone can re-run it, and it's citable to a client or a reviewer. "The standard's own scanner
+   says 97/100" is a different claim than "an AI told us we're a 72."
+2. **Fixes are code, not templates.** A `fix` skill that emits suggested markup still leaves a
+   human or agent to make it actually work. The `smartQuotes()` case above is the standing proof
+   that this gap is real, not cosmetic: a plausible-looking hand fix silently fails afdocs'
+   `markdown-content-parity` on 43–49% of a real site's posts because of Astro's default
+   `remark-smartypants`, and no amount of prompting surfaces that. siteready's fixers are that
+   cost already paid — idempotent, never overwriting an existing file, verified on Windows/macOS/
+   Linux in CI.
+3. **The loop is a falsification step.** `scan → enhance → rescan → diff-report` proves a fix
+   worked locally, before deployment, with a per-check fixed / regressed / still-failing
+   breakdown. A recommendation engine has no equivalent — it hands over advice and exits. This is
+   the piece an advisory tool can't add without becoming a build tool.
+4. **A different (and wider) standard: agent *action*, not agent *citation*.** GEO asks "will an
+   LLM mention me." Agent-readiness asks "can an agent complete a task here" — content
+   negotiation, `.md` mirror routes, controlled interaction, and on Ora's full ranker a payments
+   layer, ARD catalog, and A2A agent cards. The second question is the one that agentic commerce
+   actually turns on. siteready is pointed at it deliberately; this is why the docs here say
+   "agent-readiness" and never "GEO."
+
+**Where a URL-only GEO pack wins today: coverage and breadth.** It runs against any site, while
+`enhance` reports `unsupported` outside Astro (± Starlight) + Cloudflare Pages — the same honest
+scope limit as the section above, and the reason fixer/platform coverage is the roadmap. A GEO
+pack also ships competitor comparison and score-over-time tracking, which siteready doesn't have
+yet (both tracked in `NEXT_ACTIONS.md`).
+
 ## Usage
 
 ```bash
 # scan + report (any public URL)
-node src/cli.js https://example.com
-node src/cli.js https://example.com --out ./out/my-scan --sampling deterministic
-node src/cli.js https://example.com --scanners is-agentic
+siteready https://example.com
+siteready https://example.com --out ./out/my-scan --sampling deterministic
+siteready https://example.com --scanners is-agentic
 
 # enhance a local repo checkout (needs the actual repo, not just the URL — see "How enhance works")
-node src/cli.js enhance ../my-astro-starlight-site
-node src/cli.js enhance ../my-astro-starlight-site --pr   # open a PR instead of leaving an unstaged diff
+siteready enhance ../my-astro-starlight-site
+siteready enhance ../my-astro-starlight-site --pr   # open a PR instead of leaving an unstaged diff
 
 # rescan + diff vs a baseline report (re-runs the baseline's own scanner set unless overridden)
-node src/cli.js rescan https://example.com --baseline ./out/example.com-.../report.json
+siteready rescan https://example.com --baseline ./out/example.com-.../report.json
 
 # diff two already-written reports directly
-node src/cli.js diff-report ./out/before/report.json ./out/after/report.json
+siteready diff-report ./out/before/report.json ./out/after/report.json
 
 # full local loop: scan -> enhance -> rescan -> diff-report, no deployment, no manual steps
-node src/cli.js loop ../my-astro-starlight-site
+siteready loop ../my-astro-starlight-site
 ```
+
+From a source checkout without `npm link`/`npm install -g`, every command above is the same with
+`node src/cli.js` in place of `siteready` (`node src/cli.js https://example.com`, etc.) — the
+binary is just a shim over that entry point.
 
 Output (default `./out/<hostname-or-dir>-<timestamp>/`):
 - `report.md` — human-readable scorecard per scanner (overall score, category breakdown, failing/warning checks with fix hints)

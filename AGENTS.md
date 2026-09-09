@@ -79,6 +79,14 @@ their detail; don't load them just because a session started.
   capability lands in `src/` as a CLI command or flag, so the human CLI and the agent path get it
   in the same commit. If a change would only work when an agent is driving, it's in the wrong
   place.
+- **This is a public repo — don't write employer-internal identifiers into it.** No internal
+  hostnames, internal document/wiki names, objective/KPI references, or links into private repos.
+  When a real site is dogfooded, describe it generically ("a real production Astro + Starlight
+  docs subdomain, no public API") — the technical finding is the point, the identity never is.
+  Existing occurrences in git history and in past `WORKLOG.md` entries were reviewed on 2026-09-09
+  and **deliberately accepted** (NEXT_ACTIONS.md #11): they're mildly-sensitive context, not
+  credentials. Don't re-litigate that and don't try to purge them — past WORKLOG entries are
+  append-only regardless. This rule is about new writing only.
 - **Scanners and fixers are additive plugins.** Adding a new scanner adapter (`src/scanners/`) or
   framework fixer (`src/fixers/` + `src/platforms/`) means new files only — never modify the
   contract or behavior of scanners/fixers already shipped.

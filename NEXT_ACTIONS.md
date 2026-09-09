@@ -80,8 +80,13 @@ items are done but kept briefly for context; drop them once superseded.
     used different types instead of silently mis-comparing. Default stays
     unfiltered (`auto`) — additive only, no existing report/score changes
     unless a caller opts in. Not started.
-11. **[DECISION NEEDED] Internal references were sanitized in the working
-    tree, but they're still in the public repo's git history.** On 2026-09-09
+11. ~~**[DECISION NEEDED]** Internal references remain in the public repo's
+    git history.~~ — **RESOLVED 2026-09-09: option (a), accepted as-is.**
+    Daniel's call; no history rewrite. Kept below as the standing record of
+    what's in history and why it's fine, so a future session doesn't
+    re-litigate it or "helpfully" try to purge it. Going forward the only
+    action is *not to add new ones* — see the boundary rule now in AGENTS.md.
+    Original finding: on 2026-09-09
     `siteready-plan.md` was found at the root of the **public**
     `dkdev24/siteready` repo still carrying the origin project's identity: the
     internal site hostname, internal planning/report document names,
@@ -93,20 +98,16 @@ items are done but kept briefly for context; drop them once superseded.
     Two smaller leaks of the same hostname in `ISSUES.md` and this file were
     sanitized in the same pass. **All of that is fixed in the working tree, but
     a `git log -S` confirms the strings are present in already-pushed commits**,
-    so anyone can still read them via history or a fork. Decide: (a) accept it
-    — the material is mildly-sensitive employer context, not credentials, and
-    the hostname is a public site anyway; (b) rewrite history
-    (`git filter-repo`, force-push, and note that forks/caches/clones won't be
-    reached). (b) is destructive and irreversible, so it needs an explicit
-    go-ahead. Also worth a one-time audit of the rest of the history for the
-    same class of string, not just the plan file.
-    **Left deliberately untouched:** `WORKLOG.md` still names the origin
+    so anyone can still read them via history or a fork. Accepted: the
+    material is mildly-sensitive employer context, not credentials, and the
+    hostname is a public site anyway — not worth a destructive force-push that
+    wouldn't reach existing forks, clones, or caches regardless.
+    **Also left untouched:** `WORKLOG.md` still names the origin
     hostname in four places (the v0.3.0 dogfood entry and three later
     references). AGENTS.md's rule is that WORKLOG entries are append-only and
     past entries are never edited, so sanitizing them would break the log's
     own contract — and unlike the plan file, they're honest historical record
-    rather than a live design doc presented as current. Fold them into
-    whichever option is chosen above rather than editing them piecemeal.
+    rather than a live design doc presented as current. They stay.
 12. **Publish decision, now that the package is publishable.** `private: true`
     is removed and `npm pack --dry-run` is clean (25 files, 42.5 kB, no
     `examples/`, `out/`, or internal docs), so `npm publish` would work — but

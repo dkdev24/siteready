@@ -14,16 +14,14 @@ package.json `1.3.1`, not yet tagged `v1.3.1` in git.
 
 ## Right Now
 
-Two decisions pending, both needing an explicit go-ahead:
+Top blocker: **NEXT_ACTIONS.md #0** — `loop`'s Cloudflare Quick Tunnel support
+for hosted scanners (`src/lib/tunnel.js`) tested unreliable: 1 success in 4
+attempts, DNS failures on `*.trycloudflare.com`. Choose retry-with-a-fresh-
+tunnel, a named/authenticated tunnel, or rollback. Don't describe
+hosted-scanner `loop` support as shipped until resolved.
 
-- **NEXT_ACTIONS.md #0** — `loop`'s Cloudflare Quick Tunnel support for hosted
-  scanners (`src/lib/tunnel.js`) tested unreliable: 1 success in 4 attempts,
-  DNS failures on `*.trycloudflare.com`. Choose retry-with-a-fresh-tunnel, a
-  named/authenticated tunnel, or rollback. Don't describe hosted-scanner
-  `loop` support as shipped until resolved.
-- **NEXT_ACTIONS.md #11** — internal references were sanitized out of the
-  working tree, but remain in this **public** repo's pushed git history.
-  Accept, or rewrite history (destructive, irreversible).
+Settled, don't reopen: internal references in git history are accepted as-is
+(#11) — no rewrite. New writing still avoids them (AGENTS.md).
 
 Identity settled: siteready is a **tool**, not a skill — `SKILL.md` is a thin
 adapter, never implements behavior (AGENTS.md rule 1). Package is publishable

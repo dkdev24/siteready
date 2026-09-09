@@ -604,3 +604,26 @@ instructions are a promise not yet kept), #13 (fixer coverage as the real
 competitive gap, Next.js + Vercel highest-leverage), #14 (compare + monitor
 parity). NEXT_ACTIONS #0 (the tunnel decision) is untouched and still the top
 blocker.
+
+---
+
+## 2026-09-09 — Git-History Sanitization Decision: Accepted As-Is (no version bump)
+
+Follow-up to the entry above. NEXT_ACTIONS.md #11 is resolved: Daniel accepted
+option (a) — the internal references remaining in the **public** repo's pushed
+git history stay, no `filter-repo`, no force-push. Reasoning on record: the
+material is mildly-sensitive employer context rather than credentials, the
+hostname belongs to a publicly-reachable site anyway, and a rewrite wouldn't
+reach existing forks, clones, or caches regardless. The prior session's docs
+commit was merged to `main` and pushed (`552ee88`).
+
+Documented so it isn't re-litigated: #11 is struck through but kept as the
+standing record of what's in history and why it's fine; HANDOFF.md's "Right
+Now" moves it to a "settled, don't reopen" line and returns #0 (the tunnel
+decision) to sole top-blocker status; and AGENTS.md gains a standing rule
+stating the boundary **for new writing only** — no internal hostnames,
+document/wiki names, objective/KPI references, or private-repo links; describe
+dogfooded sites generically, since the technical finding is the point and the
+identity never is. The rule explicitly tells future sessions not to re-open the
+accepted history or try to purge past `WORKLOG.md` entries, which are
+append-only in any case.

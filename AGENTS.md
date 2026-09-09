@@ -59,9 +59,11 @@ their detail; don't load them just because a session started.
 
 | Path | Purpose |
 |---|---|
-| `src/cli.js` | CLI entrypoint (scan / enhance / rescan / diff-report / loop) |
+| `src/cli.js` | CLI entrypoint (scan / enhance / rescan / diff-report / loop / lint) |
 | `src/scan.js`, `src/scanners/` | Scanner orchestration (afdocs, is-agentic, ora) |
 | `src/enhance.js`, `src/fixers/` | Framework/platform detection + auto-fixers |
+| `src/fixers/near-miss.js` | `/url-index.json` route + the 404-resolution logic injected into the CF middleware — spans framework and platform, so it lives on its own |
+| `src/lint.js` | Local link check against build output — finds `href`/`link` in component props and frontmatter that markdown validators don't see |
 | `src/report.js`, `src/diff-report.js` | Scorecard normalization + before/after diffing |
 | `src/loop.js` | Full local scan→enhance→rescan→diff-report loop |
 | `examples/astro-starlight-cf-pages/`, `examples/astro-cf-pages/` | Reference fixer targets + reproduction steps |

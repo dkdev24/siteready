@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { URL_INDEX_ENDPOINT } from "./near-miss.js";
 
 const LLMS_TXT_ENDPOINT = `import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
@@ -283,6 +284,7 @@ export async function applyAstroStarlightFixes(repoPath) {
 
   await writeIfAbsent(path.join(repoPath, "src/pages/llms.txt.ts"), LLMS_TXT_ENDPOINT, written, skipped);
   await writeIfAbsent(path.join(repoPath, "src/pages/[...slug].md.ts"), MD_MIRROR_ENDPOINT, written, skipped);
+  await writeIfAbsent(path.join(repoPath, "src/pages/url-index.json.ts"), URL_INDEX_ENDPOINT, written, skipped);
   await writeIfAbsent(path.join(repoPath, "src/components/Banner.astro"), BANNER_OVERRIDE, written, skipped);
   await writeIfAbsent(path.join(repoPath, "src/components/Head.astro"), buildHeadOverride(orgInfo), written, skipped);
   await writeIfAbsent(path.join(repoPath, "src/content/docs/404.md"), NOT_FOUND_PAGE, written, skipped);

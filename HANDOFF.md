@@ -7,23 +7,23 @@ file under 50 lines. Detailed history and lists live in the linked docs below.
 
 ## Current Version
 
-**0.9.0** (doc-tracking system version, see WORKLOG.md). Engine/CLI is at
-package.json `1.4.1`, not yet tagged in git.
+**0.10.0** (doc-tracking system version, see WORKLOG.md). Engine/CLI is at
+package.json `1.5.0`, not yet tagged in git.
 
 ---
 
 ## Right Now
 
-No blocker. Hosted-scanner `loop` via Cloudflare Quick Tunnel: shipped (v1.4.0).
-v1.4.1 fixed two defects dogfooding found in our own fixer output — a
-middleware-collision guard that only checked `_middleware.js`, and an
-`llms.txt` template that emitted a flat `.md`-only list instead of a browsable
-nav index. See WORKLOG.md.
+No blocker. Hosted-scanner `loop` via Quick Tunnel: shipped (v1.4.0).
+v1.4.1 fixed two defects dogfooding found in our own fixer output (middleware
+collision guard, flat `llms.txt`). v1.5.0 shipped both remaining dogfooding
+finds: near-miss 404 resolution (`fixers/near-miss.js` — `/url-index.json` +
+a 301 resolver in the CF middleware, live-verified via `wrangler pages dev`)
+and `siteready lint` (`href`/`link` in component props and frontmatter,
+checked against build output, exits non-zero). See WORKLOG.md.
 
 Next up: **#2** (before/after score delta) and **#13** (Next.js + Vercel fixer
-— the competitive gap). New from dogfooding: **#16** (near-miss 404 path
-resolution) and **#17** (links in MDX component props go unvalidated) — both
-proven by hand, neither built here.
+— the competitive gap).
 
 Settled, don't reopen: internal references in git history are accepted as-is
 (#11) — no rewrite. New writing still avoids them (AGENTS.md).

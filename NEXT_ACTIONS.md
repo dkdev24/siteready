@@ -167,7 +167,19 @@ items are done but kept briefly for context; drop them once superseded.
     a phantom regression. Worth doing — a 20-minute afdocs+is-agentic scan
     shouldn't be lost to a rate limit on an opt-in third scanner — but it's a
     deliberate design change, not a patch. Not started.
-16. **Near-miss path resolution as a fixer** (Astro + Cloudflare Pages).
+16. ~~**Near-miss path resolution as a fixer** (Astro + Cloudflare Pages).~~ —
+    **DONE in v1.5.0.** Shipped as `src/fixers/near-miss.js` (the
+    `/url-index.json` route plus the resolver injected into the Cloudflare
+    middleware). Locale handling ended up generic rather than site-specific:
+    a request opening with a real top-level directory is scoped to it, and
+    ties break on path depth, which resolves a `/<locale>/` request within
+    its own tree without the fixer knowing anything about locales. Verified
+    live through `wrangler pages dev` (301s to the right pages, 404 preserved
+    for genuinely unknown paths) and cross-checked against a real multi-locale
+    site's index, where the generic resolver matched the hand-written one on
+    all ten reported paths. Original write-up below.
+
+    **Near-miss path resolution as a fixer** (Astro + Cloudflare Pages).
     A real dogfood journey on a production docs site showed an agent failing
     on plausible-but-wrong paths — a two-level tree
     (`/<section>/<product>/<page>/`) guessed as one level
@@ -187,7 +199,17 @@ items are done but kept briefly for context; drop them once superseded.
     refuses to touch an existing `_middleware.*` — so for a repo that already
     has one this has to ship as reported guidance plus the endpoint, not a
     silent write. Not started.
-17. **Check for internal links inside MDX component props.**
+17. ~~**Check for internal links inside MDX component props.**~~ —
+    **DONE in v1.5.0.** Shipped as `siteready lint <repo>` (`src/lint.js`),
+    checking `href`/`link` in `.md`/`.mdx`/`.astro` against the repo's build
+    output and exiting non-zero on findings. It got its own verb rather than
+    folding into `scan` because it reads build output, not a served URL —
+    that is a different input, and pretending otherwise would have made
+    `scan` mean two things. Regression-tested by re-breaking the real
+    homepage link it was built for: caught with file and line, exit 1.
+    Original write-up below.
+
+    **Check for internal links inside MDX component props.**
     `starlight-links-validator` only validates markdown links, not `href=`
     props on components (`<LinkCard href=...>`, `<Card>`, custom wrappers), so
     a docs site can build green with a dead link on its homepage — observed

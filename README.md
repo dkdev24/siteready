@@ -187,6 +187,9 @@ siteready diff-report ./out/before/report.json ./out/after/report.json
 
 # full local loop: scan -> enhance -> rescan -> diff-report, no deployment, no manual steps
 siteready loop ../my-astro-starlight-site
+
+# check internal links against the build output (exits non-zero on findings)
+siteready lint ../my-astro-starlight-site
 ```
 
 From a source checkout without `npm link`/`npm install -g`, every command above is the same with
@@ -199,6 +202,13 @@ Output (default `./out/<hostname-or-dir>-<timestamp>/`):
 - `raw/is-agentic.json`, `raw/afdocs.json`, `raw/ora.json` — the unmodified scanner output, for debugging
 - `diff-report.md` / `diff-report.json` (from `rescan`, `diff-report`, or `loop`) — before/after
   score deltas plus per-check "Fixed" / "Regressed" / "Still failing" breakdowns
+
+`lint` reads the repo's own build output rather than a served URL, so build the site first. It
+scans `href`/`link` in `.md`/`.mdx`/`.astro` — component props and frontmatter included — and reports
+every one that resolves to nothing in the build, with file and line. Markdown link validators only
+walk the markdown AST, so `<LinkCard href="/gone/">` and Starlight hero `link:` entries are invisible
+to them: a docs site can build green with a dead link on its homepage, which is the first thing a
+crawling agent hits. Exits non-zero on findings so it can gate CI.
 
 `enhance` prints what it wrote/skipped/warned about and exits — without `--pr` it produces an
 unstaged diff in the target repo for you to review, never a commit.
@@ -221,16 +231,17 @@ review. It also never overwrites a file the target already has (e.g. an existing
 ```
 siteready/
 ├── src/
-│   ├── cli.js              # entry point: scan / enhance / rescan / diff-report / loop
+│   ├── cli.js              # entry point: scan / enhance / rescan / diff-report / loop / lint
 │   ├── scan.js              # runs configured scanner adapters -> normalized report (shared by scan & rescan)
 │   ├── report.js            # normalized report -> report.md / report.json
 │   ├── diff-report.js       # baseline vs re-scan -> diff-report.md / diff-report.json
 │   ├── detect-stack.js      # framework/host fingerprinting from the LOCAL repo (package.json, config files)
 │   ├── enhance.js           # detects stack, applies the matching fixer + platform module
 │   ├── pr.js                # opt-in enhance --pr flow (branch, commit, push, gh pr create)
+│   ├── lint.js               # local link check against build output (catches links a markdown validator can't see)
 │   ├── loop.js               # local scan -> enhance -> rescan -> diff-report orchestration
 │   ├── scanners/            # pluggable scanner adapters — export run*Scan(url, options) -> { normalized, raw }
-│   ├── fixers/               # pluggable, framework-scoped remediation
+│   ├── fixers/               # pluggable, framework-scoped remediation (incl. near-miss.js, shared with platforms/)
 │   ├── platforms/            # deployment-target adapters (negotiation/headers)
 │   └── lib/
 │       ├── npx-runner.js     # cross-platform npx invocation (see "Cross-platform notes")

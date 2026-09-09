@@ -7,6 +7,7 @@ import { loadReport, buildDiffReport, writeDiffReport } from "./diff-report.js";
 import { enhance } from "./enhance.js";
 import { openEnhancePr } from "./pr.js";
 import { runLoop } from "./loop.js";
+import { lintLinks, formatLintReport } from "./lint.js";
 
 function parseFlags(argv, { defaults = {} } = {}) {
   const args = { ...defaults };
@@ -19,6 +20,7 @@ function parseFlags(argv, { defaults = {} } = {}) {
     else if (a === "--scanners") args.scanners = argv[++i].split(",").map((s) => s.trim());
     else if (a === "--baseline") args.baseline = argv[++i];
     else if (a === "--port") args.port = Number(argv[++i]);
+    else if (a === "--dist") args.dist = argv[++i];
     else if (a === "--pr") args.pr = true;
     else if (a === "-h" || a === "--help") args.help = true;
     else positional.push(a);
@@ -45,6 +47,7 @@ function printHelp() {
        siteready rescan <url> --baseline <path> [options]   re-scan + diff vs a baseline report
        siteready diff-report <baseline> <rescan> [--out <dir>]   diff two existing reports
        siteready loop <repo-path> [options]            scan -> enhance -> rescan -> diff, local only
+       siteready lint <repo-path> [--dist <dir>]       check internal links against the build output
 
 Options (scan / rescan / loop):
   --out <dir>            Output directory (default: ./out/<hostname-or-dir>-<timestamp>)
@@ -77,6 +80,13 @@ it, review the diff yourself.
 
 rescan re-runs the same scanners a baseline report used (override with --scanners) against a URL,
 then writes a new report.json/report.md plus a diff-report.md/json comparing it to the baseline.
+
+lint checks every internal link in the repo's own source (\`href\`/\`link\` in .md/.mdx/.astro,
+including component props and frontmatter) against its build output, and exits non-zero if any of
+them resolve to nothing. Markdown link validators only walk the markdown AST, so they miss
+\`<LinkCard href="/gone/">\` and Starlight hero \`link:\` entries entirely — a docs site can build
+green with a dead link on its homepage, which is the first thing a crawling agent hits. Build the
+site first; lint reads \`<repo>/dist\` (override with --dist).
 
 loop runs the whole scan -> enhance -> rescan -> diff-report cycle against a local repo checkout
 with no live deployment: builds the site, serves it locally (Cloudflare Pages via
@@ -244,6 +254,19 @@ async function runLoopCommand(repoPath, args) {
   }
 }
 
+async function runLintCommand(repoPath, args) {
+  if (!repoPath) {
+    console.error("Usage: siteready lint <repo-path> [--dist <dir>]");
+    process.exit(1);
+  }
+
+  const result = await lintLinks(repoPath, { dist: args.dist ?? "dist" });
+  console.log(formatLintReport(result));
+  // Non-zero on findings: this is a lint, and the whole point is that it can
+  // gate a build that would otherwise pass.
+  if (result.findings.length) process.exit(1);
+}
+
 async function main() {
   const argv = process.argv.slice(2);
   const command = argv[0];
@@ -263,6 +286,12 @@ async function main() {
   if (command === "diff-report") {
     const args = parseFlags(argv.slice(3));
     await runDiffReportCommand(argv[1], argv[2], args);
+    return;
+  }
+
+  if (command === "lint") {
+    const args = parseFlags(argv.slice(2));
+    await runLintCommand(argv[1], args);
     return;
   }
 

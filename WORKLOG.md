@@ -810,3 +810,82 @@ ISSUES.md gained an entry on the underlying observation: that site scored 72/D
 and 97/A while its homepage had a dead card and every shortened URL 404'd. The
 scorecards missed both. The Ora journey prose caught them, and `ora.js`
 currently normalizes per-check results and throws that prose away.
+
+
+---
+
+## v1.5.0 — Near-miss path resolution + `siteready lint`
+
+Both of these were filed one session earlier (NEXT_ACTIONS #16, #17) after being
+implemented and verified by hand on a real production docs site. This session
+generalized them into the tool, which is where the interesting differences from
+the hand-written versions showed up.
+
+### Near-miss path resolution (`src/fixers/near-miss.js`, new)
+
+A 404 on a plausible-but-wrong path is a dead end for an agent: nothing on the
+page tells it what the real URL is, so it leaves and searches. The fix is two
+halves that are useless apart — a build-time `/url-index.json` (every canonical
+URL, the directory list, a slug -> URL map, and an optional per-site alias
+table that defaults to empty) and a middleware branch that consults it on a 404
+and 301s to the canonical page. They live together in one module rather than
+being split across `fixers/` and `platforms/`, since neither ships alone.
+
+The hand-written original filtered candidates by an explicit `/ko/` locale
+check. A fixer can't know a site's locales, so the generic version derives the
+same behavior from the index: if a request opens with a segment that is itself
+a real top-level directory, candidates are scoped to it — which is exactly what
+a locale prefix looks like — and remaining ties break on path depth, so a page
+mirrored under a locale prefix loses to the shallower canonical one. Verified
+by running the generic resolver against the real multi-locale site's own
+`url-index.json`: it matched the hand-tuned version on all ten reported paths,
+including both Korean ones.
+
+That cross-check also caught a real regression in the first draft. Scoring
+started at `best = 0` and only collected winners when a candidate scored above
+it, so a single-segment guess (`/license-token/`) — which has no context
+segments to score against — produced no winner and fell through to a 404, where
+the hand-written version had resolved it. Fixed by falling through to the depth
+tie-break over all candidates when nothing scores, which is safe: genuinely
+ambiguous same-depth candidates still tie, and a tie still means no redirect.
+
+Verified live rather than only in unit form: built the fixture, served it with
+`wrangler pages dev`, and confirmed `/guides/configuration/` and
+`/docs/getting-started/` return 301 to the right pages, `/nothing/here/` still
+returns 404, and a real page still returns 200.
+
+The resolver no-ops when `/url-index.json` is absent (it caches the miss so a
+404-heavy site doesn't re-request it every time), which is what keeps it safe
+for the plain-Astro fixer path, where no index is written.
+
+One consequence worth stating: for a repo that already has a middleware, the
+platform fixer correctly refuses to touch it — so that repo gets the index route
+but not the resolver. The skip now comes with a warning saying exactly that, and
+what to copy where.
+
+### `siteready lint` (`src/lint.js`, new)
+
+`starlight-links-validator` and its equivalents walk the markdown AST, so they
+see `[text](/path/)` and nothing else. They do not see `href` on a component or
+`link:` in frontmatter — which is how Starlight hero actions and every card
+component are written. The site this came from shipped a dead product card on
+its homepage through a green build, a green link validator, and three green
+scanners.
+
+`lint` reads the repo's build output rather than a served URL, which is both why
+it needs a build first and why it's exact: a link is broken iff nothing in the
+build answers it. It got its own CLI verb rather than folding into `scan`
+because that difference in input is real — `scan` takes a URL, `lint` takes a
+checkout — and blurring it would have made `scan` mean two things. Exits
+non-zero on findings so it can gate CI.
+
+Regression-tested against the original defect: re-breaking that homepage link
+produces exactly one finding with file and line, and exit 1; the repaired tree
+reports 249 links across 482 source files, all resolving.
+
+### Verification
+
+`npm run lint` clean (19 files). `npm run verify-loop` green for both fixtures
+after the middleware change — afdocs `http-status-codes` and
+`content-negotiation` still move fail -> pass. Live `wrangler pages dev` check
+as described above.

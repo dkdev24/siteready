@@ -1,7 +1,10 @@
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { NEAR_MISS_RESOLVER } from "../fixers/near-miss.js";
 
+// The middleware carries two agent-readiness behaviors: `Accept: text/markdown`
+// content negotiation, and near-miss path resolution (see `../fixers/near-miss.js`).
 // Cloudflare Pages' static `_headers`/`_redirects` files can't branch on a
 // request header, so `Accept: text/markdown` negotiation needs a Pages
 // Function rather than static config.
@@ -33,6 +36,15 @@ export async function onRequest(context) {
 	}
 
 	const response = await next();
+
+	// A 404 on a plausible-but-wrong path is a dead end for an agent. Try to
+	// resolve it to the real page before giving up. No-ops on a site with no
+	// /url-index.json.
+	if (response.status === 404 && (request.method === 'GET' || request.method === 'HEAD')) {
+		const redirect = await resolveNearMiss(new URL(request.url), env);
+		if (redirect) return Response.redirect(redirect, 301);
+	}
+
 	const headers = new Headers(response.headers);
 	headers.append('Vary', 'Accept');
 	return new Response(response.body, {
@@ -41,6 +53,8 @@ export async function onRequest(context) {
 		headers,
 	});
 }
+
+${NEAR_MISS_RESOLVER}
 `;
 
 // Cloudflare Pages resolves `functions/_middleware.<ext>` by route, not by
@@ -77,8 +91,14 @@ export async function applyCloudflarePagesFixes(repoPath) {
 
   if (existing.length > 0) {
     skipped.push(
-      `${middlewarePath} (${existing.join(", ")} already claims this route — not overwritten; ` +
-        "merge the negotiation logic in manually if wanted)"
+      `${middlewarePath} (${existing.join(", ")} already claims this route — not overwritten)`
+    );
+    warnings.push(
+      `${existing[0]} already exists, so markdown content negotiation and near-miss path ` +
+        "resolution were NOT installed. Both are additive branches — copy them out of " +
+        "`src/platforms/cloudflare-pages.js` (the `MIDDLEWARE` template) into your existing " +
+        "middleware if you want them. The `/url-index.json` route the resolver reads was still " +
+        "written, and is harmless on its own."
     );
     if (existing.length > 1) {
       warnings.push(

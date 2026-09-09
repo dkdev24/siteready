@@ -21,3 +21,18 @@ WORKLOG.md instead.
   party's scoring stability from our side, but siteready can stop counting
   checks that don't apply to the site's type in the first place — see
   NEXT_ACTIONS.md #10 (site-type filtering).
+- **Scanner scores don't see broken navigation.** A real production docs site
+  scored 72/100 (D) on `is-agentic` and 97/100 (A) on `afdocs` while its
+  homepage shipped a dead product card and every shortened URL guess returned
+  a hard 404 — the two failures that actually stopped an agent from completing
+  its task on that site. What surfaced them was the Ora *journey narrative*
+  ("had to work around a fragmented doc structure; many 404s on
+  breadcrumb-suggested paths forced the agent to rely on web search to
+  discover the actual working endpoint URLs"), not any check in any of the
+  three scorecards. Implication for siteready: the numeric roll-up is not a
+  sufficient output. `ora.js` currently normalizes per-check results and drops
+  the prose; the journey text is the highest-signal thing the Ora API returns
+  and should be surfaced in `report.md` verbatim, not summarized into a score.
+  Related: NEXT_ACTIONS.md #16 (near-miss path resolution) and #17 (links in
+  MDX component props) both came out of that narrative rather than out of a
+  failing check.

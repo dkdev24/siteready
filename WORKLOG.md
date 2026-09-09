@@ -735,3 +735,78 @@ Two things corrected mid-write rather than shipped wrong:
    per-scanner error state, partial scoring, and `diff-report` refusing to
    compare a baseline against a re-scan missing a scanner — so it's a design
    decision, not a patch.
+
+---
+
+## v1.4.1 — Middleware collision guard + llms.txt as a real nav index
+
+Both changes came out of dogfooding round 2: a hosted agent journey was run
+against the same production Astro + Starlight docs subdomain used in earlier
+rounds, and its narrative (not its score) exposed two defects in siteready's
+own fixer output.
+
+### 1. `cloudflare-pages.js` wrote a second middleware onto an occupied route
+
+The guard checked `existsSync(functions/_middleware.js)` — the exact filename
+it writes. The target repo's middleware was `_middleware.ts`, so the guard
+missed and `enhance` added `_middleware.js` beside it. Cloudflare Pages
+resolves `functions/_middleware.<ext>` **by route, not by filename**, so those
+two files are the same route: shipping both is a collision, and which one wins
+is up to the build. Worse, the file we added carried only the markdown
+negotiation, while the existing one also carried origin-scoped CORS for an
+embedded widget — so a build that picked ours would have silently dropped
+working behavior.
+
+Fixed by guarding on every extension Pages accepts (`js`, `mjs`, `jsx`, `ts`,
+`tsx`), naming the file that already claims the route in the skip message, and
+emitting a warning when a repo is *already* in the collided state (more than
+one root middleware present) — which is how the affected repo was found.
+
+Verified across all five states — none, `.js`, `.ts`, `.tsx`, and both `.js`
+and `.ts` — with the last correctly producing a skip plus a warning and no
+new file.
+
+### 2. The generated `llms.txt` was a flat list of `.md` URLs
+
+The journey's verdict on the site was that `/llms.txt` "documented URL
+structure but did not provide a browsable nav index," which sent the agent to
+web search to find pages the site already published. That file was our
+template's output, verbatim: one `## Docs` heading over a flat list, `.md`
+URLs only, no hierarchy, no canonical HTML URLs, and no statement of the URL
+structure.
+
+Rewritten to emit a navigable tree: group by top-level section, then by
+second-level directory — but only where a directory actually has pages below
+it, so a leaf page two levels deep doesn't become a bogus section heading of
+its own. Each entry now carries the canonical HTML URL *and* the `.md` URL. A
+"URL structure" preamble lists the real top-level sections and says outright
+that a shortened guess is not a valid URL and the index is authoritative. The
+404 page is excluded (it is a routing artefact, and it was otherwise showing
+up as a top-level section). Section headings title-case the directory name,
+since a fixer can't invent a site's product names — the generated file says so
+and invites replacing them.
+
+This is a behavior change to a shipped fixer rather than a new additive one,
+which AGENTS.md's plugin rule would normally discourage. Judged in-bounds: the
+fixer only ever writes this file when it is absent, so no already-enhanced repo
+is touched by the change, and the old output was the exact defect a scanner
+journey called out.
+
+Verified by deleting the fixture's `llms.txt.ts`, re-running the fixer,
+building, and reading `dist/llms.txt` — correct hierarchy, both URL forms per
+page, no 404 section. `npm run lint` clean; `npm run verify-loop` green for
+both fixtures (afdocs `http-status-codes` and `content-negotiation` still move
+fail -> pass).
+
+### Also filed, not built
+
+NEXT_ACTIONS.md #16 (near-miss 404 path resolution as a fixer) and #17 (a check
+for internal links inside MDX component props — `starlight-links-validator`
+misses them, and a dead homepage card survived a green build because of it).
+Both were implemented and verified by hand on the dogfooded site first; only
+the generic write-ups are here.
+
+ISSUES.md gained an entry on the underlying observation: that site scored 72/D
+and 97/A while its homepage had a dead card and every shortened URL 404'd. The
+scorecards missed both. The Ora journey prose caught them, and `ora.js`
+currently normalizes per-check results and throws that prose away.

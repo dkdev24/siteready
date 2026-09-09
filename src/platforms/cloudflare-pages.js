@@ -43,12 +43,29 @@ export async function onRequest(context) {
 }
 `;
 
+// Cloudflare Pages resolves `functions/_middleware.<ext>` by route, not by
+// filename, so `_middleware.js` and `_middleware.ts` are the *same* route —
+// shipping both is a collision, not two middlewares. Checking only for the
+// exact filename we write is therefore not enough: a repo whose middleware is
+// written in TypeScript would get a second file silently added beside it, and
+// whatever that existing file did (CORS, redirects, auth) would be at the mercy
+// of which one the build picks. Guard on every extension Pages accepts.
+const MIDDLEWARE_EXTENSIONS = ["js", "mjs", "jsx", "ts", "tsx"];
+
+function findExistingMiddleware(repoPath) {
+  return MIDDLEWARE_EXTENSIONS.map((ext) =>
+    path.join(repoPath, "functions", `_middleware.${ext}`)
+  ).filter((candidate) => existsSync(candidate));
+}
+
 /**
  * Applies the Cloudflare Pages platform-side fix: a `functions/_middleware.js`
  * that serves the framework fixer's `.md` mirrors on `Accept: text/markdown`.
- * Skips (never overwrites) if a `_middleware.js` already exists — this repo's
- * own middleware may already do something else, and blind overwrite risks
- * destroying it. Never writes to git — see `astro-starlight.js`'s docstring.
+ * Skips (never overwrites) if a root middleware already exists in *any*
+ * extension — this repo's own middleware may already do something else, and
+ * adding a second file on the same route risks both clobbering that behavior
+ * and failing the Pages build. Never writes to git — see `astro-starlight.js`'s
+ * docstring.
  */
 export async function applyCloudflarePagesFixes(repoPath) {
   const written = [];
@@ -56,8 +73,20 @@ export async function applyCloudflarePagesFixes(repoPath) {
   const warnings = [];
 
   const middlewarePath = path.join(repoPath, "functions", "_middleware.js");
-  if (existsSync(middlewarePath)) {
-    skipped.push(`${middlewarePath} (already exists — not overwritten; merge the negotiation logic in manually if wanted)`);
+  const existing = findExistingMiddleware(repoPath);
+
+  if (existing.length > 0) {
+    skipped.push(
+      `${middlewarePath} (${existing.join(", ")} already claims this route — not overwritten; ` +
+        "merge the negotiation logic in manually if wanted)"
+    );
+    if (existing.length > 1) {
+      warnings.push(
+        `Multiple root middleware files found (${existing.join(", ")}). Cloudflare Pages routes ` +
+          "them all to the same path — keep exactly one, or the deployed behavior depends on which " +
+          "file the build happens to pick."
+      );
+    }
   } else {
     await mkdir(path.dirname(middlewarePath), { recursive: true });
     await writeFile(middlewarePath, MIDDLEWARE, "utf8");

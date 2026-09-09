@@ -167,3 +167,36 @@ items are done but kept briefly for context; drop them once superseded.
     a phantom regression. Worth doing — a 20-minute afdocs+is-agentic scan
     shouldn't be lost to a rate limit on an opt-in third scanner — but it's a
     deliberate design change, not a patch. Not started.
+16. **Near-miss path resolution as a fixer** (Astro + Cloudflare Pages).
+    A real dogfood journey on a production docs site showed an agent failing
+    on plausible-but-wrong paths — a two-level tree
+    (`/<section>/<product>/<page>/`) guessed as one level
+    (`/<product>/<page>/`) — and every guess was a hard 404 with no recovery
+    hint, so the agent fell back to web search to rediscover URLs the site
+    already published. The fix is generic and needs no product knowledge:
+    a build-time `/url-index.json` endpoint (canonical URLs, directory list,
+    slug -> URL map, plus an optional per-site alias table defaulting to
+    empty) and a middleware branch that, on a 404, resolves the last path
+    segment against that index and 301s to the canonical page. Ambiguous
+    slugs score against the rest of the requested path; candidates filter to
+    the requested locale so an i18n site's English request never ties with
+    its own translation; no confident match falls back to the deepest real
+    section index, then to the 404 page. Verified by hand on a production
+    site before proposing it here. Note the constraint: the middleware half
+    lives in `src/platforms/cloudflare-pages.js`, whose fixer now (correctly)
+    refuses to touch an existing `_middleware.*` — so for a repo that already
+    has one this has to ship as reported guidance plus the endpoint, not a
+    silent write. Not started.
+17. **Check for internal links inside MDX component props.**
+    `starlight-links-validator` only validates markdown links, not `href=`
+    props on components (`<LinkCard href=...>`, `<Card>`, custom wrappers), so
+    a docs site can build green with a dead link on its homepage — observed
+    on a real site, where a product card had pointed at a path that never
+    existed. Homepage links matter disproportionately for agent readiness:
+    that page is where a crawl starts. A static check is ~40 lines (extract
+    `href`/`link` string props from `.mdx`, resolve each against the build
+    output, report misses) and needs no browser. Open question is where it
+    belongs — siteready has no "inspect the repo's own build output" check
+    category yet, only scanner adapters over a served URL, so this may want a
+    new local-check surface (`siteready lint <repo>`) rather than squeezing
+    into `scan`. Not started.

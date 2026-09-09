@@ -274,9 +274,13 @@ framework having no fixer yet degrades to "unsupported," never breaks the pipeli
 - `scanners/ora.js` is the one exception to the npx-runner rule above: Ora
   (https://ora.ai/, the engine Vercel's Is Agentic wraps with a simplified `include=essentials`
   subset) has no CLI, only a public, keyless-for-reads API, so the adapter calls `fetch()`
-  directly against `POST https://ora.ai/api/scan?format=audit`. Rate-limited (10/min burst,
-  30/day, 6 force-scans/day) — the adapter defaults `force: false` so repeated scans of the same
-  URL lean on Ora's own 6-hour cache instead of burning quota.
+  directly against `POST https://ora.ai/api/scan?format=audit`. **Rate-limited per IP** — 10
+  scans/minute burst, 30 per rolling 24h, of which 6 may be force (cache-bypassing) scans
+  ([ora.ai/docs](https://ora.ai/docs)). Cache hits don't consume quota, so the adapter defaults
+  `force: false` and repeated scans of the same URL lean on Ora's own 6-hour freshness window
+  instead of burning quota; a burst of *distinct* URLs is what actually exhausts it. Over the
+  limit, Ora returns HTTP 429 with a `Retry-After` header — the adapter turns that into an error
+  naming the quotas and the wait, so it reads as "come back later," not "the scan is broken."
 - **`ora` is opt-in, not in `DEFAULT_SCANNERS`.** `is-agentic`'s score is computed from the same
   Ora API with `include=essentials` — it's a strict subset of `ora`'s full ranker, not an
   independent measurement. Until a fixer targets some `ora`-specific check (ARD catalog, A2A agent
@@ -299,6 +303,16 @@ framework having no fixer yet degrades to "unsupported," never breaks the pipeli
   `lib/npx-runner.js`) so `loop` can scan a fixer's target with **no live deployment**. Windows
   needs `taskkill /t` to kill the whole process tree (`child.kill()` alone leaves wrangler's own
   child process running); POSIX uses a detached process group + `process.kill(-pid)`.
+- `lib/tunnel.js` extends that to the **hosted** scanners. `afdocs` fetches the scanned URL from
+  this machine, so `localhost` is fine for it; `is-agentic` and `ora` run their own crawler on
+  someone else's infrastructure and can never reach `localhost`. Requesting either from `loop`
+  opens an ephemeral Cloudflare Quick Tunnel (`cloudflared tunnel --url`, no account or signup)
+  to the local preview server, so the whole loop works against every scanner with no deployment.
+  The site is briefly reachable by anyone holding the random URL and is torn down right after the
+  scan — same risk class as a preview deployment, shorter-lived. Quick Tunnels are anonymous and
+  best-effort, so an unreachable one is retried as a *whole fresh tunnel* (3 attempts; override
+  with `SITEREADY_TUNNEL_ATTEMPTS`) — the failure mode is the handed-out hostname never resolving,
+  which only a new hostname fixes.
 - `pr.js` is the opt-in `--pr` flow for `enhance` — it degrades to "left as an unstaged diff"
   (never throws) if there's no git remote or `gh` isn't authenticated, so a user without those
   configured still gets the default behavior.

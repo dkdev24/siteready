@@ -60,6 +60,13 @@ Options (scan / rescan / loop):
   AFDOCS_VERSION / IS_AGENTIC_VERSION env vars override those scanners' pinned CLI version for one
   run, no source edit needed. \`npm run check-scanner-versions\` reports when the pins are behind npm.
 
+  Ora is a keyless public API but rate-limited per IP: 10 scans/minute burst, 30 per rolling 24h
+  (6 of which may be force/cache-bypassing; siteready never forces). Responses from Ora's 6-hour
+  freshness cache don't count against quota, so re-scanning one URL is usually free — scanning many
+  distinct URLs is what exhausts it. Exceeding it returns HTTP 429 and aborts the run with a
+  retry-after hint — a failing scanner takes the whole scan down, so no report is written even if
+  the other scanners already succeeded. Limits: https://ora.ai/docs
+
 enhance requires a local checkout of the target site's own repo (not just a URL) — its fixes are
 source-file edits, so there's no way to apply them against a URL alone. Supports one fixer: Astro +
 Starlight + Cloudflare Pages. It never commits or pushes unless --pr is passed explicitly; without
@@ -79,7 +86,9 @@ diff report — no manual steps, no live deployment.
           (no account needed) to the local preview server so those hosted scanners can reach it —
           they run their own crawler on Vercel's/Ora's infrastructure, which can never reach
           localhost otherwise. The site is briefly reachable by anyone with the random tunnel URL,
-          torn down right after the scan.`);
+          torn down right after the scan. Quick Tunnels are anonymous and best-effort, so an
+          unreachable one is retried as a whole fresh tunnel (3 attempts; override with the
+          SITEREADY_TUNNEL_ATTEMPTS env var).`);
 }
 
 async function runScanCommand(target, args) {

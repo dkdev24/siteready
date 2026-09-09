@@ -6,17 +6,18 @@ items are done but kept briefly for context; drop them once superseded.
 
 ---
 
-0. **[TOP PRIORITY, decision pending]** `loop`'s Cloudflare Quick Tunnel
-   support for hosted scanners (`src/lib/tunnel.js`, wired into `loop.js`)
-   tested unreliable this session — 1 success in 4 attempts, DNS resolution
-   failures on the `*.trycloudflare.com` hostname. Pick one (see WORKLOG.md's
-   2026-09-09 "loop + Hosted Scanners via Tunnel" entry for full detail): (1)
-   add retry-with-a-fresh-tunnel-per-attempt, (2) switch to a named/
-   authenticated Cloudflare Tunnel (needs a CF account), or (3) roll back to
-   the hard-reject and document the limitation. Whichever is chosen,
-   re-verify with a real `loop` run against `examples/astro-cf-pages
-   --scanners ora` (or `is-agentic`) before considering this done or bumping
-   the version.
+0. ~~`loop`'s Cloudflare Quick Tunnel support for hosted scanners tested
+   unreliable (1 success in 4 attempts).~~ — **RESOLVED 2026-09-09: option
+   (1), retry with a fresh tunnel per attempt.** Shipped in v1.4.0 and
+   verified by a real `loop examples/astro-cf-pages --scanners ora` run. The
+   retry unit is a whole tunnel (kill the connector, spawn a new one) because
+   the failure was the *hostname* never resolving — re-probing the same URL
+   never recovers, a fresh random hostname does. Residual risk, not an action
+   item: Quick Tunnels are anonymous and best-effort by design, so a run can
+   still exhaust all 3 attempts on a bad network day; the error says so and
+   points at `SITEREADY_TUNNEL_ATTEMPTS`. If that turns out to be routine
+   rather than rare, the fallback is still option (2), a named/authenticated
+   tunnel (needs a CF account).
 1. ~~Build a synthetic `examples/astro-cf-pages/` fixture~~ — done.
 2. Re-run `enhance` (plain-Astro fixer) against a **fresh** site that has
    none of these fixes yet and confirm the `is-agentic`/`afdocs` score
@@ -41,10 +42,12 @@ items are done but kept briefly for context; drop them once superseded.
 6. Add fixers for additional frameworks/platforms as demand comes in (see
    CONTRIBUTING.md for the fixer contribution process).
 7. ~~Consider expanding scanner coverage beyond afdocs + Vercel Is Agentic.~~ —
-   done (Ora scanner). No CI/fixture coverage for it yet (same "needs a real
-   deploy" gap as #2, since `loop` can't reach hosted scanners at all) — fold
-   into #2's real-deploy verification, or give it its own pass once #2
-   happens.
+   done (Ora scanner). No CI/fixture coverage for it yet — `loop` can now
+   reach it via the tunnel (#0), but `verify-loop.js` still runs afdocs only,
+   deliberately: a hosted scanner in CI means a network round-trip through an
+   anonymous best-effort tunnel plus Ora's rate limits (10/min, 30/day), which
+   would make CI flaky for little signal. Fold the Ora check into #2's
+   real-deploy verification instead.
 8. Confirm `ora.js`'s per-check `id`s are stable across the `format=audit`
    schema version the docs mention — the adapter was built off the OpenAPI
    spec + docs prose, not a pinned schema version number the way afdocs/
@@ -149,3 +152,18 @@ items are done but kept briefly for context; drop them once superseded.
       mismatch once #10 lands.
     Do these *after* #13 — they widen the surface, but fixer coverage is what
     actually differentiates. Not started.
+15. **One failing scanner aborts the whole scan.** `scanTarget()` (`src/scan.js`)
+    awaits each scanner in a loop with no try/catch and only calls
+    `buildReport()` after all of them return, so any single failure — most
+    likely an Ora HTTP 429, but equally a network blip on a hosted scanner —
+    throws away the scanners that already succeeded and writes no
+    `report.json` at all. Scanner order doesn't mitigate it. Surfaced while
+    documenting Ora's rate limits (2026-09-09); documented as-is in `--help`
+    and `SKILL.md` rather than silently changed, because the fix touches the
+    orchestrator's contract: `report.json`/`report.md` would need a per-scanner
+    `error` state, `buildReport()` would need to score a partial set (and say
+    it's partial), and `diff-report` would need to refuse to compare a baseline
+    against a re-scan that's missing one of its scanners rather than reporting
+    a phantom regression. Worth doing — a 20-minute afdocs+is-agentic scan
+    shouldn't be lost to a rate limit on an opt-in third scanner — but it's a
+    deliberate design change, not a patch. Not started.

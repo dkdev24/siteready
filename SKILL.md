@@ -78,7 +78,12 @@ node <skill-dir>/src/cli.js loop .
 
 Read every command's own output before deciding what to do next — `enhance` prints exactly what it
 wrote, skipped (already present, won't overwrite), or warned about, and exits without touching git.
-`loop` prints all four steps' output in sequence, ending in a `diff-report.md`.
+`loop` prints all four steps' output in sequence, ending in a `diff-report.md`. It defaults to
+afdocs; adding `--scanners is-agentic,ora` works too, but each scan then routes through an
+ephemeral Cloudflare Quick Tunnel (those scanners crawl from their own infrastructure and can't
+reach `localhost`), which adds ~20-40s per scan and can fail outright on a bad network — the CLI
+retries with a fresh tunnel and says so if it gives up. Don't retry the whole `loop` by hand on
+that failure; report it and either re-run once or scan a deployed URL instead.
 
 ## What to tell the user afterward
 
@@ -103,6 +108,16 @@ wrote, skipped (already present, won't overwrite), or warned about, and exits wi
   the live site directly first (`curl` the page/route, grep for the expected content) — if it's
   genuinely live, tell the user the scanner result is stale/cached, not that the fix regressed or
   failed, and that a manual rescan on is-agentic.com's own page may be needed to see it move.
+- **If `ora` fails with an HTTP 429, that's its rate limit, not a broken scan — don't retry in a
+  loop.** Ora's public API is keyless but capped per IP: 10 scans/minute burst and 30 per rolling
+  24h ([ora.ai/docs](https://ora.ai/docs)). The error names the quotas and echoes Ora's
+  `Retry-After`; relay that wait to the user instead of re-running. Cache hits don't consume quota,
+  so re-scanning one URL is usually free — it's scanning many *distinct* URLs in a session (or a
+  multi-URL sweep) that exhausts the daily budget. Budget accordingly before fanning out. Note that
+  a scanner failure currently aborts the **whole** scan — the report is only assembled once every
+  scanner has returned, so a 429 costs you the other scanners' results too and no `report.json` is
+  written at all (scanner order doesn't change this). Tell the user that plainly and re-run without
+  `ora`, or after the wait.
   `afdocs` re-crawls live on every call and doesn't have this problem.
 
 ## Supported fixer today

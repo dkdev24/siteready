@@ -31,6 +31,9 @@ export async function runOraScan(url, { force = false } = {}) {
   });
 
   const text = await res.text();
+  if (res.status === 429) {
+    throw new Error(rateLimitMessage(res, text));
+  }
   if (!res.ok) {
     throw new Error(`Ora scan request failed: ${res.status} ${res.statusText} — ${text.slice(0, 500)}`);
   }
@@ -43,6 +46,28 @@ export async function runOraScan(url, { force = false } = {}) {
   }
 
   return { normalized: normalize(raw), raw };
+}
+
+// A 429 is the one Ora failure a user can actually do something about, and
+// the raw status line doesn't say what was exceeded or for how long — so
+// spell out the quotas and echo Ora's own `Retry-After` instead of making
+// someone go read the docs mid-scan. The quotas are per-IP, and cache hits
+// don't consume them, which is exactly why `force` defaults to off above.
+function rateLimitMessage(res, body) {
+  const retryAfter = res.headers.get("retry-after");
+  const wait = retryAfter
+    ? `Retry after ${retryAfter}s (Ora's own Retry-After header).`
+    : "Retry in a minute; if it persists, the daily quota is likely exhausted.";
+  return (
+    `Ora rate limit hit (HTTP 429). ${wait}\n` +
+    "  Ora's public scan API is keyless but capped per IP: 10 scans/minute burst, " +
+    "30 scans per rolling 24h, 6 force (cache-bypassing) scans per rolling 24h.\n" +
+    "  Responses served from Ora's 6-hour freshness cache don't consume quota, so re-scanning " +
+    "the same URL is usually free — a burst of *distinct* URLs is what exhausts it. (siteready " +
+    "never sends force:true, so the force quota isn't what you hit.)\n" +
+    "  Limits documented at https://ora.ai/docs" +
+    (body ? `\n  Ora said: ${body.slice(0, 300)}` : "")
+  );
 }
 
 // Ora's check statuses don't line up 1:1 with our pass/warn/fail/skip/error

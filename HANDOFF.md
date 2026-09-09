@@ -7,18 +7,21 @@ file under 50 lines. Detailed history and lists live in the linked docs below.
 
 ## Current Version
 
-**0.7.1** (doc-tracking system version, see WORKLOG.md). Engine/CLI is at
-package.json `1.3.1`, not yet tagged `v1.3.1` in git.
+**0.8.0** (doc-tracking system version, see WORKLOG.md). Engine/CLI is at
+package.json `1.4.0`, not yet tagged `v1.4.0` in git.
 
 ---
 
 ## Right Now
 
-Top blocker: **NEXT_ACTIONS.md #0** — `loop`'s Cloudflare Quick Tunnel support
-for hosted scanners (`src/lib/tunnel.js`) tested unreliable: 1 success in 4
-attempts, DNS failures on `*.trycloudflare.com`. Choose retry-with-a-fresh-
-tunnel, a named/authenticated tunnel, or rollback. Don't describe
-hosted-scanner `loop` support as shipped until resolved.
+No blocker. `loop`'s hosted-scanner support via Cloudflare Quick Tunnel is
+**resolved and verified** (option 1: retry with a fresh tunnel per attempt,
+3 attempts, `SITEREADY_TUNNEL_ATTEMPTS` override) — a real
+`loop examples/astro-cf-pages --scanners ora` run completed end to end. It's
+fair to describe hosted-scanner `loop` support as shipped now.
+
+Next up: **NEXT_ACTIONS.md #2** (real before/after score delta on a fresh
+site) and **#13** (Next.js + Vercel fixer — the competitive gap).
 
 Settled, don't reopen: internal references in git history are accepted as-is
 (#11) — no rewrite. New writing still avoids them (AGENTS.md).

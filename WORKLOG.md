@@ -627,3 +627,111 @@ dogfooded sites generically, since the technical finding is the point and the
 identity never is. The rule explicitly tells future sessions not to re-open the
 accepted history or try to purge past `WORKLOG.md` entries, which are
 append-only in any case.
+
+---
+
+## v1.4.0 — Tunnel Retry (Hosted Scanners in `loop`) + Ora Rate-Limit Disclosure
+
+**Date:** 2026-09-09
+
+### Context
+
+Resolves NEXT_ACTIONS.md #0, the standing top blocker. The previous session
+built Cloudflare Quick Tunnel support so `loop` could exercise the *hosted*
+scanners (is-agentic, ora) against a local preview server, but shipped it as
+WIP: 1 success in 4 attempts, with `ENOTFOUND` DNS failures on the
+`*.trycloudflare.com` hostname. Three options were on the table; Daniel chose
+option (1), retry with a fresh tunnel per attempt.
+
+### Changes
+
+- `src/lib/tunnel.js`: `startTunnel()` now loops over up to 3 attempts
+  (`DEFAULT_ATTEMPTS`, overridable per-run via the `SITEREADY_TUNNEL_ATTEMPTS`
+  env var, same pattern as `AFDOCS_VERSION`/`IS_AGENTIC_VERSION`). The old
+  single-shot body moved verbatim into `startTunnelOnce()`; the retry unit is
+  deliberately a **whole tunnel** — kill the connector, spawn a new one — not
+  a re-probe of the same URL, because the observed failure is that the
+  hostname cloudflared hands out never resolves at all. Re-probing that URL
+  can never recover; a fresh tunnel gets a fresh random hostname, which does.
+  On exhaustion it throws one aggregated error listing every attempt's failure
+  and naming the env var and the "scan a deployed URL instead" way out.
+- Two robustness fixes found while wiring the retry, both of which previously
+  cost a full 30s timeout or worse:
+  - a `child.on("error")` handler — without a listener a spawn failure was an
+    unhandled `'error'` event that would take the whole process down instead
+    of failing just that attempt;
+  - `waitForReachable()` now takes `getExitError` and bails the moment the
+    connector dies mid-probe, so a dead tunnel spends its remaining budget on
+    the next attempt rather than polling a corpse.
+- `cli.js --help`: documents the retry and the env var.
+
+### Verification
+
+Three passes, all clean:
+
+1. **Retry/failure path**, forced: tunnelled to a port with no listener
+   (`SITEREADY_TUNNEL_ATTEMPTS=2`) so no attempt could ever become reachable.
+   Both attempts ran, each got a *different* hostname (confirming a genuinely
+   fresh tunnel, not a re-probe), and the aggregated error listed both.
+2. **The real `loop` run** NEXT_ACTIONS.md #0 demanded:
+   `node src/cli.js loop examples/astro-cf-pages --scanners ora` — exit 0, both
+   the baseline and the post-enhance re-scan tunnels came up on attempt 1, Ora
+   scored both (27/100 → 27/100; the fixture already has the fixes committed,
+   so `enhance` correctly "wrote nothing (already applied)" — the flat delta is
+   the fixture, not a tunnel or fixer problem, and is exactly the gap
+   NEXT_ACTIONS.md #2 exists for).
+3. **Reliability re-measurement**, since the whole blocker was a success rate:
+   6 sequential single-attempt tunnels against a real local origin, each
+   fetched end to end — 6/6, ~19–35s each. With the loop's 2, that's 8/8 today
+   against last session's 1/4. The earlier failures therefore look transient/
+   environmental rather than inherent to Quick Tunnels, and retry is headroom
+   over a bad network day rather than a workaround for a permanent defect.
+
+`npm run lint` and `npm run verify-loop` both pass (verify-loop still runs
+afdocs only, deliberately — see NEXT_ACTIONS.md #7).
+
+### Status
+
+Shipped. `loop` supporting hosted scanners is now accurate to say out loud.
+Residual risk is documented rather than solved: Quick Tunnels are anonymous
+and best-effort by design, so a run can still exhaust all 3 attempts; if that
+becomes routine rather than rare, the fallback remains a named/authenticated
+Cloudflare Tunnel (option 2, needs a CF account).
+
+### Follow-on: Ora rate limits made visible to users
+
+Daniel's point: the Ora API's rate limits were real constraints that only
+existed in a source comment and one line of README "Design notes" — a user
+running `--scanners ora` had no way to know what they were spending. Verified
+the numbers against Ora's own docs (https://ora.ai/docs, the reference link,
+already cited in `ora.js`) rather than trusting the repo's copy: **10 scans/min
+burst, 30 per rolling 24h, 6 of those force/cache-bypassing, all per IP; HTTP
+429 with a `Retry-After` header; responses from the 6-hour freshness cache
+never consume quota.** The repo's existing numbers were correct.
+
+- `src/scanners/ora.js`: a 429 now gets its own error instead of the generic
+  `${status} ${statusText}` dump — it names all three quotas, echoes Ora's
+  `Retry-After` (with a sane fallback when the header is absent), explains that
+  cache hits are free so it's *distinct* URLs that burn quota, and links the
+  docs. Smoke-tested both branches with a stubbed `fetch`.
+- `cli.js --help`, README "Design notes", and `SKILL.md` all state the limits
+  and link `ora.ai/docs`.
+
+Two things corrected mid-write rather than shipped wrong:
+
+1. A draft of the 429 message told users to avoid `--force`. There is no such
+   flag — `force` is an adapter-internal default of `false` and the CLI never
+   exposes it, so the message would have sent people looking for a flag that
+   doesn't exist. Now it says siteready never forces, so the force quota isn't
+   what they hit.
+2. A draft of the `SKILL.md` guidance told the agent to report the other
+   scanners' results and note that Ora was rate-limited. **`scanTarget()` can't
+   do that** — it awaits scanners in a bare loop and only calls `buildReport()`
+   after all of them return, so any one failure discards the successful
+   scanners and writes no report at all. Documented the real behavior instead
+   of quietly rewriting the orchestrator, and filed the gap as NEXT_ACTIONS.md
+   #15: worth fixing (a slow afdocs+is-agentic scan shouldn't be lost to a rate
+   limit on an opt-in third scanner), but it changes the report contract —
+   per-scanner error state, partial scoring, and `diff-report` refusing to
+   compare a baseline against a re-scan missing a scanner — so it's a design
+   decision, not a patch.

@@ -22,6 +22,28 @@ const READY_TIMEOUT_MS = 30_000;
 // which we can't do) — bump PROPAGATION_BUFFER_MS if this still races.
 const PROPAGATION_BUFFER_MS = 8_000;
 
+// Quick Tunnels are anonymous and best-effort ("these account-less Tunnels
+// have no uptime guarantee" — cloudflared's own banner). Observed failure
+// mode: the hostname cloudflared prints never resolves at all (ENOTFOUND on
+// `*.trycloudflare.com`, reproducible via curl and Node's fetch), 3 times in
+// 4 attempts. That's a property of the *hostname handed out*, not of the
+// local server or of cloudflared's config — retrying the same URL never
+// recovers, but a fresh tunnel gets a fresh random hostname, which does.
+// So the retry unit is a whole tunnel: kill the connector, spawn a new one.
+const DEFAULT_ATTEMPTS = 3;
+
+function configuredAttempts() {
+  const raw = process.env.SITEREADY_TUNNEL_ATTEMPTS;
+  if (!raw) return DEFAULT_ATTEMPTS;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error(
+      `SITEREADY_TUNNEL_ATTEMPTS must be a positive integer, got ${JSON.stringify(raw)}.`
+    );
+  }
+  return parsed;
+}
+
 /**
  * Opens a Cloudflare Quick Tunnel (`cloudflared tunnel --url <localUrl>`)
  * and resolves with the ephemeral public HTTPS URL it prints. No Cloudflare
@@ -37,9 +59,38 @@ const PROPAGATION_BUFFER_MS = 8_000;
  * with the (random, short-lived) tunnel URL for the scan's duration — same
  * risk class as a Cloudflare Pages preview deployment, shorter-lived and no
  * account needed.
+ *
+ * Unreliable by nature (see DEFAULT_ATTEMPTS above), so a failed attempt is
+ * torn down completely and retried as a brand-new tunnel rather than
+ * re-probed. Override the attempt count with `SITEREADY_TUNNEL_ATTEMPTS`.
  */
-export async function startTunnel(localUrl, { onProgress } = {}) {
-  onProgress?.(`Opening a Cloudflare Quick Tunnel to ${localUrl} (for hosted scanners)...`);
+export async function startTunnel(localUrl, { onProgress, attempts = configuredAttempts() } = {}) {
+  const failures = [];
+
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    const suffix = attempts > 1 ? ` (attempt ${attempt}/${attempts})` : "";
+    onProgress?.(
+      `Opening a Cloudflare Quick Tunnel to ${localUrl} (for hosted scanners)${suffix}...`
+    );
+    try {
+      return await startTunnelOnce(localUrl, { onProgress });
+    } catch (err) {
+      failures.push(`attempt ${attempt}: ${err.message}`);
+      if (attempt < attempts) {
+        onProgress?.(`Tunnel attempt ${attempt} failed (${err.message}); retrying with a fresh tunnel.`);
+      }
+    }
+  }
+
+  throw new Error(
+    `Could not open a usable Cloudflare Quick Tunnel to ${localUrl} after ${attempts} ` +
+      `attempt${attempts === 1 ? "" : "s"}. Quick Tunnels are anonymous and best-effort; ` +
+      "re-run, raise SITEREADY_TUNNEL_ATTEMPTS, or scan a deployed URL directly instead of " +
+      `using loop with a hosted scanner.\n  ${failures.join("\n  ")}`
+  );
+}
+
+async function startTunnelOnce(localUrl, { onProgress }) {
   const child = spawnNpxCli(PACKAGE_SPEC, ["tunnel", "--url", localUrl]);
 
   let buffered = "";
@@ -48,6 +99,12 @@ export async function startTunnel(localUrl, { onProgress } = {}) {
 
   let exited = false;
   let exitError = null;
+  // Without a listener a spawn failure is an unhandled 'error' event, which
+  // would take the whole process down instead of just failing this attempt.
+  child.on("error", (err) => {
+    exited = true;
+    exitError = err;
+  });
   child.on("exit", (code, signal) => {
     exited = true;
     if (code && code !== 0) exitError = new Error(`cloudflared tunnel exited with code ${code} (signal ${signal})`);
@@ -56,7 +113,7 @@ export async function startTunnel(localUrl, { onProgress } = {}) {
   let url;
   try {
     url = await waitForTunnelUrl(() => buffered, () => exitError);
-    await waitForReachable(url);
+    await waitForReachable(url, { getExitError: () => exitError });
     await new Promise((r) => setTimeout(r, PROPAGATION_BUFFER_MS));
   } catch (err) {
     await killProcessTree(child);
@@ -89,7 +146,10 @@ async function waitForTunnelUrl(getBuffer, getExitError, { timeoutMs = READY_TIM
 // the URL to a scanner — a real response (any status under 500; Cloudflare's
 // own edge-error pages for a not-yet-registered route come back 5xx) means
 // the connector is live, not just that cloudflared printed a URL.
-async function waitForReachable(url, { timeoutMs = READY_TIMEOUT_MS, intervalMs = 500 } = {}) {
+async function waitForReachable(
+  url,
+  { timeoutMs = READY_TIMEOUT_MS, intervalMs = 500, getExitError = () => null } = {}
+) {
   const deadline = Date.now() + timeoutMs;
   let lastErr;
   while (Date.now() < deadline) {
@@ -99,6 +159,10 @@ async function waitForReachable(url, { timeoutMs = READY_TIMEOUT_MS, intervalMs 
     } catch (err) {
       lastErr = err;
     }
+    // The connector dying mid-probe means this tunnel is never coming up —
+    // fail now so the caller can spend the remaining time on a fresh one.
+    const exitError = getExitError();
+    if (exitError) throw exitError;
     await new Promise((r) => setTimeout(r, intervalMs));
   }
   throw new Error(

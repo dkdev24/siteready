@@ -23,7 +23,7 @@ export async function detectStack(repoPath) {
   }
 
   const deps = { ...pkg.dependencies, ...pkg.devDependencies };
-  const framework = deps.astro ? (deps["@astrojs/starlight"] ? "astro-starlight" : "astro") : null;
+  const framework = deps.astro ? (deps["@astrojs/starlight"] ? "astro-starlight" : "astro") : deps.next ? "nextjs" : null;
 
   let platform = null;
   if (existsSync(path.join(repoPath, "wrangler.toml")) || existsSync(path.join(repoPath, "wrangler.jsonc"))) {
@@ -32,6 +32,12 @@ export async function detectStack(repoPath) {
     platform = "vercel";
   } else if (existsSync(path.join(repoPath, "netlify.toml"))) {
     platform = "netlify";
+  } else if (framework === "nextjs") {
+    // Vercel is Next.js's own zero-config default deploy target (same
+    // company) — a Next.js project with no platform config file at all is
+    // almost always headed there, same reasoning as the Astro/CF-Pages
+    // default below.
+    platform = "vercel";
   } else {
     // No platform config file present at all is itself a signal for a
     // from-scratch Astro static site: Cloudflare Pages needs no config file
@@ -41,10 +47,12 @@ export async function detectStack(repoPath) {
     platform = "cloudflare-pages";
   }
 
-  const supported = (framework === "astro-starlight" || framework === "astro") && platform === "cloudflare-pages";
+  const supported =
+    ((framework === "astro-starlight" || framework === "astro") && platform === "cloudflare-pages") ||
+    (framework === "nextjs" && platform === "vercel");
   const reason = supported
     ? null
-    : `No fixer for framework=${framework ?? "unknown"} + platform=${platform ?? "unknown"} yet (supports astro-starlight and plain astro, both + cloudflare-pages only)`;
+    : `No fixer for framework=${framework ?? "unknown"} + platform=${platform ?? "unknown"} yet (supports astro-starlight/astro + cloudflare-pages, and nextjs + vercel)`;
 
   return { framework, platform, supported, reason };
 }

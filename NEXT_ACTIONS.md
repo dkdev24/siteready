@@ -121,18 +121,17 @@ items are done but kept briefly for context; drop them once superseded.
     only the `git clone` + `npm link` path in that section actually works.
     Names `siteready` and `site-ready` were both unclaimed on npm as of
     2026-09-09. Not started.
-13. **Fixer coverage is the competitive gap, not scanner count.** Against
-    URL-only GEO/prompt-audit tooling (see README "How this differs from GEO /
-    prompt-based audit skills"), siteready's one real weakness is that
-    `enhance` reports `unsupported` outside Astro (± Starlight) + Cloudflare
-    Pages — everywhere else it degrades to a nicer scanner wrapper. Highest-
-    leverage single addition: **Next.js + Vercel**, which is the most common
-    stack among the doc/content sites these scanners target and the one whose
-    absence is most often the reason a site can't use `enhance` at all. Same
-    additive contract as the existing fixers (new `src/fixers/nextjs.js` +
-    `src/platforms/vercel.js`, no changes to shipped ones — see
-    CONTRIBUTING.md), plus a fixture under `examples/` so `verify-loop.js`
-    covers it. Not started.
+13. ~~Fixer coverage gap: Next.js + Vercel~~ — **DONE 2026-09-10**, see
+    WORKLOG.md. `src/fixers/nextjs.js` (not-found page, robots.txt) +
+    `src/platforms/vercel.js` (`proxy.js` content-negotiation — Next.js 16
+    renamed `middleware.js`), `detect-stack.js`/`enhance.js` generalized to
+    dispatch fixers by platform instead of hardcoding Cloudflare Pages,
+    `lib/local-server.js` extended with `next start` support so `loop`
+    covers it too. `examples/nextjs-vercel` fixture verified end-to-end via
+    `verify-loop.js`: `content-negotiation` flips fail → pass. Known gap: the
+    passthrough response's `Vary: Accept` header doesn't survive Next.js's
+    static-cache path (verified against a real `next start` server) — the
+    negotiation itself is unaffected; see `platforms/vercel.js` comment.
 14. **Surface-area parity: multi-site compare + score-over-time tracking.**
     GEO packs ship a competitor-comparison and a monitoring skill; siteready
     has neither, which makes it look thinner than it is even where its fixers

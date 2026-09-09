@@ -784,3 +784,79 @@ against temp dirs for the three cases (no middleware / `.js` exists / `.ts`
 exists) rather than extending `verify-loop`'s fixtures, since seeding a
 working `.ts` middleware into a fixture would change that fixture's baseline
 `content-negotiation` score and break its existing assertions.
+
+## v1.5.0 — Next.js + Vercel fixer (NEXT_ACTIONS.md #13)
+
+**Date:** 2026-09-10
+
+### Changes
+
+- New `src/fixers/nextjs.js` (framework) + `src/platforms/vercel.js` (platform), same additive
+  contract and `{ written, skipped, warnings }` shape as the Astro fixers — no changes to any
+  already-shipped fixer/platform file. `nextjs.js` deliberately stays as small as `astro.js`: no
+  llms.txt or markdown-mirror generation (no content-collection convention to build one from), just
+  a real `app/not-found.js` and a permissive `robots.txt` (with a `Sitemap:` line only if
+  `next-sitemap.config.js` declares a `siteUrl`).
+- `vercel.js` writes a root `proxy.js` for `Accept: text/markdown` negotiation, mirroring
+  `cloudflare-pages.js`'s middleware. Caught two things before shipping, both from actually running
+  `next build`/`next start` against the fixture rather than trusting the pattern by inspection:
+  1. **File convention**: Next.js 16 deprecated `middleware.js` in favor of `proxy.js` (same
+     default-export shape) — building the fixture with the old name printed the deprecation warning
+     directly; switched to `proxy.js` before shipping. The dedup check still recognizes both names
+     (and both `.js`/`.ts`, and both repo-root/`src/`) so it never re-duplicates an older project's
+     `middleware.*` — directly applying the lesson from the `_middleware.js`/`.ts` duplication bug
+     fixed earlier this session.
+  2. **NextResponse.next() vs raw fetch(request)**: an early draft fell through to `fetch(request)`
+     to continue normal routing — self-fetching the original request risks the proxy re-intercepting
+     its own outbound request. Replaced with `NextResponse.next()`, the documented pattern. Even so,
+     verified against a real `next start` server that the `Vary: Accept` header appended to that
+     passthrough response does **not** survive onto statically-cached HTML responses (only the `.md`
+     branch's response reliably carries it) — documented as a known gap in the file's own comment
+     rather than silently shipped as fully working; the negotiation mechanism itself is unaffected.
+- `detect-stack.js`: added `nextjs` framework detection (`next` in deps) and a Vercel-default
+  platform fallback for a Next.js project with no platform config file (same reasoning as the
+  existing Astro → Cloudflare-Pages default — Vercel is Next.js's own zero-config target).
+- `enhance.js` had a latent gap: it hardcoded `applyCloudflarePagesFixes` regardless of
+  `stack.platform`, so no second platform could ever have worked even with a fixer written for it.
+  Generalized to a `PLATFORM_FIXERS` dispatch map alongside the existing `FRAMEWORK_FIXERS` one.
+- `lib/local-server.js`'s `startLocalServer` only knew `wrangler pages dev` (Cloudflare Pages) —
+  extended with a `next start` branch (spawns the project's own `npm run start`, not an npx-resolved
+  package) so `loop`/`verify-loop.js` can serve a Vercel-platform fixture locally too. `next start`
+  specifically, not a static export — Proxy/Middleware doesn't run under `output: 'export'`.
+- New `examples/nextjs-vercel` fixture: minimal Next.js App Router site (home, about, two posts),
+  `.md` siblings for every page living as ordinary static files under `public/` (no markdown-mirror
+  *route* needed — Next.js has no `.md.ts`-style convention to hand-roll, and `vercel.js`'s proxy
+  only needs a `.md` file to exist at `<path>.md`, not how it got there). Checked in with both
+  fixers already applied; `scripts/verify-loop.js` strips `app/not-found.js`, `public/robots.txt`,
+  `proxy.js` back out to test the "before" state, same pattern as the Astro fixtures.
+- `verify-loop.js`: added the `nextjs-vercel` fixture entry. Asserts `content-negotiation` flips
+  fail → pass (confirmed: **fail → pass**, a real, verified delta — unlike the `danielkimdev.com`
+  real-deploy test in NEXT_ACTIONS.md #2, this one actually moves). Doesn't assert
+  `http-status-codes` — Next.js's own built-in 404 fallback already returns a real 404 with no
+  fixer involved, so that check passes before and after on this fixture; only `content-negotiation`
+  is the fixer's real contribution here. `overall` is gated at 0 by the missing `llms.txt`, same as
+  both Astro fixtures — expected, not a bug (see `astro-cf-pages/README.md`).
+- README/AGENTS.md: updated every "Astro (± Starlight) + Cloudflare Pages only" scope claim (status
+  table, "Where this argument fully favors...", the GEO-comparison section, `lib/local-server.js`'s
+  description, the architecture tree's `examples/` listing, the Node-version note) to include
+  Next.js + Vercel and the new fixture. Two pre-existing gaps fixed in passing since the block was
+  already being edited: the architecture tree was missing `astro-cf-pages` entirely, and the
+  Node-version note didn't mention `next@16` needs Node ≥20.9 (CI's Node 22 already satisfies it).
+
+### Verified
+
+- `npm run lint` (syntax + the middleware-dedup regression check from the prior fix).
+- `node src/cli.js enhance examples/nextjs-vercel` on the already-fixed fixture: all three files
+  correctly skipped, confirming idempotency (the CONTRIBUTING.md testing requirement).
+- `npm run verify-loop`: all three fixtures pass, including the new one —
+  `afdocs check content-negotiation: fail -> pass` on a stripped `examples/nextjs-vercel` copy,
+  served locally via the new `next start` support.
+- One real debugging detour: a manually-installed `node_modules/` I'd left sitting in
+  `examples/nextjs-vercel/` (from testing the fixture directly, outside `verify-loop.js`) got
+  faithfully-but-corruptly copied by `fs.cp()` into each temp fixture copy — symlinked binaries
+  like `node_modules/.bin/next` didn't survive the copy intact, producing two different confusing
+  Next.js-internal errors (`Invariant: Expected workStore to be initialized`, then
+  `Cannot find module '../server/require-hook'`) that had nothing to do with the fixer code. Root
+  cause, not the errors' surface text: deleted the stray `node_modules`/`.next` so the fixture
+  matches the other two (gitignored, installed fresh per temp copy by `ensureInstalled`) — resolved
+  cleanly once isolated.

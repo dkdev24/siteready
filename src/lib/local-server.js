@@ -68,30 +68,46 @@ async function waitForReady(url, { timeoutMs = 30_000, intervalMs = 500 } = {}) 
 
 /**
  * Starts a local preview server for a repo's build output and resolves once
- * it's accepting connections. Supports Cloudflare Pages only
- * (`wrangler pages dev`), matching enhance's own platform support — this is
- * what lets `loop` scan/rescan a fixer target with no live deployment.
+ * it's accepting connections. Supports Cloudflare Pages (`wrangler pages
+ * dev`) and Vercel/Next.js (`next start` — this is also what runs Edge
+ * Middleware locally, unlike a static export), matching enhance's own
+ * platform support — this is what lets `loop` scan/rescan a fixer target
+ * with no live deployment.
  */
 export async function startLocalServer(repoPath, { platform, distDir = "dist", port, onProgress } = {}) {
-  if (platform !== "cloudflare-pages") {
+  if (platform !== "cloudflare-pages" && platform !== "vercel") {
     throw new Error(
-      `No local server support for platform=${platform ?? "unknown"} yet (v0.4 supports cloudflare-pages only).`
+      `No local server support for platform=${platform ?? "unknown"} yet (supports cloudflare-pages and vercel only).`
     );
   }
 
   const resolvedPort = port ?? (await getFreePort());
   const url = `http://localhost:${resolvedPort}`;
 
-  onProgress?.(`Starting local Cloudflare Pages preview on ${url}...`);
-  const child = spawnNpxCli("wrangler", ["pages", "dev", distDir, "--port", String(resolvedPort)], {
-    cwd: repoPath,
-  });
+  let child;
+  if (platform === "cloudflare-pages") {
+    onProgress?.(`Starting local Cloudflare Pages preview on ${url}...`);
+    child = spawnNpxCli("wrangler", ["pages", "dev", distDir, "--port", String(resolvedPort)], {
+      cwd: repoPath,
+    });
+  } else {
+    // `next start` runs the project's own locally-installed `next` binary
+    // (via `npm run start`, already present from `ensureInstalled`) rather
+    // than an npx-resolved package — this is a real production server, not
+    // a static file host, so Edge Middleware executes.
+    onProgress?.(`Starting local Next.js preview on ${url}...`);
+    child = spawn(process.platform === "win32" ? "npm.cmd" : "npm", ["run", "start", "--", "-p", String(resolvedPort)], {
+      cwd: repoPath,
+      detached: process.platform !== "win32",
+      shell: process.platform === "win32",
+    });
+  }
 
   let exited = false;
   let exitError = null;
   child.on("exit", (code, signal) => {
     exited = true;
-    if (code && code !== 0) exitError = new Error(`wrangler pages dev exited with code ${code} (signal ${signal})`);
+    if (code && code !== 0) exitError = new Error(`local server exited with code ${code} (signal ${signal})`);
   });
 
   try {

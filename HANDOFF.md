@@ -8,26 +8,20 @@ file under 50 lines. Detailed history and lists live in the linked docs below.
 ## Current Version
 
 **0.8.0** (doc-tracking system version, see WORKLOG.md). Engine/CLI is at
-package.json `1.4.0`, not yet tagged `v1.4.0` in git.
+package.json `1.5.0`, not yet tagged `v1.5.0` in git.
 
 ---
 
 ## Right Now
 
-No blocker. `loop`'s hosted-scanner support via Cloudflare Quick Tunnel is
-**resolved and verified** (option 1: retry with a fresh tunnel per attempt,
-3 attempts, `SITEREADY_TUNNEL_ATTEMPTS` override) — a real
-`loop examples/astro-cf-pages --scanners ora` run completed end to end. It's
-fair to describe hosted-scanner `loop` support as shipped now.
+No blocker. **NEXT_ACTIONS.md #13 done** (2026-09-10): `enhance` now supports
+**Next.js (App Router) + Vercel** (`fixers/nextjs.js` + `platforms/vercel.js`),
+alongside the existing Astro/Cloudflare-Pages fixers — `enhance.js` and
+`lib/local-server.js` generalize beyond Cloudflare Pages for the first time.
+`examples/nextjs-vercel` + `verify-loop.js` prove a real score delta. Known
+gap in `platforms/vercel.js`'s comment: see WORKLOG.md.
 
-**NEXT_ACTIONS.md #2 done** (2026-09-09): real deploy pipeline (scan ->
-enhance -> push -> rescan -> diff) verified end-to-end against
-`danielkimdev.com`, but that site was already too fixed (94/98) to show a
-score delta — a genuinely fixer-naive site is still needed to see one move.
-That run also caught a real bug: `enhance` duplicated `_middleware.js` next
-to an existing `_middleware.ts` — **fixed**, see WORKLOG.md.
-
-Next up: **#13** (Next.js + Vercel fixer — the competitive gap).
+Next up: **#14** (multi-site compare + score-over-time tracking).
 
 Settled, don't reopen: internal references in git history are accepted as-is
 (#11) — no rewrite. New writing still avoids them (AGENTS.md).

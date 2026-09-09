@@ -108,6 +108,30 @@ const FIXTURES = [
       }
     },
   },
+  {
+    name: "nextjs-vercel",
+    dir: path.join(__dirname, "..", "examples", "nextjs-vercel"),
+    async strip(dir) {
+      await removeIfPresent(dir, ["app/not-found.js", "public/robots.txt", "proxy.js"]);
+    },
+    // Same afdocs overall-score gating as the Astro fixtures (see
+    // astro-cf-pages/README.md) — nextjs.js never writes llms.txt either, so
+    // assert on the individual check this fixer pair actually targets.
+    // http-status-codes isn't asserted here — Next.js's own built-in 404
+    // fallback already returns a real 404 with no fixer involved, so that
+    // check passes before and after; only content-negotiation moves.
+    async verify({ baseline, rescan }) {
+      const before = checkStatus(baseline.scanners.afdocs, "content-negotiation");
+      const after = checkStatus(rescan.scanners.afdocs, "content-negotiation");
+      console.log(`afdocs check content-negotiation: ${before} -> ${after}`);
+      if (before !== "fail") {
+        throw new Error(`Expected baseline content-negotiation to fail pre-enhance, got ${before}.`);
+      }
+      if (after !== "pass") {
+        throw new Error(`Expected content-negotiation to pass post-enhance, got ${after}.`);
+      }
+    },
+  },
 ];
 
 async function runFixture(fixture) {

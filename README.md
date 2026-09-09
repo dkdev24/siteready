@@ -65,7 +65,7 @@ on demand. Using it as a Claude Code skill means pointing Claude at a checkout c
 | Piece | Status |
 |---|---|
 | Scanners | [afdocs](https://agentdocsspec.com/) (doc-heavy sites), [Vercel Is Agentic](https://is-agentic.com/) (any content site) — both run by default. [Ora](https://ora.ai/) (the engine behind Is Agentic — its full ranker, 127 checks incl. a payments layer Is Agentic's subset skips) is opt-in (`--scanners ora`), see Design notes. CLI-based or direct public API, no browser automation |
-| Fixer | Astro + Starlight + Cloudflare Pages, and plain Astro (no Starlight) + Cloudflare Pages |
+| Fixer | Astro + Starlight + Cloudflare Pages, plain Astro (no Starlight) + Cloudflare Pages, and Next.js (App Router) + Vercel |
 | Loop | `scan → enhance → rescan → diff-report`, fully local (no live deployment needed) |
 | CI | Windows, macOS, and Linux, on every push — see `.github/workflows/ci.yml` |
 | Other frameworks/platforms | Not yet — additive, by demand (see Contributing) |
@@ -85,6 +85,15 @@ already has a hand-rolled markdown-mirror route that echoes a collection entry's
 notes" below for why). Verified against a real production Astro (non-Starlight) + Cloudflare Pages
 site: correctly detects the stack, skips everything already present, and a second `enhance` run is
 a clean no-op.
+
+The Next.js + Vercel fixer (`src/fixers/nextjs.js` + `src/platforms/vercel.js`) follows the same
+shape as the plain-Astro fixer — no content-collection convention to build an `llms.txt` or
+mirror routes from, so it sticks to a real `app/not-found.js`, a permissive `robots.txt` (with a
+`Sitemap:` line if `next-sitemap.config.js` declares a `siteUrl`), and a root `proxy.js` (Next.js
+16's renamed `middleware.js`) for `Accept: text/markdown` negotiation. `examples/nextjs-vercel`
+proves it end to end via `scripts/verify-loop.js`: `content-negotiation` flips fail → pass on a
+stripped copy, served locally with `next start` (not a static export — Proxy doesn't run under
+one).
 
 ## Why use this, instead of pointing an agent at the scanners directly?
 
@@ -120,8 +129,9 @@ by hand has no equivalent: it has to deploy live and diff two scans itself, and 
 `is-agentic`'s caching trap above unless it's already been burned by it once.
 
 **Where this argument fully favors "just use an agent directly": outside the framework/platform
-combos a fixer covers.** Today that's Astro (with or without Starlight) + Cloudflare Pages only —
-anything else and `enhance` reports `unsupported`, and siteready really is just a nicer wrapper
+combos a fixer covers.** Today that's Astro (with or without Starlight) + Cloudflare Pages, and
+Next.js (App Router) + Vercel — anything else and `enhance` reports `unsupported`, and siteready
+really is just a nicer wrapper
 around scanner output for that site. That's the honest scope limit, and it's also the roadmap: this
 tool's value scales with fixer/platform coverage (see Contributing), not with scanner count — `ora`
 was deliberately made opt-in rather than a fourth default scanner for exactly this reason (see
@@ -162,8 +172,9 @@ is a build tool for AI *usability*.** Four concrete consequences:
    "agent-readiness" and never "GEO."
 
 **Where a URL-only GEO pack wins today: coverage and breadth.** It runs against any site, while
-`enhance` reports `unsupported` outside Astro (± Starlight) + Cloudflare Pages — the same honest
-scope limit as the section above, and the reason fixer/platform coverage is the roadmap. A GEO
+`enhance` reports `unsupported` outside Astro (± Starlight) + Cloudflare Pages, and Next.js +
+Vercel — the same honest scope limit as the section above, and the reason fixer/platform coverage
+is the roadmap. A GEO
 pack also ships competitor comparison and score-over-time tracking, which siteready doesn't have
 yet (both tracked in `NEXT_ACTIONS.md`).
 
@@ -236,7 +247,9 @@ siteready/
 │       ├── npx-runner.js     # cross-platform npx invocation (see "Cross-platform notes")
 │       └── local-server.js   # build + serve a repo locally for `loop` (no live deployment)
 └── examples/
-    └── astro-starlight-cf-pages/   # reference fixture the fixer is developed and verified against
+    ├── astro-starlight-cf-pages/   # reference fixture the Astro+Starlight fixer is verified against
+    ├── astro-cf-pages/             # reference fixture the plain-Astro fixer is verified against
+    └── nextjs-vercel/              # reference fixture the Next.js+Vercel fixer is verified against
 ```
 
 Every scanner adapter and every fixer is independently pluggable — a scanner going offline or a
@@ -299,10 +312,12 @@ framework having no fixer yet degrades to "unsupported," never breaks the pipeli
   `stillFailing` / `newChecks` / `removedChecks`), not just score-by-score, so `diff-report.md`
   reads as a real before/after — which checks got fixed, which regressed, what's still backlog.
 - `lib/local-server.js` builds a repo (`npm install` + `npm run build`) and serves the output
-  locally (`wrangler pages dev` for Cloudflare Pages, via a long-running process spawned through
-  `lib/npx-runner.js`) so `loop` can scan a fixer's target with **no live deployment**. Windows
-  needs `taskkill /t` to kill the whole process tree (`child.kill()` alone leaves wrangler's own
-  child process running); POSIX uses a detached process group + `process.kill(-pid)`.
+  locally — `wrangler pages dev` for Cloudflare Pages (via a long-running process spawned through
+  `lib/npx-runner.js`), or `npm run start` (`next start`) for Vercel/Next.js, which is also what
+  runs Proxy/Middleware locally (a static export doesn't) — so `loop` can scan a fixer's target
+  with **no live deployment**. Windows needs `taskkill /t` to kill the whole process tree
+  (`child.kill()` alone leaves the child process running); POSIX uses a detached process group +
+  `process.kill(-pid)`.
 - `lib/tunnel.js` extends that to the **hosted** scanners. `afdocs` fetches the scanned URL from
   this machine, so `localhost` is fine for it; `is-agentic` and `ora` run their own crawler on
   someone else's infrastructure and can never reach `localhost`. Requesting either from `loop`
@@ -360,10 +375,11 @@ scanner/fixer needs its own OS branching:
   Windows batch-file shims does. `lib/local-server.js` sets it conditionally on `win32`.
 
 **Node version note:** siteready itself only needs Node ≥18, but `examples/astro-starlight-cf-pages`
-pins a floating Astro range that currently requires **Node ≥22.12** to build — CI runs on Node 22
-for exactly this reason. If `loop`/`verify-loop.js` fails with "Node.js vX is not supported by
-Astro," that's the fixture's own dependency, not siteready — upgrade Node, don't downgrade Astro's
-declared range.
+pins a floating Astro range that currently requires **Node ≥22.12** to build, and `next@16` (used
+by `examples/nextjs-vercel`) requires **Node ≥20.9** — CI runs on Node 22 to satisfy both. If
+`loop`/`verify-loop.js` fails with "Node.js vX is not supported by Astro" (or an equivalent Next.js
+engine error), that's a fixture's own dependency, not siteready — upgrade Node, don't downgrade the
+fixture's declared range.
 
 ## Contributing
 

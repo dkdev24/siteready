@@ -64,7 +64,7 @@ their detail; don't load them just because a session started.
 | `src/enhance.js`, `src/fixers/` | Framework/platform detection + auto-fixers |
 | `src/report.js`, `src/diff-report.js` | Scorecard normalization + before/after diffing |
 | `src/loop.js` | Full local scan→enhance→rescan→diff-report loop |
-| `examples/astro-starlight-cf-pages/`, `examples/astro-cf-pages/` | Reference fixer targets + reproduction steps |
+| `examples/astro-starlight-cf-pages/`, `examples/astro-cf-pages/`, `examples/nextjs-vercel/` | Reference fixer targets + reproduction steps |
 | `scripts/verify-loop.js` | CI verification of the full loop |
 | `siteready-plan.md` | Original design plan — **frozen, not maintained.** Historical design rationale only; its §13 lists where it's now wrong. Don't update it; don't cite it as current state |
 | `SKILL.md` | Claude Code skill entrypoint — orchestration instructions for running siteready as an agent, cwd-agnostic (uses `<skill-dir>`) |
@@ -115,6 +115,7 @@ their detail; don't load them just because a session started.
   Windows need `spawn(..., { shell: true })`; killing a spawned process tree on Windows needs
   `taskkill /t` (`child.kill()` alone leaves child processes like wrangler running).
 - **Node version note:** siteready itself needs Node ≥18, but the `examples/astro-starlight-cf-pages`
-  fixture's Astro dependency currently requires Node ≥22.12 to build — CI runs Node 22 for this
-  reason. A "Node.js vX is not supported by Astro" failure from `loop`/`verify-loop.js` is the
-  fixture's dependency, not siteready itself — upgrade Node, don't downgrade Astro's declared range.
+  fixture's Astro dependency currently requires Node ≥22.12 to build, and `examples/nextjs-vercel`'s
+  `next@16` dependency requires Node ≥20.9 — CI runs Node 22 for this reason. A "Node.js vX is not
+  supported" failure from `loop`/`verify-loop.js` is a fixture's dependency, not siteready itself —
+  upgrade Node, don't downgrade a fixture's declared range.

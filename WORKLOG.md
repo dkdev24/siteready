@@ -1098,3 +1098,33 @@ working `.ts` middleware into a fixture would change that fixture's baseline
 - `npm run lint` passes.
 - `grep` swept every `.md` file for "Design notes"/"Cross-platform notes" mentions after the cut to
   find stale in-repo cross-references, not just visually inspect the diff.
+
+## 2026-09-10 — Voice Pass on Pitch Prose (no version bump)
+
+**Date:** 2026-09-10
+
+### Changes
+
+- Daniel asked for a style pass. Scoped to the marketing/pitch prose drafted this session, not the
+  engineering docs: README.md's intro + "Why use this" section, `docs/why.md`, and `docs/index.md`
+  in full (it's entirely landing-page content). Left AGENTS.md/WORKLOG.md/NEXT_ACTIONS.md/HANDOFF.md
+  and the technical reference docs (`install.md`/`cli-reference.md`/`architecture.md`) untouched,
+  by explicit decision, since they carry the project's own established dense/technical convention
+  rather than personal voice.
+- Removed every em-dash and semicolon from the three files (Daniel's voice profile bans both,
+  confirmed at 0.06 and near-zero per 1,000 words across his actual writing corpus). Converted each
+  into a separate sentence, a plain connective (`but`/`so`/`and`), or a functional colon, checking
+  colon density afterward against the displacement-check budget (~2 per 1,000 words) rather than
+  just relocating the same tell onto a different mark. `docs/why.md` started at 14 em-dashes + 3
+  semicolons + 11 colons and ended at 0 + 0 + 2.
+- Also fixed one bold-first-bullet uniformity issue (all 4 GEO-comparison list items led with a
+  bold label) and one middle-dot usage (`docs/index.md`'s footer links), both flagged by the same
+  style-profile checklist as tells distinct from Daniel's real habits.
+- No technical claims altered — every number, constraint, and example carried over verbatim;
+  content was re-punctuated/re-sentenced, not rewritten for meaning.
+
+### Verification
+
+- `npm run lint` passes.
+- Grepped each edited file for `—`, `;`, and `·` post-edit to confirm zero, not just visual
+  inspection of the diff.

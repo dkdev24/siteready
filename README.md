@@ -3,18 +3,18 @@
 **[Full docs site →](https://dkdev24.github.io/siteready/)**
 
 Scan a website with multiple agent-readiness scanners, get one unified scorecard, auto-fix the
-issues a fixer supports for your framework/platform, then re-scan and get a before/after diff —
-all from the CLI, no browser automation, no scanner UI scraping.
+issues a fixer supports for your framework/platform, then re-scan and get a before/after diff.
+All from the CLI, no browser automation, no scanner UI scraping.
 
 Not a new scanner. It's an **orchestration + remediation layer** on top of existing scanners,
 because no single scanner covers the whole "can an AI agent actually use this site" standard
 (discoverability, machine-readable content, controlled interaction), and none of them auto-fix
 anything.
 
-siteready doesn't advise — it ships the fix and proves it worked. Scores come from the standards'
-own scanners ([afdocs](https://agentdocsspec.com/), [Is Agentic](https://is-agentic.com/) /
-[Ora](https://ora.ai/)), not from a model grading itself; fixes are real code, applied
-idempotently, verified cross-platform in CI; and the local loop shows you the before/after diff
+siteready doesn't just advise. It ships the fix and proves it worked. Scores come from the
+standards' own scanners ([afdocs](https://agentdocsspec.com/), [Is Agentic](https://is-agentic.com/)
+/ [Ora](https://ora.ai/)), not from a model grading itself. Fixes are real code, applied
+idempotently and verified cross-platform in CI. The local loop shows you the before/after diff
 before anything deploys.
 
 ## What this is: a tool, not a skill
@@ -70,16 +70,16 @@ fixers are smaller in scope than the Starlight one): **[docs/install](https://dk
 
 Every scanner here already returns a `fix`/`recommendation` string on each failing check, so an
 agent with repo access could in principle act on that text directly, no siteready in the loop. The
-short answer: the scan/report layer is a convenience an agent doesn't strictly need, but the
-**fixers** are the real value — turning a scanner's one-line suggestion into idempotent,
-cross-platform-verified code is where the actual difficulty lives, and the **loop**
-(`scan → enhance → rescan → diff-report`) proves a fix worked before anything deploys, which no
-ad hoc agent fix session gets for free. It's also the honest limit: outside the framework/platform
-combos a fixer covers (Astro ± Starlight + Cloudflare Pages, Next.js + Vercel), siteready is just a
-nicer wrapper around scanner output.
+scan/report layer really is a convenience an agent doesn't strictly need. But the **fixers** are
+the real value: turning a scanner's one-line suggestion into idempotent, cross-platform-verified
+code is where the actual difficulty lives. And the **loop** (`scan → enhance → rescan →
+diff-report`) proves a fix worked before anything deploys, which no ad hoc agent fix session gets
+for free. The honest limit is real too: outside the framework/platform combos a fixer covers
+(Astro ± Starlight + Cloudflare Pages, Next.js + Vercel), siteready is just a nicer wrapper around
+scanner output.
 
-This is also a different question than GEO ("Generative Engine Optimization") skill packs answer —
-those are prompt-driven advisors for AI *visibility* (will an LLM mention me); siteready is a build
+This is also a different question than GEO ("Generative Engine Optimization") skill packs answer.
+Those are prompt-driven advisors for AI *visibility* (will an LLM mention me). siteready is a build
 tool for AI *usability* (can an agent complete a task here), with third-party scores instead of a
 model grading itself, and real code instead of suggested templates.
 

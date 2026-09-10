@@ -1004,3 +1004,35 @@ working `.ts` middleware into a fixture would change that fixture's baseline
   populated.
 - `node src/cli.js --help` and a direct `scanTarget()` call with an invalid `--site-type` value
   (confirmed it throws before any scanner runs, not after).
+
+## v1.7.0 — First npm Publish (NEXT_ACTIONS.md #12)
+
+**Date:** 2026-09-10
+
+### Changes
+
+- No code changes. Published the existing `1.7.0` to the public npm registry: `npm publish` under
+  the `danielkimdev` npm account, default access, tag `latest`. Package name `siteready` was
+  unclaimed. 31 files, 56.2 kB tarball, matches the `files` field
+  (`src/`, `scripts/`, `SKILL.md`, `README.md`, `CONTRIBUTING.md`, `LICENSE`) — no `examples/`,
+  `out/`, or internal docs in the published tarball.
+- npm printed a cosmetic auto-correct warning (`"bin[siteready]" script name was cleaned`) and
+  rewrote `bin.siteready` in the repo's own `package.json` from `"./src/cli.js"` to `"src/cli.js"`
+  (npm normalizes bin paths on publish, in place, not just in the published manifest). Committed
+  as-is — functionally identical, `npm view siteready bin` confirms the registry copy resolves
+  correctly. No action needed.
+
+### Verification
+
+- `npm whoami` confirmed the logged-in account before publishing.
+- `npm view siteready version` returned 404 pre-publish (name free), then `1.7.0` post-publish.
+- `npx --yes siteready@1.7.0 --help` from outside the repo (`/tmp`) printed the real CLI help,
+  confirming the published package is installable and its bin entry resolves.
+- README's `npm install -g siteready` / `npx siteready` quickstart (previously aspirational, per
+  NEXT_ACTIONS.md #12) is now accurate — no README edit needed, it already documented both the
+  published-package and source-checkout (`git clone` + `npm link`) paths correctly.
+
+### Follow-up
+
+- NEXT_ACTIONS.md #12 closed. Unblocks #16 (docs site + GitHub Pages), which can now show a real
+  `npx siteready` quickstart.

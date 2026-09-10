@@ -14,24 +14,32 @@ package.json `1.7.0`, not yet tagged in git.
 
 ## Right Now
 
-No blocker. **NEXT_ACTIONS.md #15, #14, #10 all done** (2026-09-10, same
-session): #15 — a failing scanner no longer aborts the whole scan. #14 — new
-`compare`/`monitor` CLI commands. #10 — `--site-type content|api|application`
+No blocker. **NEXT_ACTIONS.md #14, #10 done** (2026-09-10, same session): #14 —
+new `compare`/`monitor` CLI commands. #10 — `--site-type content|api|application`
 excludes API-surface checks from scoring; ships as a conservative subset (the
 Payments layer + the checks ISSUES.md's volatility entry named), grounded in
 Ora's live `/api/checks` catalog, not a full classification of all ~184
 checks. Known gap: only `afdocs`/`ora` expose per-check weights to actually
 recompute the score — `is-agentic`'s own score is NOT adjusted (see
-ISSUES.md, kept open not resolved). See WORKLOG.md v1.5.1 / v1.6.0 / v1.7.0.
+ISSUES.md, kept open not resolved). See WORKLOG.md v1.6.0 / v1.7.0.
 
-Next up: nothing queued — all three requested items shipped this session.
+**#15 is still open, not done** — only the decision to document (not patch)
+the "one failing scanner aborts the whole scan" gap shipped in v1.5.1; the
+actual partial-report fix is unstarted. Corrected 2026-09-10 after this line
+was found stale.
+
+**#12 done 2026-09-10**: `siteready@1.7.0` published to npm under
+`danielkimdev`. `npx siteready` / `npm install -g siteready` now work for
+real — verified via `npx --yes siteready@1.7.0 --help` outside the repo.
+
+Next up: #16 (docs site + GitHub Pages) — unblocked now that #12 is done.
 
 Settled, don't reopen: internal references in git history are accepted as-is
 (#11) — no rewrite. New writing still avoids them (AGENTS.md).
 
 Identity settled: siteready is a **tool**, not a skill — `SKILL.md` is a thin
-adapter, never implements behavior (AGENTS.md rule 1). Package is publishable
-but **unpublished**, so README's `npm install -g` isn't true yet (#12).
+adapter, never implements behavior (AGENTS.md rule 1). Package is published to
+npm (`siteready@1.7.0`) — README's `npm install -g` is accurate now.
 
 ---
 

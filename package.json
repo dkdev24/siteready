@@ -25,7 +25,7 @@
     "url": "https://github.com/dkdev24/siteready/issues"
   },
   "bin": {
-    "siteready": "./src/cli.js"
+    "siteready": "src/cli.js"
   },
   "files": [
     "src/",

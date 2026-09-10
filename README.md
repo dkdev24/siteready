@@ -185,6 +185,7 @@ yet (both tracked in `NEXT_ACTIONS.md`).
 siteready https://example.com
 siteready https://example.com --out ./out/my-scan --sampling deterministic
 siteready https://example.com --scanners is-agentic
+siteready https://example.com --site-type content   # exclude API-surface checks from the score
 
 # enhance a local repo checkout (needs the actual repo, not just the URL — see "How enhance works")
 siteready enhance ../my-astro-starlight-site
@@ -267,6 +268,24 @@ framework having no fixer yet degrades to "unsupported," never breaks the pipeli
 
 ## Design notes
 
+- **Site-type filtering** (`--site-type content|api|application|auto`, default `auto`/unfiltered).
+  `is-agentic`/Ora score a site against ~184 checks spanning discovery, access, usability, and
+  payments — a chunk of the usability/payments checks (`openapi-spec`, `oauth-support`, the whole
+  Payments layer, etc.) only make sense if the site exposes a public API, and drag down a pure
+  content/docs site's grade for something it was never going to have. `--site-type content` excludes
+  those from scoring; `api`/`application` currently score everything, same as `auto` — the ask this
+  solved (see `ISSUES.md`'s `is-agentic` volatility entry) was keeping API checks off a content
+  site's grade, not the reverse. `src/site-types.js` holds the id→applicability map, sourced from
+  Ora's live `/api/checks` catalog — deliberately a conservative subset (Payments layer + the
+  API-transport checks the volatility report named), not a full classification of every check, since
+  most of the rest (MCP, GraphQL, accessibility, discovery) are either broadly applicable or need
+  product judgment this tool has no authority to guess. Score is only recomputed net of the excluded
+  checks for scanners that report per-check point weights (afdocs, Ora); `is-agentic` never exposes
+  those (its `checks[]` only lists non-passing issues with no per-check weight), so its own score is
+  left as reported — excluded checks are still listed under "Not applicable for this site type" for
+  visibility, with a note that the score above isn't adjusted. `report.json` records which
+  `siteType` was used; `rescan` defaults to the baseline's own site type, and `diff-report`/`rescan`
+  warn if baseline and re-scan end up on different types instead of silently misreading the delta.
 - The normalized schema (`{ target, generatedAt, scanners: { <name>: {...} } }`) holds multiple
   scanners side by side without a rewrite — adding a new scanner is a new entry under `scanners`,
   no changes to the ones already there.

@@ -26,6 +26,7 @@ function parseFlags(argv, { defaults = {} } = {}) {
     if (a === "--out") args.out = argv[++i];
     else if (a === "--out-root") args.outRoot = argv[++i];
     else if (a === "--sampling") args.sampling = argv[++i];
+    else if (a === "--site-type") args.siteType = argv[++i];
     else if (a === "--scanners") args.scanners = argv[++i].split(",").map((s) => s.trim());
     else if (a === "--baseline") args.baseline = argv[++i];
     else if (a === "--port") args.port = Number(argv[++i]);
@@ -69,6 +70,12 @@ Options (scan / rescan / loop):
                           default just doubles the hosted-API cost for overlapping data; afdocs-only
                           for loop unless you opt in — see below)
   --port <n>              Local preview server port for loop (default: OS-assigned free port)
+  --site-type <type>      content | api | application | auto (default: auto, unfiltered). Excludes
+                          API-surface checks (openapi-spec, oauth-support, the Payments layer, etc.)
+                          from a "content" site's score — see site-types.js and NEXT_ACTIONS.md #10.
+                          Only excludes for "content"; "api"/"application" score everything, same as
+                          "auto". rescan defaults to the baseline report's own site type unless
+                          overridden; a mismatch prints a warning in the diff.
 
   AFDOCS_VERSION / IS_AGENTIC_VERSION env vars override those scanners' pinned CLI version for one
   run, no source edit needed. \`npm run check-scanner-versions\` reports when the pins are behind npm.
@@ -128,6 +135,7 @@ async function runScanCommand(target, args) {
   console.log(`Scanning ${target} with: ${scanners.join(", ")}`);
   const { report, rawByScanner } = await scanTarget(target, scanners, {
     sampling: args.sampling ?? "deterministic",
+    siteType: args.siteType,
     onProgress: (msg) => console.log(msg),
   });
 
@@ -156,10 +164,15 @@ async function runRescanCommand(target, args) {
   }
 
   const outDir = args.out ?? outDirFor(target, "-rescan");
+  // Defaults to the baseline's own site type so a plain `rescan` (no
+  // --site-type) can't silently drift into a mismatch — see diff-report.js's
+  // siteTypeMismatch warning for when it's overridden anyway.
+  const siteType = args.siteType ?? baseline.siteType;
 
   console.log(`Re-scanning ${target} with: ${scanners.join(", ")} (baseline: ${args.baseline})`);
   const { report, rawByScanner } = await scanTarget(target, scanners, {
     sampling: args.sampling ?? "deterministic",
+    siteType,
     onProgress: (msg) => console.log(msg),
   });
 
@@ -173,6 +186,11 @@ async function runRescanCommand(target, args) {
 
   if (report.partial) {
     console.warn(`\nWarning: partial re-scan — ${failedScannerNames(report)} failed and were excluded from scoring.`);
+  }
+  if (diff.siteTypeMismatch) {
+    console.warn(
+      `\nWarning: site-type mismatch — baseline was \`${diff.siteTypeMismatch.baseline}\`, this re-scan is \`${diff.siteTypeMismatch.rescan}\`.`
+    );
   }
   console.log(`\nReport written to ${outDir}/report.md`);
   console.log(`Diff vs baseline written to ${outDir}/diff-report.md`);
@@ -207,6 +225,7 @@ async function runCompareCommand(targets, args) {
     console.log(`Scanning ${target} with: ${scanners.join(", ")}`);
     const { report, rawByScanner } = await scanTarget(target, scanners, {
       sampling: args.sampling ?? "deterministic",
+      siteType: args.siteType,
       onProgress: (msg) => console.log(`  ${msg}`),
     });
 
@@ -316,6 +335,7 @@ async function runLoopCommand(repoPath, args) {
   const { stack, enhanceResult, baseline, rescan, diff } = await runLoop(repoPath, {
     scanners,
     sampling: args.sampling ?? "deterministic",
+    siteType: args.siteType,
     port: args.port,
     onProgress: (msg) => console.log(msg),
   });

@@ -52,14 +52,26 @@ items are done but kept briefly for context; drop them once superseded.
    spec + docs prose, not a pinned schema version number the way afdocs/
    is-agentic pin CLI versions, since Ora is API-only with no version to pin
    against. Worth a periodic sanity re-check against `ora.ai/api/openapi.json`
-   if `normalize()` ever starts producing unexpected nulls.
+   if `normalize()` ever starts producing unexpected nulls. **Partial data
+   point, 2026-09-10:** fetched `ora.ai/api/checks` (the catalog endpoint,
+   linked from `openapi.json`) while building #10's site-type map — it
+   reports **184 checks**, not the "127 checks" `ora.js`'s own top-of-file
+   comment claims, still across the same four layers (discovery, access,
+   usability, payments) the comment also names. Didn't chase further since
+   fixing/re-verifying `normalize()` itself is this item's job, not #10's —
+   but the count is stale and the response shape (`{id, name, tier}` per
+   check under layer headings) wasn't cross-checked against what
+   `normalize()` actually parses from a live `format=audit` scan response.
 9. Confirm `.github/workflows/scanner-version-check.yml` actually fires and
    behaves as intended once merged to `main` — validated the YAML structure
    and the `GITHUB_OUTPUT`/`behind` signal locally, but the scheduled
    trigger, the label auto-creation on first issue, and the dedupe-by-label
    search were never exercised against a real Actions run. Trigger it once
    manually via `workflow_dispatch` after merge and check the result.
-10. **Site-type filtering** (`--site-type content|api|application|auto`):
+10. ~~**Site-type filtering** (`--site-type content|api|application|auto`)~~ — **DONE 2026-09-10**,
+    see WORKLOG.md v1.7.0 and README.md's Design notes entry. Ships as a conservative subset (the
+    Payments layer + the checks this entry names), not the full 184-check classification implied
+    below — see `src/site-types.js`'s header comment for why. Original design note kept for context:
     scope which checks count toward the score by what kind of site is being
     scanned, so API-surface checks (openapi-spec, oauth-support,
     scoped-permissions, rate-limit-headers, api-versioning-policy, ...) don't

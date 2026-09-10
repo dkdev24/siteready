@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { applySiteTypeFilter } from "./site-types.js";
 
 const STATUS_ORDER = { fail: 0, error: 1, warn: 2, skip: 3, pass: 4 };
 
@@ -9,10 +10,15 @@ const STATUS_ORDER = { fail: 0, error: 1, warn: 2, skip: 3, pass: 4 };
  * scanner that threw (network blip, rate limit) is recorded as
  * `{ scanner, error }` instead of being silently dropped, so a partial scan
  * still produces a report for the scanners that succeeded — see #15.
+ *
+ * `siteType` (content | api | application | auto/undefined) scopes which
+ * checks count toward each scanner's score — see site-types.js and
+ * NEXT_ACTIONS.md #10. Default (`auto`/omitted) leaves every scanner's
+ * result untouched.
  */
-export function buildReport(target, scannerResults, errors = []) {
+export function buildReport(target, scannerResults, errors = [], { siteType } = {}) {
   const scanners = Object.fromEntries(
-    scannerResults.map((r) => [r.normalized.scanner, r.normalized])
+    scannerResults.map((r) => [r.normalized.scanner, applySiteTypeFilter(r.normalized, siteType)])
   );
   for (const { scanner, error } of errors) {
     scanners[scanner] = { scanner, error };
@@ -20,6 +26,7 @@ export function buildReport(target, scannerResults, errors = []) {
   return {
     target,
     generatedAt: new Date().toISOString(),
+    siteType: siteType ?? "auto",
     partial: errors.length > 0,
     scanners,
   };
@@ -30,6 +37,7 @@ export function renderMarkdown(report) {
   lines.push(`# Agent Readiness Report — ${report.target}`);
   lines.push("");
   lines.push(`Generated: ${report.generatedAt}`);
+  if (report.siteType && report.siteType !== "auto") lines.push(`Site type: ${report.siteType}`);
   lines.push("");
 
   for (const [scannerName, s] of Object.entries(report.scanners)) {
@@ -62,7 +70,7 @@ export function renderMarkdown(report) {
     }
 
     const notPassing = s.checks
-      .filter((c) => c.status !== "pass")
+      .filter((c) => c.status !== "pass" && c.applicable !== false)
       .sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
 
     if (notPassing.length) {
@@ -75,6 +83,21 @@ export function renderMarkdown(report) {
       lines.push("");
     } else {
       lines.push("All checks passing.");
+      lines.push("");
+    }
+
+    if (s.notApplicable?.length) {
+      lines.push(`### Not applicable for this site type (${s.notApplicable.length})`);
+      lines.push("");
+      for (const c of s.notApplicable) {
+        lines.push(`- \`${c.id}\` (${c.category}) — ${c.message}`);
+      }
+      lines.push("");
+      lines.push(
+        s.scoreAdjustedForSiteType
+          ? "_Score above excludes these checks._"
+          : "_This scanner doesn't expose per-check point weights, so the score above is NOT adjusted — these are excluded from the failing list above but still counted in its own score._"
+      );
       lines.push("");
     }
   }

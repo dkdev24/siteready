@@ -8,21 +8,23 @@ file under 50 lines. Detailed history and lists live in the linked docs below.
 ## Current Version
 
 **0.8.0** (doc-tracking system version, see WORKLOG.md). Engine/CLI is at
-package.json `1.6.0`, not yet tagged in git.
+package.json `1.7.0`, not yet tagged in git.
 
 ---
 
 ## Right Now
 
-No blocker. **NEXT_ACTIONS.md #15 and #14 done** (2026-09-10, same session):
-#15 — a failing scanner no longer aborts the whole scan (`report.partial` +
-per-scanner `{ error }`). #14 — new `compare` (N sites side by side) and
-`monitor` (score-over-time from past scans, regression flag) CLI commands,
-`src/compare.js` + `src/monitor.js`. See WORKLOG.md v1.5.1 / v1.6.0.
+No blocker. **NEXT_ACTIONS.md #15, #14, #10 all done** (2026-09-10, same
+session): #15 — a failing scanner no longer aborts the whole scan. #14 — new
+`compare`/`monitor` CLI commands. #10 — `--site-type content|api|application`
+excludes API-surface checks from scoring; ships as a conservative subset (the
+Payments layer + the checks ISSUES.md's volatility entry named), grounded in
+Ora's live `/api/checks` catalog, not a full classification of all ~184
+checks. Known gap: only `afdocs`/`ora` expose per-check weights to actually
+recompute the score — `is-agentic`'s own score is NOT adjusted (see
+ISSUES.md, kept open not resolved). See WORKLOG.md v1.5.1 / v1.6.0 / v1.7.0.
 
-In progress this session: **#10** (site-type filtering,
-`--site-type content|api|application|auto`) — largest of the three, queued
-next, no blocker.
+Next up: nothing queued — all three requested items shipped this session.
 
 Settled, don't reopen: internal references in git history are accepted as-is
 (#11) — no rewrite. New writing still avoids them (AGENTS.md).

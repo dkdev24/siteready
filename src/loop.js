@@ -23,7 +23,7 @@ const HOSTED_SCANNERS = ["is-agentic", "ora"];
  */
 export async function runLoop(
   repoPath,
-  { scanners = ["afdocs"], sampling = "deterministic", distDir = "dist", port, onProgress } = {}
+  { scanners = ["afdocs"], sampling = "deterministic", siteType, distDir = "dist", port, onProgress } = {}
 ) {
   const resolved = path.resolve(repoPath);
   const stack = await detectStack(resolved);
@@ -40,7 +40,7 @@ export async function runLoop(
   let target = await startScanTarget(resolved, { platform: stack.platform, distDir, port, needsTunnel, onProgress });
   let baseline;
   try {
-    baseline = (await scanTarget(target.url, scanners, { sampling, onProgress })).report;
+    baseline = (await scanTarget(target.url, scanners, { sampling, siteType, onProgress })).report;
   } finally {
     await target.stop();
   }
@@ -53,7 +53,7 @@ export async function runLoop(
   target = await startScanTarget(resolved, { platform: stack.platform, distDir, port, needsTunnel, onProgress });
   let rescan;
   try {
-    rescan = (await scanTarget(target.url, scanners, { sampling, onProgress })).report;
+    rescan = (await scanTarget(target.url, scanners, { sampling, siteType, onProgress })).report;
   } finally {
     await target.stop();
   }

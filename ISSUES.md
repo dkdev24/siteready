@@ -18,6 +18,15 @@ WORKLOG.md instead.
   scanner's end, not something our fixer output caused — the two checks we
   did target (`json-ld`, `agent-friendly-404`) both moved the *right*
   direction across that same window. Can't do anything about a third
-  party's scoring stability from our side, but siteready can stop counting
-  checks that don't apply to the site's type in the first place — see
-  NEXT_ACTIONS.md #10 (site-type filtering).
+  party's scoring stability from our side. **Mitigated, not resolved,
+  2026-09-10:** NEXT_ACTIONS.md #10 shipped `--site-type content`, which
+  excludes API-surface checks from scoring — but only for scanners that
+  expose per-check point weights (afdocs, Ora). `is-agentic` never does (its
+  `checks[]` only lists non-passing issues, no per-check weight), so its own
+  `score.overall` is still NOT adjusted by `--site-type` — the excluded
+  checks are listed under "Not applicable for this site type" for visibility
+  but keep counting toward is-agentic's number. So the volatility this entry
+  describes is unchanged for `is-agentic` specifically; `--site-type content`
+  against `ora` directly (the same engine, full ranker) does get the real
+  fix. Left open because the underlying third-party volatility — and the
+  is-agentic score-adjustment gap — aren't actually resolved.

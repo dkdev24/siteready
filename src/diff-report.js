@@ -96,10 +96,15 @@ export function buildDiffReport(baseline, rescan) {
     };
   }
 
+  const baselineSiteType = baseline.siteType ?? "auto";
+  const rescanSiteType = rescan.siteType ?? "auto";
+
   return {
     target: rescan.target ?? baseline.target,
     baselineGeneratedAt: baseline.generatedAt,
     rescanGeneratedAt: rescan.generatedAt,
+    siteTypeMismatch:
+      baselineSiteType !== rescanSiteType ? { baseline: baselineSiteType, rescan: rescanSiteType } : null,
     scanners,
   };
 }
@@ -110,6 +115,15 @@ export function renderDiffMarkdown(diff) {
   lines.push("");
   lines.push(`Baseline: ${diff.baselineGeneratedAt}  \nRe-scan: ${diff.rescanGeneratedAt}`);
   lines.push("");
+
+  if (diff.siteTypeMismatch) {
+    lines.push(
+      `**Warning: site-type mismatch** — baseline was scanned as \`${diff.siteTypeMismatch.baseline}\`, ` +
+        `re-scan as \`${diff.siteTypeMismatch.rescan}\`. Score deltas below may reflect the site-type ` +
+        `change, not real fixes/regressions.`
+    );
+    lines.push("");
+  }
 
   for (const [name, s] of Object.entries(diff.scanners)) {
     lines.push(`## Scanner: ${name}`);

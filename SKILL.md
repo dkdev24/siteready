@@ -63,6 +63,7 @@ and `diff-report` never need this — they only ever hit the live URL over HTTP.
 node <skill-dir>/src/cli.js https://example.com
 node <skill-dir>/src/cli.js https://example.com --out ./out/my-scan --sampling deterministic
 node <skill-dir>/src/cli.js https://example.com --scanners is-agentic   # or: afdocs, or both (default)
+node <skill-dir>/src/cli.js https://example.com --site-type content   # a docs/content site with no public API
 
 # enhance a local repo checkout — run with that repo as your cwd, target it as "."
 node <skill-dir>/src/cli.js enhance .
@@ -83,6 +84,13 @@ node <skill-dir>/src/cli.js compare https://example.com https://a-competitor.com
 # score-over-time for one URL from its past scan/rescan runs under ./out — no new scan
 node <skill-dir>/src/cli.js monitor https://example.com
 ```
+
+**If the user's site is a pure content/docs site with no public API and `is-agentic`/Ora's score
+looks lower than the site deserves**, check whether the failing checks are API-surface ones
+(`openapi-spec`, `oauth-support`, anything in the Payments layer, etc.) — if so, tell them about
+`--site-type content`, which excludes those from scoring instead of penalizing a site for an API it
+was never going to have. Don't apply it silently on their behalf; ask first, since it changes the
+score's meaning.
 
 Read every command's own output before deciding what to do next — `enhance` prints exactly what it
 wrote, skipped (already present, won't overwrite), or warned about, and exits without touching git.

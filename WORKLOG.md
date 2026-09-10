@@ -938,3 +938,69 @@ working `.ts` middleware into a fixture would change that fixture's baseline
   `collectHistory()` found both in order and `buildMonitorReport()` flagged exactly one regression,
   surfaced in the rendered markdown's "Regressions (1)" section.
 - `node src/cli.js --help` manually reviewed for the new usage lines and option paragraphs.
+
+---
+
+## v1.7.0 — Site-Type Filtering (NEXT_ACTIONS.md #10)
+
+**Date:** 2026-09-10
+
+### Changes
+
+- New `src/site-types.js`: `isApplicable(checkId, siteType)` and `applySiteTypeFilter(normalized,
+  siteType)`. Ground-truthed against Ora's live check catalog (`GET https://ora.ai/api/checks`,
+  fetched today — **184 checks** across discovery/access/usability/payments, not the "127" ora.js's
+  own top-of-file comment claims; logged as a data point on NEXT_ACTIONS.md #8, not fixed there,
+  since re-verifying `normalize()` itself is out of this item's scope). The exclusion set
+  (`NOT_APPLICABLE_TO_CONTENT`) is deliberately a conservative subset, not all 184 checks classified:
+  the entire Payments layer (9 checks, unambiguously commerce/API-specific) plus the API-transport
+  checks named in NEXT_ACTIONS.md #10 and ISSUES.md's volatility entry as the motivating example
+  (`openapi-spec`, `oauth-support`, `rate-limit-headers`, `api-versioning-policy`,
+  `scoped-permissions`, `json-error-responses`, their close siblings, and the `public-api` check they
+  all depend on). The other ~150 checks (MCP, GraphQL, accessibility, discovery-layer) were left
+  alone — either broadly applicable regardless of site type or needing product judgment this tool
+  has no authority to guess safely. is-agentic and Ora share this one map (`is-agentic` calls Ora's
+  API with `include=essentials` — same check ids). afdocs' own checks are all inherently
+  content/doc-site checks, so nothing needed excluding there.
+- `applySiteTypeFilter()` marks each check `applicable: true|false` and — only for scanners that
+  report per-check `earnedScore`/`maxScore` (afdocs, Ora; `is-agentic`'s `checks[]` only lists
+  non-passing issues and never exposes per-check weights) — recomputes `score.overall` net of the
+  excluded checks, flagged via `scoreAdjustedForSiteType`. `summary` is left as the scanner reported
+  it; the excluded checks are always listed under `notApplicable` so nothing is silently hidden, even
+  for `is-agentic` where the score itself can't be adjusted.
+- `src/report.js`'s `buildReport()` takes a `{ siteType }` option, applies the filter per scanner,
+  and records `report.siteType` (`"auto"` when omitted) at the top level. `renderMarkdown()` gained a
+  "Not applicable for this site type" section per scanner, with a note on whether the score above was
+  actually adjusted.
+- `src/diff-report.js`'s `buildDiffReport()` compares `baseline.siteType` vs `rescan.siteType` and
+  sets `siteTypeMismatch` when they differ; `renderDiffMarkdown()` prints a warning so a score delta
+  isn't misread as a real fix/regression when it's actually a site-type change.
+- `src/scan.js`'s `scanTarget()` validates `siteType` up front (before running any scanner — a typo'd
+  value shouldn't burn Ora's rate limit before failing) and threads it into `buildReport()`.
+  `src/loop.js`'s `runLoop()` threads it through too, for CLI/human parity.
+- `src/cli.js`: new `--site-type <content|api|application|auto>` flag on `scan`/`rescan`/`compare`/
+  `loop`. `rescan` defaults to the baseline report's own `siteType` when not overridden (so a plain
+  re-run can't silently drift into a mismatch) and prints a warning if `diff.siteTypeMismatch` fires
+  anyway. `--help` documents the flag.
+- `README.md` (new Design notes entry, usage example), `SKILL.md` (usage example + guidance telling
+  the agent to ask before applying it, since it changes the score's meaning), `ISSUES.md` (updated
+  the `is-agentic` volatility entry: mitigated for `ora` directly, NOT resolved for `is-agentic`
+  itself since its score can't be adjusted — entry stays open, not removed, per AGENTS.md's ISSUES.md
+  rule).
+
+### Verified
+
+- `npm run lint` (syntax check, 22 files).
+- Inline smoke check (no test framework in this repo, same pattern as v1.5.1/v1.6.0):
+  `isApplicable()` against real check ids (`openapi-spec` excluded for `content`, included for `api`;
+  a content-discoverability id always applicable; unfiltered when `siteType` is omitted).
+  `applySiteTypeFilter()` against three synthetic scanner shapes — Ora-shaped (per-check weights
+  present): score recomputed correctly excluding two API/payments checks, `scoreAdjustedForSiteType:
+  true`. is-agentic-shaped (weights always null): score left unchanged, `scoreAdjustedForSiteType:
+  false`, excluded check still listed in `notApplicable`. afdocs-shaped (no exclusions apply): pure
+  pass-through, score unchanged. `buildReport()` with/without `siteType` (recorded field, filter
+  applied only when opted in — confirms the "default stays unfiltered, additive only" requirement).
+  `buildDiffReport()` between an `auto` baseline and a `content` re-scan: `siteTypeMismatch` correctly
+  populated.
+- `node src/cli.js --help` and a direct `scanTarget()` call with an invalid `--site-type` value
+  (confirmed it throws before any scanner runs, not after).

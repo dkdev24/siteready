@@ -2,6 +2,7 @@ import { runAfdocsScan } from "./scanners/afdocs.js";
 import { runIsAgenticScan } from "./scanners/is-agentic.js";
 import { runOraScan } from "./scanners/ora.js";
 import { buildReport } from "./report.js";
+import { SITE_TYPES } from "./site-types.js";
 
 export const SUPPORTED_SCANNERS = ["is-agentic", "afdocs", "ora"];
 
@@ -18,12 +19,15 @@ export const DEFAULT_SCANNERS = ["is-agentic", "afdocs"];
  * `rescan` CLI paths (and by `loop`, v0.4) so re-scanning a target after
  * `enhance` uses exactly the same logic as the original baseline scan.
  */
-export async function scanTarget(target, scannerNames, { sampling = "deterministic", onProgress } = {}) {
+export async function scanTarget(target, scannerNames, { sampling = "deterministic", siteType, onProgress } = {}) {
   const unsupported = scannerNames.filter((s) => !SUPPORTED_SCANNERS.includes(s));
   if (unsupported.length) {
     throw new Error(
       `Unsupported scanner(s): ${unsupported.join(", ")}. Supported: ${SUPPORTED_SCANNERS.join(", ")}`
     );
+  }
+  if (siteType && siteType !== "auto" && !SITE_TYPES.includes(siteType)) {
+    throw new Error(`Unknown site type: ${siteType}. Supported: ${SITE_TYPES.join(", ")}, auto`);
   }
 
   const scannerResults = [];
@@ -52,6 +56,6 @@ export async function scanTarget(target, scannerNames, { sampling = "determinist
     }
   }
 
-  const report = buildReport(target, scannerResults, errors);
+  const report = buildReport(target, scannerResults, errors, { siteType });
   return { report, rawByScanner, errors };
 }

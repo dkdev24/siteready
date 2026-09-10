@@ -110,7 +110,7 @@ their detail; don't load them just because a session started.
   a PR (`--pr`, needs a git remote + authenticated `gh`) or leaves an unstaged diff for review. It
   also never overwrites a file the target repo already has — it skips and reports instead.
 - **New scanner integrations prefer CLI/API/MCP over UI scraping.** A scanner with no CLI/API stays
-  manual/optional rather than being automated via headless browser (see README "Design notes").
+  manual/optional rather than being automated via headless browser (see docs/architecture.md).
 - **Cross-platform is a real correctness bar** (Windows/macOS/Linux, tested in CI): `.cmd` shims on
   Windows need `spawn(..., { shell: true })`; killing a spawned process tree on Windows needs
   `taskkill /t` (`child.kill()` alone leaves child processes like wrangler running).

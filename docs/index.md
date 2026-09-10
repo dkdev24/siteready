@@ -46,10 +46,9 @@ Needs Node ≥18. No API keys, no accounts — the default scanners are invoked 
 
 - [Install](install) — every install path (global, npx, source checkout, Claude Code skill)
 - [CLI reference](cli-reference) — every command, its options, and what it writes to disk
+- [Why siteready](why) — vs. calling scanners directly, vs. GEO/prompt-based audit skills
+- [Architecture](architecture) — directory layout, design notes, cross-platform notes
 - [Contributing](contributing) — adding a scanner or a framework fixer
-
-For architecture, design rationale, and cross-platform notes, see the
-[README](https://github.com/dkdev24/siteready#readme) in the repo.
 
 ## What this is: a tool, not a skill
 

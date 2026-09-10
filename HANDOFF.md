@@ -35,9 +35,14 @@ real — verified via `npx --yes siteready@1.7.0 --help` outside the repo.
 **#16 done 2026-09-10**: `docs/` (plain Jekyll, GitHub Pages built-in build,
 no generator dependency) live at https://dkdev24.github.io/siteready/.
 
-Next up: nothing queued — #12 and #16 both shipped this session. Next
-priority per NEXT_ACTIONS.md is #2 (real-deploy score-movement verification,
-folds in #7's Ora residual).
+**README trimmed 2026-09-10** (no version bump): 421 → ~145 lines. Detailed
+content (Why/GEO comparison, Architecture/Design notes/Cross-platform notes,
+fixer rationale) moved to `docs/why.md`, `docs/architecture.md`,
+`docs/install.md` — README now links out instead of duplicating. Live
+cross-refs in SKILL.md/AGENTS.md/CONTRIBUTING.md updated to match.
+
+Next up: nothing queued. Next priority per NEXT_ACTIONS.md is #2 (real-deploy
+score-movement verification, folds in #7's Ora residual).
 
 Settled, don't reopen: internal references in git history are accepted as-is
 (#11) — no rewrite. New writing still avoids them (AGENTS.md).

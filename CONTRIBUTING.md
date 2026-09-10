@@ -2,7 +2,7 @@
 
 Both scanner adapters and framework/platform fixers are additive plugins — adding one means new
 files, never changes to what's already shipped. This doc is the interface contract each has to
-follow; see `README.md` for the overall architecture.
+follow; see `docs/architecture.md` for the overall architecture.
 
 ## Adding a scanner adapter
 

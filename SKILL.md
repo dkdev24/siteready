@@ -146,7 +146,7 @@ content-aware `llms.txt` or `.md` mirror routes without guessing the site's own 
 guess produces broken links). It covers what's safe for any Astro site regardless of content shape:
 a real `404.astro`, a permissive `robots.txt`, and — only if the repo already has a hand-rolled
 markdown-mirror route — a `smartQuotes()` typography util plus a warning to wire it in (see
-README's "Design notes" for the smartypants/markdown-parity gotcha this exists for). If
+docs/architecture.md for the smartypants/markdown-parity gotcha this exists for). If
 `detect-stack` / `enhance` reports the target framework or platform as unsupported, say so
 directly — don't try to hand-write the equivalent fix yourself outside the tool; that's exactly the
 kind of one-off `enhance` is meant to replace. Point the user at `CONTRIBUTING.md` if they want to
@@ -154,7 +154,8 @@ add a new scanner adapter or fixer themselves.
 
 ## More detail
 
-- `README.md` — full architecture, design notes, cross-platform notes, the exact output layout
+- `docs/architecture.md` — full architecture, design notes, cross-platform notes.
+- `docs/cli-reference.md` — every command/flag, the exact output layout
   (`report.md`/`report.json`/`raw/*.json`/`diff-report.*`) under `./out/<target>-<timestamp>/`.
 - `CONTRIBUTING.md` — the scanner-adapter and fixer/platform interface contract, if extending
   siteready itself rather than just running it.

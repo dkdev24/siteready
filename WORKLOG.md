@@ -1067,3 +1067,34 @@ working `.ts` middleware into a fixture would change that fixture's baseline
 ### Follow-up
 
 - NEXT_ACTIONS.md #16 closed.
+
+## 2026-09-10 — README Trimmed to Docs Site (no version bump)
+
+**Date:** 2026-09-10
+
+### Changes
+
+- README.md cut 421 → ~145 lines. Moved detailed/contributor-facing content out to the `docs/`
+  site published in the entry above, replacing it in README with a short teaser + link:
+  - "Why use this" + GEO-comparison essay (~82 lines) → new `docs/why.md`, full text preserved.
+  - Architecture tree + Design notes + Cross-platform notes (~175 lines) → new `docs/architecture.md`,
+    full text preserved.
+  - Usage command list + output-file table + "How enhance works" → already covered by
+    `docs/cli-reference.md` (written in the prior session); README now just has a 5-line teaser.
+  - Fixer-by-fixer rationale (plain-Astro/Next.js scope limits) → appended to `docs/install.md`'s
+    Status section.
+  - Also corrected a stale claim carried over into `docs/why.md`: the GEO-comparison's "siteready
+    doesn't have compare/monitor yet" line was already false as of v1.6.0 — fixed while moving it.
+- Updated live cross-references that pointed at the now-moved README sections: `SKILL.md` (two
+  spots), `AGENTS.md` (one spot), `CONTRIBUTING.md` (one spot) now point at `docs/architecture.md`
+  / `docs/cli-reference.md` instead of "README.md Design notes" / "Cross-platform notes."
+  Deliberately left `WORKLOG.md`'s own past entries and `siteready-plan.md` untouched — both are
+  historical record (append-only / frozen respectively), not live documentation.
+- Added a "Full docs site →" link at the top of README.md pointing at
+  https://dkdev24.github.io/siteready/.
+
+### Verification
+
+- `npm run lint` passes.
+- `grep` swept every `.md` file for "Design notes"/"Cross-platform notes" mentions after the cut to
+  find stale in-repo cross-references, not just visually inspect the diff.

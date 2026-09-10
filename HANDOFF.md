@@ -1,7 +1,7 @@
 # HANDOFF.md
 
 Cross-session context memory. Update at the end of every session — keep this
-file under 50 lines. Detailed history and lists live in the linked docs below.
+file under 80 lines. Detailed history and lists live in the linked docs below.
 
 ---
 

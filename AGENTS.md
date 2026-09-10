@@ -4,7 +4,7 @@ Instructions for AI agents (Claude Code, OpenCode, and others) working in this r
 
 ## System Documents
 
-`HANDOFF.md` is the only one read at the start of every session — kept under 50
+`HANDOFF.md` is the only one read at the start of every session — kept under 80
 lines on purpose, it's a dashboard of current state plus pointers into the docs
 below (`NEXT_ACTIONS.md`, `ISSUES.md`, `WORKLOG.md`). Update it at the end of
 every session. The other documents are read only when the task at hand needs
@@ -16,7 +16,7 @@ their detail; don't load them just because a session started.
 - Purpose: Cross-session dashboard — current version, top blocker, and a table
   pointing at the documents below.
 - **Read at the start of every session.**
-- **Update at the end of every session.** Keep it under 50 lines — if an update
+- **Update at the end of every session.** Keep it under 80 lines — if an update
   would blow the budget, the content belongs in one of the docs below instead,
   with just a pointer left in HANDOFF.md.
 

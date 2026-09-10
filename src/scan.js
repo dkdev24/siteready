@@ -28,24 +28,30 @@ export async function scanTarget(target, scannerNames, { sampling = "determinist
 
   const scannerResults = [];
   const rawByScanner = {};
+  const errors = [];
 
   for (const scannerName of scannerNames) {
     onProgress?.(`Running ${scannerName} (this can take a minute)...`);
-    let result;
-    if (scannerName === "is-agentic") {
-      result = await runIsAgenticScan(target);
-    } else if (scannerName === "afdocs") {
-      result = await runAfdocsScan(target, { sampling });
-    } else if (scannerName === "ora") {
-      result = await runOraScan(target);
+    try {
+      let result;
+      if (scannerName === "is-agentic") {
+        result = await runIsAgenticScan(target);
+      } else if (scannerName === "afdocs") {
+        result = await runAfdocsScan(target, { sampling });
+      } else if (scannerName === "ora") {
+        result = await runOraScan(target);
+      }
+      scannerResults.push(result);
+      rawByScanner[scannerName] = result.raw;
+      onProgress?.(
+        `${scannerName}: ${result.normalized.score?.overall ?? "n/a"}/100 (${result.normalized.score?.grade ?? "n/a"})`
+      );
+    } catch (err) {
+      errors.push({ scanner: scannerName, error: err.message });
+      onProgress?.(`${scannerName}: FAILED — ${err.message}`);
     }
-    scannerResults.push(result);
-    rawByScanner[scannerName] = result.raw;
-    onProgress?.(
-      `${scannerName}: ${result.normalized.score?.overall ?? "n/a"}/100 (${result.normalized.score?.grade ?? "n/a"})`
-    );
   }
 
-  const report = buildReport(target, scannerResults);
-  return { report, rawByScanner };
+  const report = buildReport(target, scannerResults, errors);
+  return { report, rawByScanner, errors };
 }

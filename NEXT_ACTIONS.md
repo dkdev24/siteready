@@ -150,7 +150,8 @@ items are done but kept briefly for context; drop them once superseded.
       mismatch once #10 lands.
     Do these *after* #13 — they widen the surface, but fixer coverage is what
     actually differentiates. Not started.
-15. **One failing scanner aborts the whole scan.** `scanTarget()` (`src/scan.js`)
+15. ~~One failing scanner aborts the whole scan.~~ — **DONE 2026-09-10**, see WORKLOG.md v1.5.1.
+    `scanTarget()` (`src/scan.js`)
     awaits each scanner in a loop with no try/catch and only calls
     `buildReport()` after all of them return, so any single failure — most
     likely an Ora HTTP 429, but equally a network blip on a hosted scanner —

@@ -860,3 +860,38 @@ working `.ts` middleware into a fixture would change that fixture's baseline
   cause, not the errors' surface text: deleted the stray `node_modules`/`.next` so the fixture
   matches the other two (gitignored, installed fresh per temp copy by `ensureInstalled`) — resolved
   cleanly once isolated.
+
+---
+
+## v1.5.1 — Partial-Scan Resilience (NEXT_ACTIONS.md #15)
+
+**Date:** 2026-09-10
+
+### Changes
+
+- `src/scan.js`'s `scanTarget()`: each scanner call now runs inside its own try/catch instead of
+  one unguarded loop. A scanner that throws (Ora 429, a network blip) is pushed to an `errors` array
+  instead of aborting the whole scan — the scanners that already succeeded still produce a report.
+- `src/report.js`'s `buildReport()` takes that `errors` array as a third argument and records each
+  failed scanner as `{ scanner, error }` under `report.scanners[name]`, plus a new top-level
+  `report.partial: true` flag when any scanner failed. Nothing is silently dropped — `renderMarkdown()`
+  prints a `**FAILED** — <message>` block for an errored scanner instead of assuming `.score`/`.checks`
+  exist.
+- `src/diff-report.js`'s `buildDiffReport()`: a scanner with `.error` set (in either the baseline or
+  the re-scan) is now treated the same as an absent scanner — `comparable: false` with a reason
+  naming which side failed and why, instead of crashing on a missing `.checks` array.
+- `src/cli.js`: `scan` and `rescan` both print a warning line naming the failed scanner(s) when
+  `report.partial` is true, via a new small `failedScannerNames()` helper.
+- `SKILL.md` and `src/cli.js --help`: updated the Ora-429 guidance — it no longer says a rate limit
+  "takes the whole scan down"; it now describes the partial report, `partial: true`, and the
+  per-scanner `error` shape, and tells the agent to relay which scanner failed rather than treating
+  the whole run as failed.
+
+### Verified
+
+- `npm run lint` (syntax check, 19 files).
+- Inline smoke check (not committed as a test file — this repo has no test framework, only
+  `scripts/verify-loop.js` and `scripts/check-syntax.js`): built a report with one healthy scanner
+  and one `{ error }` scanner, asserted `report.partial`, the `FAILED` markdown block, and that
+  `buildDiffReport()` marks the errored scanner `comparable: false` with a reason string naming the
+  error while the healthy scanner still diffs normally.

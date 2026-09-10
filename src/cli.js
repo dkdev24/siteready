@@ -8,6 +8,13 @@ import { enhance } from "./enhance.js";
 import { openEnhancePr } from "./pr.js";
 import { runLoop } from "./loop.js";
 
+function failedScannerNames(report) {
+  return Object.entries(report.scanners)
+    .filter(([, s]) => s.error)
+    .map(([name]) => name)
+    .join(", ");
+}
+
 function parseFlags(argv, { defaults = {} } = {}) {
   const args = { ...defaults };
   const positional = [];
@@ -63,9 +70,11 @@ Options (scan / rescan / loop):
   Ora is a keyless public API but rate-limited per IP: 10 scans/minute burst, 30 per rolling 24h
   (6 of which may be force/cache-bypassing; siteready never forces). Responses from Ora's 6-hour
   freshness cache don't count against quota, so re-scanning one URL is usually free — scanning many
-  distinct URLs is what exhausts it. Exceeding it returns HTTP 429 and aborts the run with a
-  retry-after hint — a failing scanner takes the whole scan down, so no report is written even if
-  the other scanners already succeeded. Limits: https://ora.ai/docs
+  distinct URLs is what exhausts it. Exceeding it returns HTTP 429 with a retry-after hint — a
+  failing scanner no longer takes the whole scan down: the report is still written with that
+  scanner recorded as \`{ error }\` (report.json's top-level \`partial: true\`, a "FAILED" section in
+  report.md), scored from whichever scanners succeeded, and a warning printed. Limits:
+  https://ora.ai/docs
 
 enhance requires a local checkout of the target site's own repo (not just a URL) — its fixes are
 source-file edits, so there's no way to apply them against a URL alone. Supports one fixer: Astro +
@@ -112,6 +121,9 @@ async function runScanCommand(target, args) {
   }
   await writeReport(outDir, report);
 
+  if (report.partial) {
+    console.warn(`\nWarning: partial scan — ${failedScannerNames(report)} failed and were excluded from scoring.`);
+  }
   console.log(`\nReport written to ${outDir}/report.md (and report.json)`);
 }
 
@@ -144,6 +156,9 @@ async function runRescanCommand(target, args) {
   const diff = buildDiffReport(baseline, report);
   await writeDiffReport(outDir, diff);
 
+  if (report.partial) {
+    console.warn(`\nWarning: partial re-scan — ${failedScannerNames(report)} failed and were excluded from scoring.`);
+  }
   console.log(`\nReport written to ${outDir}/report.md`);
   console.log(`Diff vs baseline written to ${outDir}/diff-report.md`);
   for (const [name, s] of Object.entries(diff.scanners)) {

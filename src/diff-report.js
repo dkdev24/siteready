@@ -31,12 +31,16 @@ export function buildDiffReport(baseline, rescan) {
     const before = baseline.scanners?.[name];
     const after = rescan.scanners?.[name];
 
-    if (!before || !after) {
+    if (!before || !after || before.error || after.error) {
       scanners[name] = {
         comparable: false,
         reason: !before
           ? "not present in baseline report"
-          : "not present in re-scan report",
+          : before.error
+            ? `baseline scan failed: ${before.error}`
+            : !after
+              ? "not present in re-scan report"
+              : `re-scan failed: ${after.error}`,
       };
       continue;
     }

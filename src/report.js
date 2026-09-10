@@ -5,15 +5,23 @@ const STATUS_ORDER = { fail: 0, error: 1, warn: 2, skip: 3, pass: 4 };
 
 /**
  * Builds the unified scorecard from one or more normalized scanner results.
- * v0.2 runs is-agentic + afdocs side by side under this same shape.
+ * v0.2 runs is-agentic + afdocs side by side under this same shape. A
+ * scanner that threw (network blip, rate limit) is recorded as
+ * `{ scanner, error }` instead of being silently dropped, so a partial scan
+ * still produces a report for the scanners that succeeded — see #15.
  */
-export function buildReport(target, scannerResults) {
+export function buildReport(target, scannerResults, errors = []) {
+  const scanners = Object.fromEntries(
+    scannerResults.map((r) => [r.normalized.scanner, r.normalized])
+  );
+  for (const { scanner, error } of errors) {
+    scanners[scanner] = { scanner, error };
+  }
   return {
     target,
     generatedAt: new Date().toISOString(),
-    scanners: Object.fromEntries(
-      scannerResults.map((r) => [r.normalized.scanner, r.normalized])
-    ),
+    partial: errors.length > 0,
+    scanners,
   };
 }
 
@@ -27,6 +35,11 @@ export function renderMarkdown(report) {
   for (const [scannerName, s] of Object.entries(report.scanners)) {
     lines.push(`## Scanner: ${scannerName}`);
     lines.push("");
+    if (s.error) {
+      lines.push(`**FAILED** — ${s.error}`);
+      lines.push("");
+      continue;
+    }
     if (s.score) {
       lines.push(`**Overall score: ${s.score.overall} / 100 (${s.score.grade})**`);
       lines.push("");

@@ -113,11 +113,12 @@ that failure; report it and either re-run once or scan a deployed URL instead.
   24h ([ora.ai/docs](https://ora.ai/docs)). The error names the quotas and echoes Ora's
   `Retry-After`; relay that wait to the user instead of re-running. Cache hits don't consume quota,
   so re-scanning one URL is usually free — it's scanning many *distinct* URLs in a session (or a
-  multi-URL sweep) that exhausts the daily budget. Budget accordingly before fanning out. Note that
-  a scanner failure currently aborts the **whole** scan — the report is only assembled once every
-  scanner has returned, so a 429 costs you the other scanners' results too and no `report.json` is
-  written at all (scanner order doesn't change this). Tell the user that plainly and re-run without
-  `ora`, or after the wait.
+  multi-URL sweep) that exhausts the daily budget. Budget accordingly before fanning out. A scanner
+  failure no longer aborts the whole scan: `report.json` is still written with the other scanners'
+  results, the failed scanner recorded as `{ error }` and top-level `partial: true`, and the CLI
+  prints a warning naming which scanner failed. Tell the user which scanner failed and that its
+  checks are excluded from this report's score, and re-run just that scanner later (or after the
+  wait) if a complete report is needed.
   `afdocs` re-crawls live on every call and doesn't have this problem.
 
 ## Supported fixer today

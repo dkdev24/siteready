@@ -8,20 +8,21 @@ file under 50 lines. Detailed history and lists live in the linked docs below.
 ## Current Version
 
 **0.8.0** (doc-tracking system version, see WORKLOG.md). Engine/CLI is at
-package.json `1.5.0`, not yet tagged `v1.5.0` in git.
+package.json `1.5.1`, not yet tagged in git.
 
 ---
 
 ## Right Now
 
-No blocker. **NEXT_ACTIONS.md #13 done** (2026-09-10): `enhance` now supports
-**Next.js (App Router) + Vercel** (`fixers/nextjs.js` + `platforms/vercel.js`),
-alongside the existing Astro/Cloudflare-Pages fixers — `enhance.js` and
-`lib/local-server.js` generalize beyond Cloudflare Pages for the first time.
-`examples/nextjs-vercel` + `verify-loop.js` prove a real score delta. Known
-gap in `platforms/vercel.js`'s comment: see WORKLOG.md.
+No blocker. **NEXT_ACTIONS.md #15 done** (2026-09-10): a failing scanner
+(e.g. Ora 429) no longer aborts the whole scan — `scanTarget()` catches
+per-scanner, `report.json` records the failure as `{ error }` with a
+top-level `partial: true`, `diff-report` treats it as not-comparable instead
+of crashing. See WORKLOG.md v1.5.1.
 
-Next up: **#14** (multi-site compare + score-over-time tracking).
+In progress this session: **#14** (multi-site compare + score-over-time
+tracking), then **#10** (site-type filtering) — both queued next, no
+blocker.
 
 Settled, don't reopen: internal references in git history are accepted as-is
 (#11) — no rewrite. New writing still avoids them (AGENTS.md).

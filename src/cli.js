@@ -7,6 +7,8 @@ import { loadReport, buildDiffReport, writeDiffReport } from "./diff-report.js";
 import { enhance } from "./enhance.js";
 import { openEnhancePr } from "./pr.js";
 import { runLoop } from "./loop.js";
+import { buildCompareReport, writeCompareReport } from "./compare.js";
+import { collectHistory, buildMonitorReport, writeMonitorReport } from "./monitor.js";
 
 function failedScannerNames(report) {
   return Object.entries(report.scanners)
@@ -22,6 +24,7 @@ function parseFlags(argv, { defaults = {} } = {}) {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--out") args.out = argv[++i];
+    else if (a === "--out-root") args.outRoot = argv[++i];
     else if (a === "--sampling") args.sampling = argv[++i];
     else if (a === "--scanners") args.scanners = argv[++i].split(",").map((s) => s.trim());
     else if (a === "--baseline") args.baseline = argv[++i];
@@ -35,15 +38,16 @@ function parseFlags(argv, { defaults = {} } = {}) {
   return args;
 }
 
+function hostnameFor(target) {
+  try {
+    return new URL(target).hostname;
+  } catch {
+    return path.basename(path.resolve(target));
+  }
+}
+
 function outDirFor(target, suffix = "") {
-  const hostname = (() => {
-    try {
-      return new URL(target).hostname;
-    } catch {
-      return path.basename(path.resolve(target));
-    }
-  })();
-  return path.join("out", `${hostname}${suffix}-${new Date().toISOString().replace(/[:.]/g, "-")}`);
+  return path.join("out", `${hostnameFor(target)}${suffix}-${new Date().toISOString().replace(/[:.]/g, "-")}`);
 }
 
 function printHelp() {
@@ -52,6 +56,8 @@ function printHelp() {
        siteready rescan <url> --baseline <path> [options]   re-scan + diff vs a baseline report
        siteready diff-report <baseline> <rescan> [--out <dir>]   diff two existing reports
        siteready loop <repo-path> [options]            scan -> enhance -> rescan -> diff, local only
+       siteready compare <url> <url> [<url> ...] [options]   scan N sites, render side by side
+       siteready monitor <url> [--out-root <dir>] [--out <dir>]   score-over-time from past scans
 
 Options (scan / rescan / loop):
   --out <dir>            Output directory (default: ./out/<hostname-or-dir>-<timestamp>)
@@ -97,7 +103,16 @@ diff report — no manual steps, no live deployment.
           localhost otherwise. The site is briefly reachable by anyone with the random tunnel URL,
           torn down right after the scan. Quick Tunnels are anonymous and best-effort, so an
           unreachable one is retried as a whole fresh tunnel (3 attempts; override with the
-          SITEREADY_TUNNEL_ATTEMPTS env var).`);
+          SITEREADY_TUNNEL_ATTEMPTS env var).
+
+compare scans each URL one at a time (not fanned out — Ora's rate limit is per IP) with the same
+scanner set, writes each site's full report under \`<out>/<hostname>/\`, and renders a side-by-side
+compare-report.md/json across all of them. Accepts the same --scanners/--sampling/--out as scan.
+
+monitor reads every \`<out-root>/*/report.json\` written by past scan/rescan runs for the given
+URL's hostname (no new scanning), sorts them oldest-first, and renders a score-over-time table plus
+a regression flag using the same check-level fixed/regressed logic as diff-report. --out-root
+defaults to ./out.`);
 }
 
 async function runScanCommand(target, args) {
@@ -166,6 +181,69 @@ async function runRescanCommand(target, args) {
       const sign = s.score.delta > 0 ? "+" : "";
       console.log(`  ${name}: ${s.score.before} -> ${s.score.after} (${sign}${s.score.delta})`);
     }
+  }
+}
+
+async function runCompareCommand(targets, args) {
+  if (targets.length < 2) {
+    console.error("Usage: siteready compare <url> <url> [<url> ...] [options]");
+    process.exit(1);
+  }
+
+  const scanners = args.scanners ?? DEFAULT_SCANNERS;
+  const unsupported = scanners.filter((s) => !SUPPORTED_SCANNERS.includes(s));
+  if (unsupported.length) {
+    console.error(`Unsupported scanner(s): ${unsupported.join(", ")}. Supported: ${SUPPORTED_SCANNERS.join(", ")}`);
+    process.exit(1);
+  }
+
+  const outDir = args.out ?? path.join("out", `compare-${new Date().toISOString().replace(/[:.]/g, "-")}`);
+
+  // Scanned one at a time, not fanned out — Ora's rate limit (10/min, 30/day)
+  // is per IP, so N concurrent scans against N distinct hosts would burn
+  // through it fast. See NEXT_ACTIONS.md #14.
+  const sites = [];
+  for (const target of targets) {
+    console.log(`Scanning ${target} with: ${scanners.join(", ")}`);
+    const { report, rawByScanner } = await scanTarget(target, scanners, {
+      sampling: args.sampling ?? "deterministic",
+      onProgress: (msg) => console.log(`  ${msg}`),
+    });
+
+    const siteDir = path.join(outDir, hostnameFor(target));
+    for (const [name, raw] of Object.entries(rawByScanner)) {
+      await writeRaw(siteDir, name, raw);
+    }
+    await writeReport(siteDir, report);
+    if (report.partial) {
+      console.warn(`  Warning: partial scan for ${target} — ${failedScannerNames(report)} failed.`);
+    }
+    sites.push({ target, report });
+  }
+
+  const compare = buildCompareReport(sites);
+  await writeCompareReport(outDir, compare);
+
+  console.log(`\nComparison written to ${outDir}/compare-report.md (and compare-report.json)`);
+}
+
+async function runMonitorCommand(target, args) {
+  if (!target) {
+    console.error("Usage: siteready monitor <url> [--out-root <dir>] [--out <dir>]");
+    process.exit(1);
+  }
+
+  const outRoot = args.outRoot ?? "out";
+  const history = await collectHistory(outRoot, target);
+  const monitor = buildMonitorReport(target, history);
+
+  const outDir = args.out ?? path.join(outRoot, `monitor-${hostnameFor(target)}`);
+  await writeMonitorReport(outDir, monitor);
+
+  console.log(`${monitor.scans} scan(s) found for ${target}.`);
+  console.log(`Monitor report written to ${outDir}/monitor-report.md (and monitor-report.json)`);
+  if (monitor.regressions.length) {
+    console.warn(`Warning: ${monitor.regressions.length} regression(s) detected between scans — see ${outDir}/monitor-report.md`);
   }
 }
 
@@ -284,6 +362,21 @@ async function main() {
   if (command === "loop") {
     const args = parseFlags(argv.slice(2));
     await runLoopCommand(argv[1], args);
+    return;
+  }
+
+  if (command === "compare") {
+    const rawArgv = argv.slice(1);
+    const flagStart = rawArgv.findIndex((a) => a.startsWith("--"));
+    const targets = flagStart === -1 ? rawArgv : rawArgv.slice(0, flagStart);
+    const args = parseFlags(flagStart === -1 ? [] : rawArgv.slice(flagStart));
+    await runCompareCommand(targets, args);
+    return;
+  }
+
+  if (command === "monitor") {
+    const args = parseFlags(argv.slice(2));
+    await runMonitorCommand(argv[1], args);
     return;
   }
 

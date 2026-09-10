@@ -198,6 +198,12 @@ siteready diff-report ./out/before/report.json ./out/after/report.json
 
 # full local loop: scan -> enhance -> rescan -> diff-report, no deployment, no manual steps
 siteready loop ../my-astro-starlight-site
+
+# scan multiple sites and render them side by side
+siteready compare https://example.com https://a-competitor.com
+
+# score-over-time from past scan/rescan runs under ./out (no new scanning)
+siteready monitor https://example.com
 ```
 
 From a source checkout without `npm link`/`npm install -g`, every command above is the same with
@@ -210,6 +216,10 @@ Output (default `./out/<hostname-or-dir>-<timestamp>/`):
 - `raw/is-agentic.json`, `raw/afdocs.json`, `raw/ora.json` — the unmodified scanner output, for debugging
 - `diff-report.md` / `diff-report.json` (from `rescan`, `diff-report`, or `loop`) — before/after
   score deltas plus per-check "Fixed" / "Regressed" / "Still failing" breakdowns
+- `compare-report.md` / `compare-report.json` (from `compare`) — every target's score side by side
+  per scanner, plus each site's own full report under `<out>/<hostname>/`
+- `monitor-report.md` / `monitor-report.json` (from `monitor`) — a score-over-time table across
+  every past scan for a hostname, plus regressions flagged between consecutive scans
 
 `enhance` prints what it wrote/skipped/warned about and exits — without `--pr` it produces an
 unstaged diff in the target repo for you to review, never a commit.

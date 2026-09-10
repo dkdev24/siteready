@@ -8,21 +8,21 @@ file under 50 lines. Detailed history and lists live in the linked docs below.
 ## Current Version
 
 **0.8.0** (doc-tracking system version, see WORKLOG.md). Engine/CLI is at
-package.json `1.5.1`, not yet tagged in git.
+package.json `1.6.0`, not yet tagged in git.
 
 ---
 
 ## Right Now
 
-No blocker. **NEXT_ACTIONS.md #15 done** (2026-09-10): a failing scanner
-(e.g. Ora 429) no longer aborts the whole scan — `scanTarget()` catches
-per-scanner, `report.json` records the failure as `{ error }` with a
-top-level `partial: true`, `diff-report` treats it as not-comparable instead
-of crashing. See WORKLOG.md v1.5.1.
+No blocker. **NEXT_ACTIONS.md #15 and #14 done** (2026-09-10, same session):
+#15 — a failing scanner no longer aborts the whole scan (`report.partial` +
+per-scanner `{ error }`). #14 — new `compare` (N sites side by side) and
+`monitor` (score-over-time from past scans, regression flag) CLI commands,
+`src/compare.js` + `src/monitor.js`. See WORKLOG.md v1.5.1 / v1.6.0.
 
-In progress this session: **#14** (multi-site compare + score-over-time
-tracking), then **#10** (site-type filtering) — both queued next, no
-blocker.
+In progress this session: **#10** (site-type filtering,
+`--site-type content|api|application|auto`) — largest of the three, queued
+next, no blocker.
 
 Settled, don't reopen: internal references in git history are accepted as-is
 (#11) — no rewrite. New writing still avoids them (AGENTS.md).

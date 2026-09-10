@@ -46,6 +46,8 @@ inside the siteready installation.
 | A URL + a local checkout of that site's repo, wants it fixed | `scan` → `enhance` → `rescan` (or just `loop`, see below) |
 | Two existing `report.json` files, wants a before/after | `diff-report` directly |
 | A local checkout, wants the whole thing done in one shot | `loop` |
+| Multiple URLs, wants them scored side by side | `compare` |
+| One URL, wants to know if it's trending up or down | `monitor` (reads past scans, no new scan) |
 
 **`enhance` needs a local checkout of the target site's own repo — a URL alone is not enough.**
 Its fixes are source-file edits (an `llms.txt` endpoint, a Cloudflare Pages Function, a layout
@@ -74,6 +76,12 @@ node <skill-dir>/src/cli.js diff-report ./out/before/report.json ./out/after/rep
 
 # full local loop: scan -> enhance -> rescan -> diff-report, no live deployment, no manual steps
 node <skill-dir>/src/cli.js loop .
+
+# scan multiple URLs and render them side by side (scanned one at a time — see Ora rate-limit note)
+node <skill-dir>/src/cli.js compare https://example.com https://a-competitor.com
+
+# score-over-time for one URL from its past scan/rescan runs under ./out — no new scan
+node <skill-dir>/src/cli.js monitor https://example.com
 ```
 
 Read every command's own output before deciding what to do next — `enhance` prints exactly what it

@@ -132,7 +132,9 @@ items are done but kept briefly for context; drop them once superseded.
     passthrough response's `Vary: Accept` header doesn't survive Next.js's
     static-cache path (verified against a real `next start` server) — the
     negotiation itself is unaffected; see `platforms/vercel.js` comment.
-14. **Surface-area parity: multi-site compare + score-over-time tracking.**
+14. ~~Surface-area parity: multi-site compare + score-over-time tracking.~~ — **DONE 2026-09-10**,
+    see WORKLOG.md v1.6.0: `compare` and `monitor` CLI commands (`src/compare.js`, `src/monitor.js`).
+    Original scope note below, kept for the design rationale.
     GEO packs ship a competitor-comparison and a monitoring skill; siteready
     has neither, which makes it look thinner than it is even where its fixers
     win. Both are cheap because the primitives already exist:

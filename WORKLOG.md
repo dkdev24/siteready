@@ -895,3 +895,46 @@ working `.ts` middleware into a fixture would change that fixture's baseline
   and one `{ error }` scanner, asserted `report.partial`, the `FAILED` markdown block, and that
   `buildDiffReport()` marks the errored scanner `comparable: false` with a reason string naming the
   error while the healthy scanner still diffs normally.
+
+---
+
+## v1.6.0 — Multi-Site Compare + Score-Over-Time Monitor (NEXT_ACTIONS.md #14)
+
+**Date:** 2026-09-10
+
+### Changes
+
+- New `src/compare.js`: `buildCompareReport(sites)` takes already-scanned `{ target, report }`
+  pairs and renders an N-way per-scanner score/grade table (`renderCompareMarkdown`), written via
+  `writeCompareReport()` as `compare-report.json`/`.md`. No new scanning logic — reuses each site's
+  normalized report as-is, including the `{ error }` shape from v1.5.1's partial-scan handling
+  (rendered as `FAILED: <message>` in a comparison cell instead of a blank).
+- New `src/monitor.js`: `collectHistory(outRoot, target)` reads every `<outRoot>/*/report.json`
+  (whatever `scan`/`rescan` already wrote), matches by the report's own `target` hostname (not by
+  parsing directory-name conventions, which would break the moment a hostname itself contains a
+  dash), and sorts oldest-first. `buildMonitorReport()` builds the score-over-time timeline and
+  flags regressions between every consecutive pair of scans by reusing `buildDiffReport()`'s
+  check-level fixed/regressed logic (not just an overall-score delta) — same approach
+  `diff-report.js` already used, no new comparison logic invented.
+- `src/cli.js`: two new commands.
+  - `compare <url> <url> [<url> ...] [options]` — scans each target **one at a time**, not fanned
+    out, because Ora's rate limit (10/min, 30/day) is per-IP and N concurrent distinct hosts would
+    burn through it fast; writes each site's full report under `<out>/<hostname>/` plus the
+    aggregate `compare-report.*` at the top of `<out>`.
+  - `monitor <url> [--out-root <dir>] [--out <dir>]` — no new scanning; reads back what's already on
+    disk. Defaults `--out-root` to `./out`.
+  - New `--out-root` flag in `parseFlags`; factored the inline hostname-extraction IIFE in
+    `outDirFor()` into a shared `hostnameFor()` used by both new commands too.
+- `README.md`/`SKILL.md`: added both commands to the usage tables/examples and the output-files
+  list; `--help` text extended with a `compare`/`monitor` paragraph each.
+
+### Verified
+
+- `npm run lint` (syntax check, 21 files).
+- Inline smoke check per module (no test framework in this repo, same as v1.5.1): `compare.js`
+  against two synthetic reports with different scores — asserted the per-target score fields and
+  the rendered markdown table row. `monitor.js` against two synthetic `report.json` files written
+  to a temp `out/` (same hostname, second one regressed a check from pass to fail) — asserted
+  `collectHistory()` found both in order and `buildMonitorReport()` flagged exactly one regression,
+  surfaced in the rendered markdown's "Regressions (1)" section.
+- `node src/cli.js --help` manually reviewed for the new usage lines and option paragraphs.

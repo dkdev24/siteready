@@ -1036,3 +1036,34 @@ working `.ts` middleware into a fixture would change that fixture's baseline
 
 - NEXT_ACTIONS.md #12 closed. Unblocks #16 (docs site + GitHub Pages), which can now show a real
   `npx siteready` quickstart.
+
+## v1.7.0 — Docs Site via GitHub Pages (NEXT_ACTIONS.md #16)
+
+**Date:** 2026-09-10
+
+### Changes
+
+- New `docs/`: `index.md` (landing pitch + quickstart), `install.md`, `cli-reference.md`,
+  `contributing.md` (thin pointer to `CONTRIBUTING.md` at the repo root — not duplicated).
+  Content adapted from README.md's existing Install/Usage/enhance sections; architecture and
+  design-rationale detail stays README-only (linked, not copied) to avoid two sources of truth.
+- `docs/_config.yml`: `theme: jekyll-theme-minimal`. Plain Markdown, GitHub Pages' built-in Jekyll
+  build — no docs-generator dependency (ruled out Starlight: would've added a build step and a
+  dependency with no home in `src/`, against AGENTS.md's tool-not-skill philosophy).
+- Enabled GitHub Pages via `gh api -X POST repos/dkdev24/siteready/pages` with
+  `source[branch]=main`, `source[path]=/docs` — no separate `gh-pages` branch, no Actions workflow;
+  GitHub's own legacy Jekyll build handles it on every push to `main` that touches `docs/`.
+- Live at https://dkdev24.github.io/siteready/.
+
+### Verification
+
+- `gh api repos/dkdev24/siteready/pages` before enabling returned 404 (Pages not yet configured);
+  after the POST, returned `{"source":{"branch":"main","path":"/docs"},"html_url":"https://dkdev24.github.io/siteready/", ...}`.
+- Manually re-read every new page for accuracy against the CLI's actual current behavior (commands,
+  flags, output files) rather than re-deriving from memory, and for AGENTS.md's public-repo
+  sanitization rule (no internal identifiers) — all content traces back to already-sanitized
+  README.md prose.
+
+### Follow-up
+
+- NEXT_ACTIONS.md #16 closed.

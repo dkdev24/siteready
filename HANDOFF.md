@@ -32,7 +32,12 @@ was found stale.
 `danielkimdev`. `npx siteready` / `npm install -g siteready` now work for
 real — verified via `npx --yes siteready@1.7.0 --help` outside the repo.
 
-Next up: #16 (docs site + GitHub Pages) — unblocked now that #12 is done.
+**#16 done 2026-09-10**: `docs/` (plain Jekyll, GitHub Pages built-in build,
+no generator dependency) live at https://dkdev24.github.io/siteready/.
+
+Next up: nothing queued — #12 and #16 both shipped this session. Next
+priority per NEXT_ACTIONS.md is #2 (real-deploy score-movement verification,
+folds in #7's Ora residual).
 
 Settled, don't reopen: internal references in git history are accepted as-is
 (#11) — no rewrite. New writing still avoids them (AGENTS.md).

@@ -10,25 +10,6 @@ append-only, unlike WORKLOG.md).
 
 ## Open, priority order
 
-16. **Docs site beyond README, published via GitHub Pages.** Daniel wants
-    real docs pages (not just README.md) plus a GitHub Pages site introducing
-    siteready and hosting them. Scope to decide before starting:
-    - Content: split README into task-oriented pages (install, CLI reference
-      for scan/enhance/rescan/diff-report/compare/monitor/loop, writing a new
-      scanner/fixer — CONTRIBUTING.md already has this, so link not
-      duplicate). Landing page = short pitch + quickstart, matching what
-      isitagentready.com and similar GEO tools show.
-    - Generator: plain static HTML/Markdown vs. a docs generator (e.g.
-      Starlight — dogfoods `examples/astro-starlight-cf-pages` — or plain
-      Jekyll, GitHub Pages' zero-build default). Lean simplest per AGENTS.md's
-      tool-not-skill philosophy — a docs generator shouldn't leak into `src/`.
-    - Hosting: GitHub Pages from `/docs` on `main` vs. a `gh-pages` branch;
-      Actions build vs. GitHub's built-in Jekyll build.
-    - Must not violate the public-repo sanitization rule in AGENTS.md (no
-      internal identifiers in new docs content).
-    - #12 (npm publish) is done — `npx siteready` / `npm install -g siteready`
-      quickstart is real now, safe to show in the docs. Not started.
-
 2. Real-deploy score-movement verification, still open after the 2026-09-09
    run against `danielkimdev.com`: it scored 94/98 pre-fix with
    `http-status-codes`/`content-negotiation` already passing, so the fix
@@ -119,3 +100,12 @@ append-only, unlike WORKLOG.md).
 
 14. Multi-site `compare` + score-over-time `monitor` commands — **done
     v1.6.0**.
+
+16. Docs site beyond README, published via GitHub Pages — **done 2026-09-10**.
+    `docs/` (plain Markdown, GitHub's built-in Jekyll build,
+    `jekyll-theme-minimal`, no generator dependency in `src/`): `index.md`
+    (landing pitch + quickstart), `install.md`, `cli-reference.md`,
+    `contributing.md` (thin pointer to CONTRIBUTING.md, not duplicated).
+    Pages enabled via API, source `main`:`/docs`. Live at
+    https://dkdev24.github.io/siteready/. Content adapted from README.md, no
+    new/internal identifiers introduced.

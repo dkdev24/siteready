@@ -8,48 +8,33 @@ file under 50 lines. Detailed history and lists live in the linked docs below.
 ## Current Version
 
 **0.8.0** (doc-tracking system version, see WORKLOG.md). Engine/CLI is at
-package.json `1.7.0`, not yet tagged in git.
+package.json `1.7.0`, published to npm, not yet tagged in git.
 
 ---
 
 ## Right Now
 
-No blocker. **NEXT_ACTIONS.md #14, #10 done** (2026-09-10, same session): #14 —
-new `compare`/`monitor` CLI commands. #10 — `--site-type content|api|application`
-excludes API-surface checks from scoring; ships as a conservative subset (the
-Payments layer + the checks ISSUES.md's volatility entry named), grounded in
-Ora's live `/api/checks` catalog, not a full classification of all ~184
-checks. Known gap: only `afdocs`/`ora` expose per-check weights to actually
-recompute the score — `is-agentic`'s own score is NOT adjusted (see
-ISSUES.md, kept open not resolved). See WORKLOG.md v1.6.0 / v1.7.0.
+No blocker. 2026-09-10 session (see WORKLOG.md for full detail on each):
+**#12 done** — `siteready@1.7.0` published to npm (`danielkimdev`), `npx
+siteready`/`npm install -g siteready` work for real now. **#16 done** —
+`docs/` (plain Jekyll) live at https://dkdev24.github.io/siteready/.
+**README trimmed** 421 → ~145 lines, detail moved to `docs/why.md`,
+`docs/architecture.md`, `docs/install.md` (links out, not duplicated); live
+cross-refs in SKILL.md/AGENTS.md/CONTRIBUTING.md updated to match. **Voice
+pass** on the pitch prose (README intro/Why, `docs/why.md`, `docs/index.md`)
+per Daniel's writing-style skill — stripped every em-dash/semicolon, checked
+colon density rather than relocating the tell.
 
-**#15 is still open, not done** — only the decision to document (not patch)
-the "one failing scanner aborts the whole scan" gap shipped in v1.5.1; the
-actual partial-report fix is unstarted. Corrected 2026-09-10 after this line
-was found stale.
+**#15 still open, not done** — only the decision to document (not patch)
+the scanner-failure gap shipped in v1.5.1; the partial-report fix itself is
+unstarted (corrected here 2026-09-10 after a stale "done" claim).
 
-**#12 done 2026-09-10**: `siteready@1.7.0` published to npm under
-`danielkimdev`. `npx siteready` / `npm install -g siteready` now work for
-real — verified via `npx --yes siteready@1.7.0 --help` outside the repo.
+Next up: #2 (real-deploy score-movement verification, folds in #7's Ora
+residual) is the top open item in NEXT_ACTIONS.md.
 
-**#16 done 2026-09-10**: `docs/` (plain Jekyll, GitHub Pages built-in build,
-no generator dependency) live at https://dkdev24.github.io/siteready/.
-
-**README trimmed 2026-09-10** (no version bump): 421 → ~145 lines. Detailed
-content (Why/GEO comparison, Architecture/Design notes/Cross-platform notes,
-fixer rationale) moved to `docs/why.md`, `docs/architecture.md`,
-`docs/install.md` — README now links out instead of duplicating. Live
-cross-refs in SKILL.md/AGENTS.md/CONTRIBUTING.md updated to match.
-
-Next up: nothing queued. Next priority per NEXT_ACTIONS.md is #2 (real-deploy
-score-movement verification, folds in #7's Ora residual).
-
-Settled, don't reopen: internal references in git history are accepted as-is
-(#11) — no rewrite. New writing still avoids them (AGENTS.md).
-
-Identity settled: siteready is a **tool**, not a skill — `SKILL.md` is a thin
-adapter, never implements behavior (AGENTS.md rule 1). Package is published to
-npm (`siteready@1.7.0`) — README's `npm install -g` is accurate now.
+Settled, don't reopen: internal refs in git history accepted as-is (#11,
+AGENTS.md). siteready is a **tool** not a skill — `SKILL.md` never
+implements behavior (AGENTS.md rule 1).
 
 ---
 
@@ -60,7 +45,8 @@ npm (`siteready@1.7.0`) — README's `npm install -g` is accurate now.
 | `NEXT_ACTIONS.md` | Open TODOs, numbered |
 | `ISSUES.md` | Known open issues not yet actioned |
 | `WORKLOG.md` | Full project history — one entry per session, milestone or not |
-| `README.md` | Status table, architecture, design notes |
+| `README.md` | Short pitch + quickstart, links to the full docs site |
+| `docs/` | Full docs site (install, CLI reference, why, architecture) — published at https://dkdev24.github.io/siteready/ |
 | `AGENTS.md` | Key paths, standing development rules |
 
 ---

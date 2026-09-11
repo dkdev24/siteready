@@ -29,8 +29,15 @@ const FIXTURES = [
     dir: path.join(__dirname, "..", "examples", "astro-starlight-cf-pages"),
     async strip(dir) {
       await removeIfPresent(dir, [
+        "src/lib/llms-index.ts",
+        "src/lib/lastmod.ts",
         "src/pages/llms.txt.ts",
+        "src/pages/llms-full.txt.ts",
+        "src/pages/[section]",
         "src/pages/[...slug].md.ts",
+        "src/pages/robots.txt.ts",
+        "src/pages/schema-map.xml.ts",
+        "src/pages/schema-feed.jsonl.ts",
         "src/components/Banner.astro",
         "src/components/Head.astro",
         "src/content/docs/404.md",

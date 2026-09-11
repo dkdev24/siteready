@@ -1128,3 +1128,66 @@ working `.ts` middleware into a fixture would change that fixture's baseline
 - `npm run lint` passes.
 - Grepped each edited file for `—`, `;`, and `·` post-edit to confirm zero, not just visual
   inspection of the diff.
+
+## v1.8.0 — Astro+Starlight / Cloudflare Pages Fixer: Five Gaps From Dogfooding docs-starlight
+
+**Date:** 2026-09-11
+
+Daniel ran `enhance` against the docs-starlight repo (real production Astro+Starlight docs
+subdomain, no public API) some sessions back, then hand-fixed the gaps an ora.ai scan still flagged
+(62 → 70, grade C → B). Asked this session to check that repo's fix commit and port whatever
+generalizes back into `astro-starlight.js`/`cloudflare-pages.js`. Ported five of the eight; skipped
+Organization JSON-LD `address`/`contactPoint` (real business data a fixer can't guess from
+`astro.config.mjs`, unlike `name`/`url`/`sameAs` which already come from `starlight({ social })`)
+and the separate near-miss-URL-redirect feature (from an earlier docs-starlight commit, not part of
+the 62→70 gap set, and a bigger lift than the other five).
+
+### Changes
+
+- **`cloudflare-pages.js` middleware**: markdown negotiation now also fires on a known AI-bot
+  User-Agent (`GPTBot`, `ClaudeBot`, `PerplexityBot`, etc.), not just `Accept: text/markdown` — most
+  bots never send that header themselves. A markdown-preferring request that hits a path with no
+  `.md` sibling now gets the `/404.md` mirror with a real 404 status instead of falling through to
+  the HTML 404 page.
+- **`astro-starlight.js` llms.txt split into a family**: `src/lib/llms-index.ts` (new) holds the
+  shared section-grouping builder. `llms.txt` itself stays a full flat listing (every page, grouped
+  by top-level content directory) as long as that fits under a 20,000-character threshold — this
+  matters because `afdocs`' `llms-txt-coverage` check wants direct page links in `llms.txt` itself,
+  not just pointers, and the fixture's baseline regressed from ~97 to 59 the first time this was
+  tried with an unconditional split modeled directly on docs-starlight's (always-split) version.
+  Past the threshold it falls back to a short nav index pointing at `llms-full.txt` (new, everything
+  inline) and one dynamic `/<section>/llms.txt` per top-level content directory (new,
+  `src/pages/[section]/llms.txt.ts` via `getStaticPaths` — one generic route, not N hardcoded
+  per-section files like docs-starlight's manual version).
+- **`astro-starlight.js` sitemap `<lastmod>`**: `src/lib/lastmod.ts` (new) walks `git log
+  --name-status` once and maps content files to their latest commit date. `patchSitemapLastmod`
+  wires `buildLastmodMap` into an *existing* bare `sitemap()` call's `serialize()` — skipped with a
+  warning if the repo has no `@astrojs/sitemap` integration at all (Starlight's bundled sitemap
+  generation doesn't expose a customization hook; this fixer won't guess at adding a new dependency)
+  or if `sitemap()` already takes custom options (won't risk clobbering an existing `serialize()`).
+- **`astro-starlight.js` NLWeb schema feed**: `schema-map.xml.ts` + `schema-feed.jsonl.ts` (new) —
+  one `schema.org` `TechArticle` per doc page, JSON Lines, per the NLWeb Schema Feeds spec, with
+  `dateModified` from the same `lastmod.ts`. A `schemamap:` directive pointing at it is added to
+  `src/pages/robots.txt.ts` (new — Starlight sites commonly have no robots.txt at all; skipped with
+  a warning if either a static `public/robots.txt` or a `src/pages/robots.txt.ts` already exists).
+- All new llms.txt-family links are root-relative (not built from `astro.config`'s `site`) — the
+  original single-file version already did this deliberately (see its inline comment) so the file
+  keeps resolving under a preview deploy or the local test harness's `localhost` origin, unlike the
+  configured production `site`. `robots.txt`/`schema-map.xml`/`schema-feed.jsonl` still use absolute
+  `site`-based URLs, correctly, since the Sitemap directive and schema.org `url`/`@id` conventions
+  require absolute URLs and aren't checked by `afdocs` today.
+- Regenerated `examples/astro-starlight-cf-pages` and `examples/astro-cf-pages`'s checked-in
+  `functions/_middleware.js` (and the Starlight fixture's `llms.txt.ts` + new files) to match, and
+  extended `scripts/verify-loop.js`'s strip list for the new files so `verify-loop` actually
+  exercises the new code paths.
+
+### Verification
+
+- `npm run lint` passes.
+- `npm run verify-loop` passes for all three fixtures: `astro-starlight-cf-pages` afdocs score
+  0 → 97 (A) — confirmed via a one-off debug script dumping the full per-check breakdown after
+  catching and fixing the coverage regression above; `astro-cf-pages` and `nextjs-vercel`'s targeted
+  checks (`http-status-codes`, `content-negotiation`) fail → pass as before.
+- The example fixture has no `@astrojs/sitemap` integration, so the sitemap-lastmod path only
+  exercises the "warn and skip" branch locally — the real docs-starlight repo (which does have an
+  explicit `sitemap()` call) is where that wiring was verified against real content.

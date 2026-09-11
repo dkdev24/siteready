@@ -1,0 +1,3 @@
+# siteready
+
+> Scan a site for agent readiness, auto-fix what's fixable, prove the fix worked.

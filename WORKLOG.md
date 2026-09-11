@@ -1313,3 +1313,83 @@ training data would've been unreliable), then implemented against that plan.
   Next.js one after its `package.json`/`package-lock.json` name edit).
 - `git status` confirmed clean renames (`R`/`RM`, no content diff beyond the `name` field edits) —
   no stray npm-lockfile version noise picked up along the way.
+
+---
+
+## v1.11.0 — Jekyll + GitHub Pages fixer
+
+**Date:** 2026-09-11
+
+Triggered by dogfooding `enhance` against this repo's own `docs/` site (published via GitHub
+Pages, Jekyll, `jekyll-theme-hacker`): it had no fixer at all — `detect-stack.js` only recognized
+Astro/Next.js via a root `package.json`, and a classic GitHub Pages Jekyll site typically has none.
+
+- `src/detect-stack.js`: added a Jekyll check that runs *before* the `package.json` branch and
+  short-circuits independently of it — a Jekyll site needs no `package.json`, and a repo can have
+  an unrelated one at its root (this repo's own CLI `package.json`, sitting next to `docs/`'s
+  Jekyll site, is exactly that case). Looks for `_config.yml` at the repo root or `/docs` (GitHub
+  Pages' two supported source locations) and returns a new `siteRoot` field pointing at whichever
+  one has it.
+- `src/enhance.js`: now resolves `stack.siteRoot ?? resolved` and passes that to both fixers,
+  instead of always the repo root — additive, existing Astro/Next.js fixers still get the repo
+  root exactly as before since they never set `siteRoot`.
+- `src/fixers/jekyll.js` (new framework fixer): declares `jekyll-sitemap` + `jekyll-seo-tag` in
+  `_config.yml`'s `plugins:` list (both are in GitHub Pages' native-build plugin whitelist, no
+  Gemfile needed) via a small regex-based list editor, not a real YAML parser (`ponytail:` comment
+  marks the ceiling — ✅ block list, flow list, and no-`plugins:`-key cases, ❌ inline comments on
+  the same line as an entry). Also writes `_includes/head-custom.html` with `{% seo %}` (the
+  extension point every `github.com/pages-themes/*` theme includes from its own `head.html`,
+  documented as the way to add `<head>` content without overriding the whole layout), `404.md`
+  (real 404 status via Jekyll's `permalink: /404.html` front matter, short recovery body), a
+  permissive `robots.txt`, and an `llms.txt` stub seeded from `_config.yml`'s `title`/`description`
+  (warns that the "when to use this" section stays manual — same call as NEXT_ACTIONS.md #3 for
+  every other fixer).
+- `src/platforms/github-pages.js` (new platform fixer): writes nothing — GitHub Pages' classic
+  build is purely static, no request-header branching available the way Cloudflare Pages Functions
+  or Vercel middleware provide it, so `markdown-negotiation-vary` is structurally unfixable there.
+  Exists only so `enhance`'s warning list says so explicitly instead of the check silently staying
+  broken.
+- Registered both in `src/enhance.js`'s `FRAMEWORK_FIXERS`/`PLATFORM_FIXERS`, updated the
+  "supports X" text in `src/cli.js --help` and `detect-stack.js`'s unsupported-combo message, and
+  `package.json`'s npm description.
+
+**Follow-up same session, prompted by a direct question, then reverted:** the site's docs pages
+are already markdown pre-render — asked whether that could feed the markdown-negotiation checks.
+Two different checks turned out to need two different answers. afdocs' `markdown-negotiation-vary`/
+is-agentic's same-named check are Accept-header-on-the-same-URL negotiation, structurally
+impossible on GitHub Pages (no header/redirect control at the CDN edge, true for both the classic
+branch build and an Actions-based one) — stays an accepted gap.
+
+afdocs' separate `markdown-url-support` check (`GET /page.md` returns markdown) *is* pure static
+file serving, so a first pass built `mirrorMarkdownSiblings()`: Jekyll only converts a file with
+YAML front matter; front-matter-less, it's copied verbatim via `Jekyll::StaticFile`. A front-
+mattered page's own output goes to `<slug>.html`, never `<slug>.md`, so renaming the source to
+`<slug>.markdown` (equally "convertible" in Jekyll's default `markdown_ext` list, same HTML output)
+frees the `.md` filename for a static copy of the raw body. Mechanism verified against documented
+Jekyll `Convertible`/front-matter behavior rather than an actual local build — this machine's
+system Ruby (2.6.10) is too old for a current `jekyll` gem (`rouge` needs Ruby ≥2.7) and standing
+up a second Ruby just to confirm well-established behavior wasn't worth it.
+
+**Reverted after Daniel pushed back**: this turns one file into two (`<slug>.markdown` +
+`<slug>.md`) that must stay byte-identical apart from front matter, and the fixer's own
+idempotency check (skip once the `.md` has no front matter) never re-synced them — editing the
+`.markdown` source and forgetting to re-run `enhance` silently drifts the two out of sync, and nothing
+would have caught it. Presented three options (regenerate-on-enhance + a CI drift check;
+migrate GitHub Pages to an Actions build so the mirror is generated fresh every deploy, never
+hand-maintained; or drop it). Daniel chose to drop it — not worth ongoing maintenance risk for one
+check on a 7-page docs site. `git mv`'d every `<slug>.markdown` back to `<slug>.md` (restores the
+original tracked content exactly — confirmed via `git diff`), removed `mirrorMarkdownSiblings()`
+and the `readdir` import from `jekyll.js`, and left a one-line warning in `applyJekyllFixes()`
+explaining the check is a deliberately accepted gap so a future session doesn't retry it blind.
+
+### Verification
+
+- `node src/cli.js enhance .` against this repo: detected `jekyll + github-pages`, wrote
+  `docs/_config.yml` (plugins added), `docs/_includes/head-custom.html`, `docs/404.md`,
+  `docs/robots.txt`, `docs/llms.txt`.
+- Re-ran `enhance .`: everything skipped as already-present — confirms idempotency per
+  CONTRIBUTING.md's fixer-testing checklist.
+- `npm run lint` passes; `git diff --stat docs/` after the mirror revert shows only `_config.yml`
+  changed among originally-tracked files — every page's content matches its pre-session commit.
+- **Not yet verified live**: these files are only in the local working tree, not pushed/rebuilt/
+  rescanned against `https://dkdev24.github.io/siteready/` yet — see NEXT_ACTIONS.md #17.

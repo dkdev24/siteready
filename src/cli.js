@@ -96,9 +96,9 @@ Options (scan / rescan / loop / scan-local):
   https://ora.ai/docs
 
 enhance requires a local checkout of the target site's own repo (not just a URL) — its fixes are
-source-file edits, so there's no way to apply them against a URL alone. Supports one fixer: Astro +
-Starlight + Cloudflare Pages. It never commits or pushes unless --pr is passed explicitly; without
-it, review the diff yourself.
+source-file edits, so there's no way to apply them against a URL alone. Supports Astro (with or
+without Starlight) + Cloudflare Pages, Next.js + Vercel, and Jekyll + GitHub Pages. It never commits
+or pushes unless --pr is passed explicitly; without it, review the diff yourself.
   --pr    Commit the written files to a new branch, push, and open a PR via \`gh\` (requires a git
           remote + an authenticated \`gh\`). Falls back to "left as an unstaged diff" if either is
           missing — never fails the enhance step itself.

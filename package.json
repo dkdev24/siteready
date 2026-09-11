@@ -1,8 +1,8 @@
 {
   "name": "siteready",
-  "version": "1.10.1",
+  "version": "1.11.0",
   "type": "module",
-  "description": "Scan a website with agent-readiness scanners (afdocs, Vercel Is Agentic, Ora), get a unified scorecard, auto-fix supported issues (Astro + Starlight, or plain Astro, + Cloudflare Pages), then re-scan and diff against the baseline -- fully local, no live deployment required to verify the loop.",
+  "description": "Scan a website with agent-readiness scanners (afdocs, Vercel Is Agentic, Ora), get a unified scorecard, auto-fix supported issues (Astro + Starlight, or plain Astro, + Cloudflare Pages; Next.js + Vercel; Jekyll + GitHub Pages), then re-scan and diff against the baseline -- fully local, no live deployment required to verify the loop.",
   "license": "MIT",
   "keywords": [
     "agent-readiness",

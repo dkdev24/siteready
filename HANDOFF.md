@@ -8,17 +8,25 @@ file under 80 lines. Detailed history and lists live in the linked docs below.
 ## Current Version
 
 **0.8.0** (doc-tracking system version, see WORKLOG.md). Engine/CLI is at
-package.json `1.10.1`, published to npm, tagged in git.
+package.json `1.11.0`, **not yet published to npm or tagged in git** (built
+this session, see below).
 
 ---
 
 ## Right Now
 
-No blocker. 2026-09-11 (latest session): renamed `examples/` to
-`fixtures/` — it never shipped to npm and no usage doc pointed a user at
-it, so the name was misleading; it's really `verify-loop.js`'s CI/dev
-fixture dir. All path refs + each fixture's own package name updated.
-`npm run lint`/`verify-loop` pass. Full detail: WORKLOG.md `v1.10.1`.
+**Open loop:** new Jekyll + GitHub Pages fixer (`src/fixers/jekyll.js` +
+`src/platforms/github-pages.js`) built 2026-09-11, verified locally
+(idempotent `enhance .` dry-run against this repo's own `docs/` site) but
+**not yet committed, pushed, or verified live** — NEXT_ACTIONS.md #17 is the
+live-rescan verification step, #18 has the full build writeup. Full detail:
+WORKLOG.md `v1.11.0`.
+
+Earlier same-day session: renamed `examples/` to `fixtures/` — it never
+shipped to npm and no usage doc pointed a user at it, so the name was
+misleading; it's really `verify-loop.js`'s CI/dev fixture dir. All path refs
++ each fixture's own package name updated. `npm run lint`/`verify-loop`
+pass. Full detail: WORKLOG.md `v1.10.1`.
 
 Earlier same-day session shipped `scan-local` — new CLI command
 (`runScanLocal` in `src/loop.js`, reuses `loop`'s build/serve/tunnel

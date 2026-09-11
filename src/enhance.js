@@ -4,18 +4,22 @@ import { detectStack } from "./detect-stack.js";
 import { applyAstroStarlightFixes } from "./fixers/astro-starlight.js";
 import { applyAstroFixes } from "./fixers/astro.js";
 import { applyNextjsFixes } from "./fixers/nextjs.js";
+import { applyJekyllFixes } from "./fixers/jekyll.js";
 import { applyCloudflarePagesFixes } from "./platforms/cloudflare-pages.js";
 import { applyVercelFixes } from "./platforms/vercel.js";
+import { applyGithubPagesFixes } from "./platforms/github-pages.js";
 
 const FRAMEWORK_FIXERS = {
   "astro-starlight": applyAstroStarlightFixes,
   astro: applyAstroFixes,
   nextjs: applyNextjsFixes,
+  jekyll: applyJekyllFixes,
 };
 
 const PLATFORM_FIXERS = {
   "cloudflare-pages": applyCloudflarePagesFixes,
   vercel: applyVercelFixes,
+  "github-pages": applyGithubPagesFixes,
 };
 
 /**
@@ -35,12 +39,16 @@ export async function enhance(repoPath) {
   if (!stack.supported) {
     throw new Error(
       `enhance needs a local checkout of the target site's repo, and only supports ` +
-        `Astro (with or without Starlight) + Cloudflare Pages, or Next.js + Vercel, today. ${stack.reason}`
+        `Astro (with or without Starlight) + Cloudflare Pages, Next.js + Vercel, or Jekyll + ` +
+        `GitHub Pages, today. ${stack.reason}`
     );
   }
 
-  const framework = await FRAMEWORK_FIXERS[stack.framework](resolved);
-  const platform = await PLATFORM_FIXERS[stack.platform](resolved);
+  // Jekyll/GitHub Pages sites can live under a repo subdir (e.g. /docs) rather
+  // than the repo root every other framework builds from.
+  const siteRoot = stack.siteRoot ?? resolved;
+  const framework = await FRAMEWORK_FIXERS[stack.framework](siteRoot);
+  const platform = await PLATFORM_FIXERS[stack.platform](siteRoot);
 
   return {
     stack,

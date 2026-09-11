@@ -61,6 +61,21 @@ append-only, unlike WORKLOG.md).
    CONTRIBUTING.md for the fixer contribution process). Ongoing/ambient, no
    fixed priority.
 
+17. Verify the new Jekyll + GitHub Pages fixer (#18 below, built this
+    session) against a **live** rescan, not just the local `enhance` dry-run:
+    push `docs/`'s new files, wait for the GitHub Pages rebuild, then
+    `siteready rescan https://dkdev24.github.io/siteready/ --baseline
+    <the pre-fix report.json>` and confirm `sitemap` flips and
+    `json-ld`/`metadata-completeness`/`org-schema-completeness` move (theme
+    `jekyll-theme-hacker` must actually render `{% seo %}` via
+    `_includes/head-custom.html` for that last part — unverified assumption,
+    see #18). `markdown-url-support` and `content-negotiation` will stay
+    failing — accepted gaps, not bugs (Daniel's call, 2026-09-11): a static
+    host has no way to serve a synced raw-markdown sibling without either a
+    hand-maintained second file (drifts) or migrating to an Actions-based
+    Pages build (real infra change for one check's worth of score). Don't
+    re-attempt without new information — see WORKLOG.md `v1.11.0`.
+
 ---
 
 ## Resolved (condensed — see WORKLOG.md for full history)
@@ -100,6 +115,24 @@ append-only, unlike WORKLOG.md).
 
 14. Multi-site `compare` + score-over-time `monitor` commands — **done
     v1.6.0**.
+
+18. **Jekyll + GitHub Pages fixer** — **done 2026-09-11 (v1.11.0)**. New
+    `framework=jekyll` fixer (`src/fixers/jekyll.js`) + fix-less
+    `platform=github-pages` fixer (`src/platforms/github-pages.js`,
+    static-only host, warns `markdown-negotiation-vary`/`content-negotiation`
+    can't be fixed there — no server-side Accept-header branching at all,
+    Actions-build or not); `detect-stack.js` now finds `_config.yml` at the
+    repo root or `/docs` independent of `package.json` (a Jekyll site needs
+    none, and a repo can have an unrelated root `package.json`, like this
+    one). Fixer declares `jekyll-sitemap`/`jekyll-seo-tag` in `_config.yml`,
+    writes `_includes/head-custom.html` (`{% seo %}` — the `pages-themes/*`
+    extension point), `404.md`, `robots.txt`, `llms.txt` stub. Verified
+    idempotent: `node src/cli.js enhance .` against this repo's own `docs/`
+    site, second run skips everything. **Not yet verified live** — see #17.
+    **`markdown-url-support` deliberately not attempted** — see #17's note
+    and WORKLOG.md for why (tried a split-file mirror, reverted: two files
+    kept in sync by hand drifts the moment one is edited without the other;
+    not worth it for one check).
 
 16. Docs site beyond README, published via GitHub Pages — **done 2026-09-10**.
     `docs/` (plain Markdown, GitHub's built-in Jekyll build,

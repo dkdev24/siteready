@@ -10,6 +10,16 @@ import path from "node:path";
  * never a thrown error deep in a fixer.
  */
 export async function detectStack(repoPath) {
+  // Jekyll/GitHub Pages sites need no package.json at all (GitHub builds them
+  // server-side), and a repo can mix one with an unrelated root package.json
+  // (e.g. this project's own CLI) — check for it first, independent of the
+  // npm-ecosystem detection below. GitHub Pages' two supported source
+  // locations: repo root or /docs.
+  const jekyllRoot = [repoPath, path.join(repoPath, "docs")].find((dir) => existsSync(path.join(dir, "_config.yml")));
+  if (jekyllRoot) {
+    return { framework: "jekyll", platform: "github-pages", supported: true, reason: null, siteRoot: jekyllRoot };
+  }
+
   const pkgPath = path.join(repoPath, "package.json");
   if (!existsSync(pkgPath)) {
     return { framework: null, platform: null, supported: false, reason: `No package.json found at ${pkgPath}` };
@@ -52,7 +62,7 @@ export async function detectStack(repoPath) {
     (framework === "nextjs" && platform === "vercel");
   const reason = supported
     ? null
-    : `No fixer for framework=${framework ?? "unknown"} + platform=${platform ?? "unknown"} yet (supports astro-starlight/astro + cloudflare-pages, and nextjs + vercel)`;
+    : `No fixer for framework=${framework ?? "unknown"} + platform=${platform ?? "unknown"} yet (supports astro-starlight/astro + cloudflare-pages, nextjs + vercel, and jekyll + github-pages)`;
 
   return { framework, platform, supported, reason };
 }

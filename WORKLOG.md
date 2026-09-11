@@ -1283,3 +1283,33 @@ training data would've been unreliable), then implemented against that plan.
 - Ran `node src/cli.js scan-local examples/astro-starlight-cf-pages` end-to-end: builds the
   fixture, starts a local Cloudflare Pages preview, scores afdocs 97/100, writes report.json/
   report.md — no public URL involved anywhere in the run.
+
+---
+
+## v1.10.1 — Rename `examples/` to `fixtures/`
+
+**Date:** 2026-09-11
+
+### Changes
+
+- Daniel's prompt: are the three projects under `examples/` "before enhance" samples? No — they're
+  checked in already-enhanced, and `scripts/verify-loop.js` reconstructs "before" on the fly in a
+  temp copy by stripping each fixer's known output back out. Follow-up made the actual point: this
+  reads as an internal CI/test-fixture directory, not user-facing example projects — confirmed by
+  `package.json`'s `files` list never including it (it never ships to npm) and no scan/enhance/loop
+  usage doc ever pointing a user at it.
+- `git mv examples fixtures`, plus every path reference updated: `scripts/verify-loop.js`,
+  README.md, AGENTS.md, CONTRIBUTING.md, NEXT_ACTIONS.md, docs/architecture.md, docs/why.md,
+  docs/install.md, `.github/ISSUE_TEMPLATE/new-framework-fixer.md`, and each fixture's own
+  README.md (`cd tools/siteready/examples/...` → `.../fixtures/...`). Each fixture's `package.json`
+  `name` field (`examples-*` → `fixtures-*`, private/unpublished, only for local installs) and the
+  matching two `name` fields in its `package-lock.json` updated to match.
+- `siteready-plan.md` (frozen design doc) and this file's own past entries intentionally left
+  referencing the old `examples/` path — historical record, not current state.
+
+### Verification
+
+- `npm run lint` and `npm run verify-loop` pass post-rename (all three fixtures, including the
+  Next.js one after its `package.json`/`package-lock.json` name edit).
+- `git status` confirmed clean renames (`R`/`RM`, no content diff beyond the `name` field edits) —
+  no stray npm-lockfile version noise picked up along the way.

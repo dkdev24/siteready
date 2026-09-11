@@ -8,19 +8,22 @@ file under 80 lines. Detailed history and lists live in the linked docs below.
 ## Current Version
 
 **0.8.0** (doc-tracking system version, see WORKLOG.md). Engine/CLI is at
-package.json `1.9.0`, published to npm, not yet tagged in git.
+package.json `1.10.1`, published to npm, tagged in git.
 
 ---
 
 ## Right Now
 
-No blocker. 2026-09-11 (latest session): shipped `scan-local` — new CLI
-command (`runScanLocal` in `src/loop.js`, reuses `loop`'s
-build/serve/tunnel machinery) so a repo checkout can get a baseline scan
-before its first public deployment, no URL required. Gates on
-`stack.platform` (cloudflare-pages/vercel) rather than `stack.supported`,
-so it also works on frameworks `enhance` has no fixer for yet. `npm run
-lint`/`verify-loop` pass. Full detail: WORKLOG.md `v1.10.0`.
+No blocker. 2026-09-11 (latest session): renamed `examples/` to
+`fixtures/` — it never shipped to npm and no usage doc pointed a user at
+it, so the name was misleading; it's really `verify-loop.js`'s CI/dev
+fixture dir. All path refs + each fixture's own package name updated.
+`npm run lint`/`verify-loop` pass. Full detail: WORKLOG.md `v1.10.1`.
+
+Earlier same-day session shipped `scan-local` — new CLI command
+(`runScanLocal` in `src/loop.js`, reuses `loop`'s build/serve/tunnel
+machinery) so a repo checkout can get a baseline scan before its first
+public deployment, no URL required. Full detail: WORKLOG.md `v1.10.0`.
 
 Earlier same-day session shipped `install-skill` — new CLI
 command (`src/skill-install.js` + `src/installers/`) so `siteready` can

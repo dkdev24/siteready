@@ -42,7 +42,7 @@ hand — see the [README](https://github.com/dkdev24/siteready#readme) for the t
 | Other frameworks/platforms | Not yet — additive, by demand (see [Contributing](contributing)) |
 
 **Real numbers:** the Astro+Starlight+Cloudflare-Pages fixer takes a fresh Starlight site from
-**0/100 (F) → 97/100 (A)** on afdocs — see `examples/astro-starlight-cf-pages/README.md` in the
+**0/100 (F) → 97/100 (A)** on afdocs — see `fixtures/astro-starlight-cf-pages/README.md` in the
 repo for how to reproduce that yourself with no deployment required.
 
 The plain-Astro fixer (`src/fixers/astro.js`) is deliberately smaller: without Starlight's `docs`
@@ -61,7 +61,7 @@ The Next.js + Vercel fixer (`src/fixers/nextjs.js` + `src/platforms/vercel.js`) 
 shape as the plain-Astro fixer — no content-collection convention to build an `llms.txt` or mirror
 routes from, so it sticks to a real `app/not-found.js`, a permissive `robots.txt` (with a
 `Sitemap:` line if `next-sitemap.config.js` declares a `siteUrl`), and a root `proxy.js` (Next.js
-16's renamed `middleware.js`) for `Accept: text/markdown` negotiation. `examples/nextjs-vercel`
+16's renamed `middleware.js`) for `Accept: text/markdown` negotiation. `fixtures/nextjs-vercel`
 proves it end to end via `scripts/verify-loop.js`: `content-negotiation` flips fail → pass on a
 stripped copy, served locally with `next start` (not a static export — Proxy doesn't run under
 one).

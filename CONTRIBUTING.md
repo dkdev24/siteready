@@ -94,7 +94,7 @@ export async function install<Agent>Skill({ packageRoot, skillMd, global, force,
 - `node src/cli.js <your-target-url>` for a scanner adapter.
 - For a fixer: apply it to a small real project of the matching framework/platform, `git diff` the
   result, confirm a second `enhance` run is a no-op (everything skipped, nothing rewritten).
-- If you can build a local, from-scratch fixture for it (see `examples/`), `node src/cli.js loop
+- If you can build a local, from-scratch fixture for it (see `fixtures/`), `node src/cli.js loop
   <path-to-fixture>` is the fastest way to prove the whole scan→enhance→rescan→diff-report cycle
   end-to-end without deploying anywhere.
 

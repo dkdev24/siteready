@@ -33,7 +33,7 @@ applied idempotently (skip what already exists, never overwrite) and verified cr
 
 **The loop is the other asset an ad hoc fix session doesn't have.** `scan → enhance → rescan →
 diff-report` proves a fix worked locally, before anything ships, with no live deployment needed
-(`examples/*/README.md` reproduce real before/after numbers this way). An agent applying
+(`fixtures/*/README.md` reproduce real before/after numbers this way). An agent applying
 suggestions by hand has no equivalent. It has to deploy live and diff two scans itself, and it
 won't know about `is-agentic`'s caching trap above unless it's already been burned by it once.
 

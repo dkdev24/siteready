@@ -25,7 +25,7 @@ siteready/
 │   └── lib/
 │       ├── npx-runner.js     # cross-platform npx invocation (see Cross-platform notes below)
 │       └── local-server.js   # build + serve a repo locally for `loop` (no live deployment)
-└── examples/
+└── fixtures/
     ├── astro-starlight-cf-pages/   # reference fixture the Astro+Starlight fixer is verified against
     ├── astro-cf-pages/             # reference fixture the plain-Astro fixer is verified against
     └── nextjs-vercel/              # reference fixture the Next.js+Vercel fixer is verified against
@@ -183,9 +183,9 @@ scanner/fixer needs its own OS branching:
   `shell: true` is set — plain executables don't need this, but anything invoked through npm's
   Windows batch-file shims does. `lib/local-server.js` sets it conditionally on `win32`.
 
-**Node version note:** siteready itself only needs Node ≥18, but `examples/astro-starlight-cf-pages`
+**Node version note:** siteready itself only needs Node ≥18, but `fixtures/astro-starlight-cf-pages`
 pins a floating Astro range that currently requires **Node ≥22.12** to build, and `next@16` (used
-by `examples/nextjs-vercel`) requires **Node ≥20.9** — CI runs on Node 22 to satisfy both. If
+by `fixtures/nextjs-vercel`) requires **Node ≥20.9** — CI runs on Node 22 to satisfy both. If
 `loop`/`verify-loop.js` fails with "Node.js vX is not supported by Astro" (or an equivalent Next.js
 engine error), that's a fixture's own dependency, not siteready — upgrade Node, don't downgrade the
 fixture's declared range.

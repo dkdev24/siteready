@@ -9,7 +9,7 @@ touched.
 ## Reproducing the before/after numbers
 
 ```sh
-cd tools/siteready/examples/astro-starlight-cf-pages
+cd tools/siteready/fixtures/astro-starlight-cf-pages
 npm install && npm run build
 npx --yes wrangler pages dev dist --port 8788   # local Cloudflare Pages emulation
 # in another shell, from tools/siteready:

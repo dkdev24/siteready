@@ -26,7 +26,7 @@ function checkStatus(report, id) {
 const FIXTURES = [
   {
     name: "astro-starlight-cf-pages",
-    dir: path.join(__dirname, "..", "examples", "astro-starlight-cf-pages"),
+    dir: path.join(__dirname, "..", "fixtures", "astro-starlight-cf-pages"),
     async strip(dir) {
       await removeIfPresent(dir, [
         "src/lib/llms-index.ts",
@@ -80,7 +80,7 @@ const FIXTURES = [
   },
   {
     name: "astro-cf-pages",
-    dir: path.join(__dirname, "..", "examples", "astro-cf-pages"),
+    dir: path.join(__dirname, "..", "fixtures", "astro-cf-pages"),
     async strip(dir) {
       await removeIfPresent(dir, ["src/pages/404.astro", "public/robots.txt", "src/utils/smartquotes.ts", "functions"]);
     },
@@ -117,7 +117,7 @@ const FIXTURES = [
   },
   {
     name: "nextjs-vercel",
-    dir: path.join(__dirname, "..", "examples", "nextjs-vercel"),
+    dir: path.join(__dirname, "..", "fixtures", "nextjs-vercel"),
     async strip(dir) {
       await removeIfPresent(dir, ["app/not-found.js", "public/robots.txt", "proxy.js"]);
     },

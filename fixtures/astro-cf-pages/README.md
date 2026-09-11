@@ -8,7 +8,7 @@ markdown-backed `posts` collection with hand-rolled `.md` mirror routes. Referen
 ## Reproducing the before/after numbers
 
 ```sh
-cd tools/siteready/examples/astro-cf-pages
+cd tools/siteready/fixtures/astro-cf-pages
 npm install && npm run build
 npx --yes wrangler pages dev dist --port 8788   # local Cloudflare Pages emulation
 # in another shell, from tools/siteready:

@@ -28,7 +28,7 @@ Which of the standard fixes apply, and how do they map onto this framework/platf
 ## Reference fixture
 
 Do you have (or can you build) a minimal, from-scratch project for this framework/platform to
-develop and verify the fixer against — similar to `examples/astro-starlight-cf-pages/`? A fixer
+develop and verify the fixer against — similar to `fixtures/astro-starlight-cf-pages/`? A fixer
 without a fixture to prove a real before/after score improvement won't be merged.
 
 ## Checklist

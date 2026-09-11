@@ -70,7 +70,7 @@ append-only, unlike WORKLOG.md).
    risk only (anonymous tunnels can still exhaust retries on a bad network
    day; error message points at `SITEREADY_TUNNEL_ATTEMPTS`), not an action.
 
-1. `examples/astro-cf-pages/` synthetic fixture — done.
+1. `fixtures/astro-cf-pages/` synthetic fixture — done.
 
 3. `llms.txt` "when to use this" section — decided: not a generic fixer
    candidate (needs product-specific prose), stays manual guidance.
@@ -96,7 +96,7 @@ append-only, unlike WORKLOG.md).
     siteready@1.7.0 --help` from outside the repo. See WORKLOG.md.
 
 13. Next.js + Vercel fixer coverage — **done v1.5.0**, verified end-to-end via
-    `verify-loop.js` against `examples/nextjs-vercel`.
+    `verify-loop.js` against `fixtures/nextjs-vercel`.
 
 14. Multi-site `compare` + score-over-time `monitor` commands — **done
     v1.6.0**.

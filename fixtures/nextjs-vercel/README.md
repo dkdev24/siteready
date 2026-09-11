@@ -8,7 +8,7 @@ state) — `scripts/verify-loop.js` strips it back to "before" in a temp copy to
 ## Reproducing the before/after numbers
 
 ```sh
-cd tools/siteready/examples/nextjs-vercel
+cd tools/siteready/fixtures/nextjs-vercel
 npm install && npm run build
 npm run start -- -p 3000   # `next start` — a real server, so Edge Middleware runs
 # in another shell, from tools/siteready:

@@ -123,7 +123,7 @@ siteready/
 │   └── lib/
 │       ├── npx-runner.js     # cross-platform npx invocation (see docs/architecture)
 │       └── local-server.js   # build + serve a repo locally for `loop`/`scan-local` (no live deployment)
-└── examples/
+└── fixtures/
     ├── astro-starlight-cf-pages/   # reference fixture the Astro+Starlight fixer is verified against
     ├── astro-cf-pages/             # reference fixture the plain-Astro fixer is verified against
     └── nextjs-vercel/              # reference fixture the Next.js+Vercel fixer is verified against

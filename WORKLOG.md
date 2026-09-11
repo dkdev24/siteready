@@ -1393,3 +1393,31 @@ explaining the check is a deliberately accepted gap so a future session doesn't 
   changed among originally-tracked files — every page's content matches its pre-session commit.
 - **Not yet verified live**: these files are only in the local working tree, not pushed/rebuilt/
   rescanned against `https://dkdev24.github.io/siteready/` yet — see NEXT_ACTIONS.md #17.
+
+---
+
+## 2026-09-11 — Quick Tunnel investigation for #19 (no version bump)
+
+Tried to test whether #19's is-agentic "could not fetch homepage" failures are actually about
+subfolder URLs: proxy the live site's `/siteready/*` path back to a local domain-root server (a
+small Node `http` proxy, conditional-prefixing so Jekyll's baked-in absolute `/siteready/...`
+asset links don't get double-prefixed — verified this piece works standalone), then use
+`src/lib/tunnel.js`'s existing Quick Tunnel to make that local server internet-reachable for
+is-agentic to scan.
+
+Never got far enough to test the actual hypothesis: the Quick Tunnel itself failed to become
+reachable 17 times in a row (3 in this session's own sandbox, 3 in Daniel's own terminal, 8 more
+at `SITEREADY_TUNNEL_ATTEMPTS=8`). Traced it with `cloudflared --loglevel debug`: the QUIC/HTTP2
+control channel to Cloudflare's tunnel infra is fully healthy every time (precheck all green,
+tunnel registers in ~5s) — the failure is DNS resolution for each freshly-minted random
+`*.trycloudflare.com` hostname specifically, matching `tunnel.js`'s own pre-existing documented
+failure mode (`ENOTFOUND`) but at a far higher rate than that comment describes. Not a bug in the
+proxy or a network/firewall block (confirmed: DNS resolves fine for `trycloudflare.com` itself,
+TCP to the tunnel infra is open, `api.trycloudflare.com` reachable) — just Quick Tunnel DNS
+propagation being unreliable on this day/network for reasons outside our control.
+
+Daniel's call: drop it rather than keep burning retries against an infra issue we can't fix. #19
+(is-agentic's homepage-fetch failures) stays open and unexplained — the subfolder theory is
+neither confirmed nor ruled out. Revisit only if a future session has a working Quick Tunnel to
+test with. No code changed this session (the proxy script was a scratch/throwaway, never added to
+`src/`).

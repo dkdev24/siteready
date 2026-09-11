@@ -59,6 +59,7 @@ Full install guide (npx, source checkout, Claude Code skill setup, Node version)
 | Scanners | [afdocs](https://agentdocsspec.com/) (doc-heavy sites), [Vercel Is Agentic](https://is-agentic.com/) (any content site) — both run by default. [Ora](https://ora.ai/) (the engine behind Is Agentic) is opt-in (`--scanners ora`) |
 | Fixer | Astro + Starlight + Cloudflare Pages, plain Astro (no Starlight) + Cloudflare Pages, and Next.js (App Router) + Vercel |
 | Loop | `scan → enhance → rescan → diff-report`, fully local (no live deployment needed) |
+| Skill install | `install-skill` — writes SKILL.md for Claude Code, Codex CLI, and OpenCode |
 | CI | Windows, macOS, and Linux, on every push — see `.github/workflows/ci.yml` |
 | Other frameworks/platforms | Not yet — additive, by demand (see Contributing) |
 
@@ -94,6 +95,7 @@ siteready enhance ../my-astro-starlight-site         # apply fixes to a local ch
 siteready loop ../my-astro-starlight-site            # scan -> enhance -> rescan -> diff-report
 siteready compare https://example.com https://a-competitor.com
 siteready monitor https://example.com                # score-over-time from past scans
+siteready install-skill claude codex opencode         # install SKILL.md for these agents
 ```
 
 Every command also has a `rescan`/`diff-report` counterpart and works the same as

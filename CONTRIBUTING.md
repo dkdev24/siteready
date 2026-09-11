@@ -68,6 +68,27 @@ Rules both must follow:
 Register the new framework/platform pair in `src/detect-stack.js` (how to recognize it from a
 local checkout's `package.json` + config files) and wire it into `src/enhance.js`.
 
+## Adding an agent skill installer
+
+`siteready install-skill <agent>` writes the package's own `SKILL.md` into an agent tool's
+skill-discovery path. An installer lives at `src/installers/<agent>.js` (or is shared by several
+agent ids, like `agents-skill.js` for codex/opencode) and exports:
+
+```js
+export async function install<Agent>Skill({ packageRoot, skillMd, global, force, uninstall }) {
+  // ...
+  return { written: [], skipped: [], removed: [], warnings: [] };
+}
+```
+
+- Same shape as a fixer's return value, plus `removed` for `--uninstall`.
+- **Skip and warn, don't overwrite**, unless `force` is set — same rule as fixers.
+- If the target agent doesn't document a runtime "here's your own base directory" signal the way
+  Claude Code does, bake `packageRoot` into the copy in place of the literal `<skill-dir>`
+  placeholder (see `agents-skill.js`) instead of leaving it for the agent to resolve at load time.
+- Register the new agent id in `INSTALLERS` in `src/skill-install.js` and add it to
+  `SUPPORTED_AGENTS`.
+
 ## Testing your addition
 
 - `node src/cli.js <your-target-url>` for a scanner adapter.

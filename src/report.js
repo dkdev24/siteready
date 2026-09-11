@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { applySiteTypeFilter } from "./site-types.js";
+import { writeJsonAndMarkdown } from "./lib/write-report.js";
 
 const STATUS_ORDER = { fail: 0, error: 1, warn: 2, skip: 3, pass: 4 };
 
@@ -106,13 +107,7 @@ export function renderMarkdown(report) {
 }
 
 export async function writeReport(outDir, report) {
-  await mkdir(outDir, { recursive: true });
-  await writeFile(
-    path.join(outDir, "report.json"),
-    JSON.stringify(report, null, 2),
-    "utf8"
-  );
-  await writeFile(path.join(outDir, "report.md"), renderMarkdown(report), "utf8");
+  await writeJsonAndMarkdown(outDir, "report", report, renderMarkdown);
 }
 
 export async function writeRaw(outDir, scannerName, raw) {

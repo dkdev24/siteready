@@ -1,6 +1,7 @@
-import { mkdir, readdir, writeFile } from "node:fs/promises";
+import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { loadReport, buildDiffReport } from "./diff-report.js";
+import { writeJsonAndMarkdown } from "./lib/write-report.js";
 
 function hostnameFor(target) {
   try {
@@ -110,7 +111,5 @@ export function renderMonitorMarkdown(monitor) {
 }
 
 export async function writeMonitorReport(outDir, monitor) {
-  await mkdir(outDir, { recursive: true });
-  await writeFile(path.join(outDir, "monitor-report.json"), JSON.stringify(monitor, null, 2), "utf8");
-  await writeFile(path.join(outDir, "monitor-report.md"), renderMonitorMarkdown(monitor), "utf8");
+  await writeJsonAndMarkdown(outDir, "monitor-report", monitor, renderMonitorMarkdown);
 }

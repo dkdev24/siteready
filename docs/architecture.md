@@ -17,9 +17,11 @@ siteready/
 │   ├── enhance.js           # detects stack, applies the matching fixer + platform module
 │   ├── pr.js                # opt-in enhance --pr flow (branch, commit, push, gh pr create)
 │   ├── loop.js               # local scan -> enhance -> rescan -> diff-report orchestration
+│   ├── skill-install.js      # install-skill orchestration: resolves package root, dispatches to installers/
 │   ├── scanners/            # pluggable scanner adapters — export run*Scan(url, options) -> { normalized, raw }
 │   ├── fixers/               # pluggable, framework-scoped remediation
 │   ├── platforms/            # deployment-target adapters (negotiation/headers)
+│   ├── installers/           # pluggable per-agent SKILL.md installers (claude, agents-skill for codex/opencode)
 │   └── lib/
 │       ├── npx-runner.js     # cross-platform npx invocation (see Cross-platform notes below)
 │       └── local-server.js   # build + serve a repo locally for `loop` (no live deployment)
@@ -34,6 +36,18 @@ framework having no fixer yet degrades to "unsupported," never breaks the pipeli
 
 ## Design notes
 
+- **Agent skill installers** (`install-skill`, `src/skill-install.js` + `src/installers/`). The
+  package ships `SKILL.md` at its root either way; `install-skill` just copies it to wherever a
+  given agent tool discovers skills from — no separate content to maintain per agent. Claude Code
+  gets a byte-for-byte copy at `.claude/skills/siteready/SKILL.md`, since it tells the agent its own
+  skill's base directory at load time and `SKILL.md`'s `<skill-dir>` placeholder is written for the
+  agent to resolve that way. Codex CLI and OpenCode both discover skills at the same
+  `.agents/skills/siteready/SKILL.md` path but don't document an equivalent runtime signal, so their
+  shared installer (`installers/agents-skill.js`) bakes `<skill-dir>` into a real absolute path at
+  install time instead — installing one of `codex`/`opencode` installs the other for free. Cursor,
+  Windsurf, and Aider have no comparable skill-discovery directory (flat single rules files, no
+  per-tool namespace) and aren't wired up yet — see `CONTRIBUTING.md` for the installer contract to
+  add one.
 - **Site-type filtering** (`--site-type content|api|application|auto`, default `auto`/unfiltered).
   `is-agentic`/Ora score a site against ~184 checks spanning discovery, access, usability, and
   payments — a chunk of the usability/payments checks (`openapi-spec`, `oauth-support`, the whole

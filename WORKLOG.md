@@ -1191,3 +1191,66 @@ the 62→70 gap set, and a bigger lift than the other five).
 - The example fixture has no `@astrojs/sitemap` integration, so the sitemap-lastmod path only
   exercises the "warn and skip" branch locally — the real docs-starlight repo (which does have an
   explicit `sitemap()` call) is where that wiring was verified against real content.
+
+## v1.9.0 — `install-skill`: Install SKILL.md Into Claude Code, Codex CLI, and OpenCode
+
+**Date:** 2026-09-11
+
+Daniel wants npm package users to be able to install siteready's own `SKILL.md` into popular agent
+tools via the CLI, not just Claude Code. Planned first (researched Codex CLI's and OpenCode's
+current skill-discovery conventions via a subagent, since these evolve fast and guessing from
+training data would've been unreliable), then implemented against that plan.
+
+### Changes
+
+- **`src/skill-install.js`** (new) — orchestrator. Resolves the running package's own root
+  directory, reads its `SKILL.md` once, and dispatches to the requested agent installer(s). Warns
+  if the resolved root looks like a temporary/npx cache path (`os.tmpdir()` or an `_npx` path
+  segment), since a baked-in absolute path wouldn't survive that cache being evicted.
+- **`src/installers/claude.js`** (new) — writes `.claude/skills/siteready/SKILL.md` (project) /
+  `~/.claude/skills/siteready/SKILL.md` (`--global`) **verbatim**. Claude Code tells the agent its
+  own skill's base directory at load time (a system-reminder), so `SKILL.md`'s literal
+  `<skill-dir>` placeholder is left for Claude itself to resolve — no rewriting needed.
+- **`src/installers/agents-skill.js`** (new) — shared by the `codex` and `opencode` agent ids, both
+  of which discover skills at the same `.agents/skills/siteready/SKILL.md` (project) /
+  `~/.agents/skills/siteready/SKILL.md` (`--global`) path (confirmed via research: OpenCode also
+  reads `.claude/skills/` directly, but neither Codex nor OpenCode documents an equivalent to
+  Claude Code's load-time base-directory signal, so the safer default is baking `<skill-dir>` into
+  a real absolute path at install time instead of leaving it for the agent to resolve). Installing
+  either `codex` or `opencode` installs both, since they share one file.
+- **`src/cli.js`**: new `install-skill <agent...> [--global] [--force] [--uninstall]` subcommand,
+  positional-args-then-flags parsing mirrored from the existing `compare` command. Reuses the same
+  written/skipped/warnings reporting shape `enhance` already prints.
+- **`package.json` `files` fix**: added `docs/` — it was missing entirely, so `SKILL.md`'s "More
+  detail" links to `docs/architecture.md`/`docs/cli-reference.md` already 404'd for anyone who
+  installed via npm instead of git-cloning the repo. Unrelated to `install-skill` itself but exposed
+  by it (an installed skill is exactly the scenario that hits those links) — fixed alongside it
+  rather than filing separately.
+- **Installer contract documented** in `CONTRIBUTING.md` (new "Adding an agent skill installer"
+  section, same `{ written, skipped, removed, warnings }` shape as a fixer, plus the
+  bake-vs-leave-the-placeholder judgment call), `AGENTS.md`'s Key Paths table, and
+  `docs/architecture.md`/`docs/cli-reference.md`.
+- A ponytail-audit pass on the repo (unrelated to this feature, run earlier the same session) also
+  landed: `src/report.js`/`compare.js`/`monitor.js`/`diff-report.js` each had a near-identical
+  `write*Report` function (mkdir + write `.json` + write `.md`) — collapsed into one
+  `writeJsonAndMarkdown` helper in `src/lib/write-report.js`. The audit's other finding (`--site-type
+  api`/`application` behave identically to `auto`, no differentiation logic exists for either) was
+  deliberately **not** applied — removing them would break a documented, already-released public CLI
+  flag; left as-is per Daniel's call.
+
+### Verification
+
+- `npm run lint` and `npm run verify-loop` pass (all three fixtures).
+- Manually verified `install-skill` end-to-end in a scratch directory: install/skip-if-exists/
+  `--force`-overwrite/`--uninstall` for `claude`+`codex`+`opencode`, an unknown agent name rejected
+  with the supported list, the Claude copy keeping all 16 `<skill-dir>` occurrences literal, the
+  shared agents copy having zero left after baking, and the npx-cache warning firing under a
+  simulated `_npx/<hash>/` path.
+- Confirmed `writeReport`/`writeCompareReport` still produce identical output after the
+  `writeJsonAndMarkdown` refactor.
+
+### Deferred
+
+- Cursor (`.cursor/rules/*.mdc`), Windsurf (`.windsurfrules`/`.windsurf/rules/`), and Aider (a flat
+  conventions file, no directory convention at all) have no comparable skill-discovery namespace —
+  intentionally not wired up; see `docs/architecture.md`'s design note.

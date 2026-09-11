@@ -139,18 +139,19 @@ that failure; report it and either re-run once or scan a deployed URL instead.
 
 ## Supported fixer today
 
-**Astro + Starlight + Cloudflare Pages**, and **plain Astro (no Starlight) + Cloudflare Pages**,
-have auto-fixers (see `README.md` "Status"). The plain-Astro fixer is intentionally narrower — no
-`docs` collection or component-override convention to build on means it can't safely generate a
-content-aware `llms.txt` or `.md` mirror routes without guessing the site's own routing (a wrong
-guess produces broken links). It covers what's safe for any Astro site regardless of content shape:
-a real `404.astro`, a permissive `robots.txt`, and — only if the repo already has a hand-rolled
-markdown-mirror route — a `smartQuotes()` typography util plus a warning to wire it in (see
-docs/architecture.md for the smartypants/markdown-parity gotcha this exists for). If
-`detect-stack` / `enhance` reports the target framework or platform as unsupported, say so
-directly — don't try to hand-write the equivalent fix yourself outside the tool; that's exactly the
-kind of one-off `enhance` is meant to replace. Point the user at `CONTRIBUTING.md` if they want to
-add a new scanner adapter or fixer themselves.
+**Astro + Starlight + Cloudflare Pages**, **plain Astro (no Starlight) + Cloudflare Pages**, and
+**Next.js (App Router) + Vercel** have auto-fixers (see `README.md` "Status"). The plain-Astro
+fixer is intentionally narrower — no `docs` collection or component-override convention to build on
+means it can't safely generate a content-aware `llms.txt` or `.md` mirror routes without guessing
+the site's own routing (a wrong guess produces broken links). It covers what's safe for any Astro
+site regardless of content shape: a real `404.astro`, a permissive `robots.txt`, and — only if the
+repo already has a hand-rolled markdown-mirror route — a `smartQuotes()` typography util plus a
+warning to wire it in (see docs/architecture.md for the smartypants/markdown-parity gotcha this
+exists for). The Next.js + Vercel fixer is similarly scoped smaller than the Starlight one — see
+docs/install for the fixer-by-fixer rationale. If `detect-stack` / `enhance` reports the target
+framework or platform as unsupported, say so directly — don't try to hand-write the equivalent fix
+yourself outside the tool; that's exactly the kind of one-off `enhance` is meant to replace. Point
+the user at `CONTRIBUTING.md` if they want to add a new scanner adapter or fixer themselves.
 
 ## More detail
 

@@ -1,6 +1,7 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
+import { writeJsonAndMarkdown } from "./lib/write-report.js";
 
 /**
  * Loads a report.json from either a direct file path or a directory
@@ -178,7 +179,5 @@ export function renderDiffMarkdown(diff) {
 }
 
 export async function writeDiffReport(outDir, diff) {
-  await mkdir(outDir, { recursive: true });
-  await writeFile(path.join(outDir, "diff-report.json"), JSON.stringify(diff, null, 2), "utf8");
-  await writeFile(path.join(outDir, "diff-report.md"), renderDiffMarkdown(diff), "utf8");
+  await writeJsonAndMarkdown(outDir, "diff-report", diff, renderDiffMarkdown);
 }

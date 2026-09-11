@@ -9,6 +9,7 @@ import { openEnhancePr } from "./pr.js";
 import { runLoop } from "./loop.js";
 import { buildCompareReport, writeCompareReport } from "./compare.js";
 import { collectHistory, buildMonitorReport, writeMonitorReport } from "./monitor.js";
+import { installSkill, SUPPORTED_AGENTS } from "./skill-install.js";
 
 function failedScannerNames(report) {
   return Object.entries(report.scanners)
@@ -31,6 +32,9 @@ function parseFlags(argv, { defaults = {} } = {}) {
     else if (a === "--baseline") args.baseline = argv[++i];
     else if (a === "--port") args.port = Number(argv[++i]);
     else if (a === "--pr") args.pr = true;
+    else if (a === "--global") args.global = true;
+    else if (a === "--force") args.force = true;
+    else if (a === "--uninstall") args.uninstall = true;
     else if (a === "-h" || a === "--help") args.help = true;
     else positional.push(a);
   }
@@ -59,6 +63,7 @@ function printHelp() {
        siteready loop <repo-path> [options]            scan -> enhance -> rescan -> diff, local only
        siteready compare <url> <url> [<url> ...] [options]   scan N sites, render side by side
        siteready monitor <url> [--out-root <dir>] [--out <dir>]   score-over-time from past scans
+       siteready install-skill <agent...> [--global] [--force] [--uninstall]   install SKILL.md for an agent
 
 Options (scan / rescan / loop):
   --out <dir>            Output directory (default: ./out/<hostname-or-dir>-<timestamp>)
@@ -119,7 +124,18 @@ compare-report.md/json across all of them. Accepts the same --scanners/--samplin
 monitor reads every \`<out-root>/*/report.json\` written by past scan/rescan runs for the given
 URL's hostname (no new scanning), sorts them oldest-first, and renders a score-over-time table plus
 a regression flag using the same check-level fixed/regressed logic as diff-report. --out-root
-defaults to ./out.`);
+defaults to ./out.
+
+install-skill writes this package's own SKILL.md into an agent's skill-discovery path so it can
+drive siteready without being told how: supported agents are ${SUPPORTED_AGENTS.join(", ")}.
+\`claude\` gets a verbatim copy (Claude Code resolves the skill's own base directory itself at load
+time); \`codex\`/\`opencode\` get a copy with the \`<skill-dir>\` placeholder baked in as this
+installation's real absolute path, since neither documents an equivalent runtime signal — both
+read the same .agents/skills/siteready/SKILL.md path, so installing one installs both.
+  --global       Install to the user-level path (~/.claude/skills, ~/.agents/skills) instead of
+                 the current project (./.claude/skills, ./.agents/skills).
+  --force        Overwrite an existing install instead of skipping it.
+  --uninstall    Remove the installed skill directory instead of writing it.`);
 }
 
 async function runScanCommand(target, args) {
@@ -357,6 +373,24 @@ async function runLoopCommand(repoPath, args) {
   }
 }
 
+async function runInstallSkillCommand(agents, args) {
+  if (!agents.length) {
+    console.error(`Usage: siteready install-skill <agent...> [--global] [--force] [--uninstall]`);
+    console.error(`Supported agents: ${SUPPORTED_AGENTS.join(", ")}`);
+    process.exit(1);
+  }
+
+  const results = await installSkill(agents, { global: args.global, force: args.force, uninstall: args.uninstall });
+
+  for (const result of results) {
+    console.log(`\n${result.agent}:`);
+    for (const f of result.written) console.log(`  + ${f}`);
+    for (const f of result.skipped) console.log(`  - ${f}`);
+    for (const f of result.removed) console.log(`  x ${f}`);
+    for (const w of result.warnings) console.log(`  ! ${w}`);
+  }
+}
+
 async function main() {
   const argv = process.argv.slice(2);
   const command = argv[0];
@@ -397,6 +431,15 @@ async function main() {
   if (command === "monitor") {
     const args = parseFlags(argv.slice(2));
     await runMonitorCommand(argv[1], args);
+    return;
+  }
+
+  if (command === "install-skill") {
+    const rawArgv = argv.slice(1);
+    const flagStart = rawArgv.findIndex((a) => a.startsWith("--"));
+    const agents = flagStart === -1 ? rawArgv : rawArgv.slice(0, flagStart);
+    const args = parseFlags(flagStart === -1 ? [] : rawArgv.slice(flagStart));
+    await runInstallSkillCommand(agents, args);
     return;
   }
 

@@ -31,6 +31,9 @@ siteready compare https://example.com https://a-competitor.com
 
 # score-over-time from past scan/rescan runs under ./out (no new scanning)
 siteready monitor https://example.com
+
+# install this package's own SKILL.md for an agent tool (see "How install-skill works")
+siteready install-skill claude codex opencode
 ```
 
 Run `siteready --help` for the full, always-current flag list (`--scanners`, `--sampling`,
@@ -65,3 +68,25 @@ satisfied when you run it from inside your own project directory.
 (`--pr`, requires a git remote + an authenticated `gh`) or leaves an unstaged diff for you to
 review. It also never overwrites a file the target already has (e.g. an existing
 `functions/_middleware.js`) — it skips it and tells you.
+
+## How `install-skill` works
+
+`SKILL.md` at the package root tells an agent *when* and *how* to run siteready commands — it's the
+same file whether a human reads it or an agent loads it as a skill. `install-skill <agent...>`
+copies it into whichever path that agent tool discovers skills from:
+
+| Agent | Path (project / `--global`) |
+|---|---|
+| `claude` | `.claude/skills/siteready/SKILL.md` / `~/.claude/skills/siteready/SKILL.md` |
+| `codex`, `opencode` | `.agents/skills/siteready/SKILL.md` / `~/.agents/skills/siteready/SKILL.md` |
+
+`codex` and `opencode` write to the same path — both discover skills there — so installing one
+installs both. The `claude` copy is written byte-for-byte: Claude Code tells the agent its own
+skill's base directory at load time, so the `<skill-dir>` placeholder inside `SKILL.md` is left for
+Claude to resolve itself. Codex and OpenCode don't document an equivalent signal, so their copy has
+`<skill-dir>` replaced with this installation's real absolute path at install time instead.
+
+By default it skips a path that's already installed (pass `--force` to overwrite); `--uninstall`
+removes it instead of writing it. Running via `npx` prints a warning, since the resolved path
+codex/opencode install into wouldn't survive that npx cache being evicted — install
+`siteready` with `npm install -g` (or as a project dependency) first for a stable path.

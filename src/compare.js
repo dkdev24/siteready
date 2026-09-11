@@ -1,5 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
+import { writeJsonAndMarkdown } from "./lib/write-report.js";
 
 /**
  * N-way side-by-side comparison over already-scanned sites. Reuses each
@@ -55,7 +54,5 @@ export function renderCompareMarkdown(compare) {
 }
 
 export async function writeCompareReport(outDir, compare) {
-  await mkdir(outDir, { recursive: true });
-  await writeFile(path.join(outDir, "compare-report.json"), JSON.stringify(compare, null, 2), "utf8");
-  await writeFile(path.join(outDir, "compare-report.md"), renderCompareMarkdown(compare), "utf8");
+  await writeJsonAndMarkdown(outDir, "compare-report", compare, renderCompareMarkdown);
 }

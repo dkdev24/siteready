@@ -52,13 +52,14 @@ siteready https://example.com
 
 Full install guide (npx, source checkout, Claude Code skill setup, Node version): **[docs/install](https://dkdev24.github.io/siteready/install)**
 
-## Status: v1.7
+## Status: v1.10
 
 | Piece | Status |
 |---|---|
 | Scanners | [afdocs](https://agentdocsspec.com/) (doc-heavy sites), [Vercel Is Agentic](https://is-agentic.com/) (any content site) — both run by default. [Ora](https://ora.ai/) (the engine behind Is Agentic) is opt-in (`--scanners ora`) |
 | Fixer | Astro + Starlight + Cloudflare Pages, plain Astro (no Starlight) + Cloudflare Pages, and Next.js (App Router) + Vercel |
 | Loop | `scan → enhance → rescan → diff-report`, fully local (no live deployment needed) |
+| Scan-local | Baseline scan against a repo checkout, no public URL — for a site not deployed yet |
 | Skill install | `install-skill` — writes SKILL.md for Claude Code, Codex CLI, and OpenCode |
 | CI | Windows, macOS, and Linux, on every push — see `.github/workflows/ci.yml` |
 | Other frameworks/platforms | Not yet — additive, by demand (see Contributing) |
@@ -93,6 +94,7 @@ Full comparison, with the specific bugs/edge-cases that make hand-rolled fixes f
 siteready https://example.com                       # scan + report
 siteready enhance ../my-astro-starlight-site         # apply fixes to a local checkout
 siteready loop ../my-astro-starlight-site            # scan -> enhance -> rescan -> diff-report
+siteready scan-local ../my-astro-starlight-site       # one local scan, no public URL (pre-deploy)
 siteready compare https://example.com https://a-competitor.com
 siteready monitor https://example.com                # score-over-time from past scans
 siteready install-skill claude codex opencode         # install SKILL.md for these agents
@@ -107,20 +109,20 @@ formats, and how `enhance` finds/writes fixes: **[docs/cli-reference](https://dk
 ```
 siteready/
 ├── src/
-│   ├── cli.js              # entry point: scan / enhance / rescan / diff-report / loop
+│   ├── cli.js              # entry point: scan / enhance / rescan / diff-report / loop / scan-local
 │   ├── scan.js              # runs configured scanner adapters -> normalized report (shared by scan & rescan)
 │   ├── report.js            # normalized report -> report.md / report.json
 │   ├── diff-report.js       # baseline vs re-scan -> diff-report.md / diff-report.json
 │   ├── detect-stack.js      # framework/host fingerprinting from the LOCAL repo (package.json, config files)
 │   ├── enhance.js           # detects stack, applies the matching fixer + platform module
 │   ├── pr.js                # opt-in enhance --pr flow (branch, commit, push, gh pr create)
-│   ├── loop.js               # local scan -> enhance -> rescan -> diff-report orchestration
+│   ├── loop.js               # local scan -> enhance -> rescan -> diff-report orchestration, + scan-local (baseline-only)
 │   ├── scanners/            # pluggable scanner adapters — export run*Scan(url, options) -> { normalized, raw }
 │   ├── fixers/               # pluggable, framework-scoped remediation
 │   ├── platforms/            # deployment-target adapters (negotiation/headers)
 │   └── lib/
 │       ├── npx-runner.js     # cross-platform npx invocation (see docs/architecture)
-│       └── local-server.js   # build + serve a repo locally for `loop` (no live deployment)
+│       └── local-server.js   # build + serve a repo locally for `loop`/`scan-local` (no live deployment)
 └── examples/
     ├── astro-starlight-cf-pages/   # reference fixture the Astro+Starlight fixer is verified against
     ├── astro-cf-pages/             # reference fixture the plain-Astro fixer is verified against

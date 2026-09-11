@@ -1254,3 +1254,32 @@ training data would've been unreliable), then implemented against that plan.
 - Cursor (`.cursor/rules/*.mdc`), Windsurf (`.windsurfrules`/`.windsurf/rules/`), and Aider (a flat
   conventions file, no directory convention at all) have no comparable skill-discovery namespace —
   intentionally not wired up; see `docs/architecture.md`'s design note.
+
+---
+
+## v1.10.0 — `scan-local` Command
+
+**Date:** 2026-09-11
+
+### Changes
+
+- Daniel's prompt: `loop` already builds/serves a local repo checkout and tunnels it for hosted
+  scanners with no public URL, but only as part of the full scan -> enhance -> rescan -> diff
+  cycle. There was no way to run just the baseline scan against a repo before its first deployment.
+- **`src/loop.js`**: added `runScanLocal(repoPath, opts)`, a sibling to `runLoop` that reuses the
+  same `startScanTarget` helper (build -> serve -> optional Quick Tunnel -> scan -> stop) but skips
+  `enhance`/rescan/diff entirely — one report out. Gates on `stack.platform` being one
+  `startLocalServer` can run (`cloudflare-pages`/`vercel`) rather than `stack.supported`, since
+  `supported` is `enhance`'s fixer-availability check and would wrongly reject, e.g., plain Astro
+  without Starlight or any other framework on a supported platform with no fixer yet.
+- **`src/cli.js`**: new `scan-local <repo-path> [options]` subcommand — same `--scanners`/
+  `--sampling`/`--site-type`/`--port`/`--out` flags as `scan`/`loop`, same report-writing shape as
+  `runScanCommand`. Help text, README quickstart, `docs/cli-reference.md`, and the `src/` key-paths
+  comments in README updated alongside.
+
+### Verification
+
+- `npm run lint` and `npm run verify-loop` pass.
+- Ran `node src/cli.js scan-local examples/astro-starlight-cf-pages` end-to-end: builds the
+  fixture, starts a local Cloudflare Pages preview, scores afdocs 97/100, writes report.json/
+  report.md — no public URL involved anywhere in the run.

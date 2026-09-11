@@ -14,7 +14,15 @@ package.json `1.9.0`, published to npm, not yet tagged in git.
 
 ## Right Now
 
-No blocker. 2026-09-11 (latest session): shipped `install-skill` — new CLI
+No blocker. 2026-09-11 (latest session): shipped `scan-local` — new CLI
+command (`runScanLocal` in `src/loop.js`, reuses `loop`'s
+build/serve/tunnel machinery) so a repo checkout can get a baseline scan
+before its first public deployment, no URL required. Gates on
+`stack.platform` (cloudflare-pages/vercel) rather than `stack.supported`,
+so it also works on frameworks `enhance` has no fixer for yet. `npm run
+lint`/`verify-loop` pass. Full detail: WORKLOG.md `v1.10.0`.
+
+Earlier same-day session shipped `install-skill` — new CLI
 command (`src/skill-install.js` + `src/installers/`) so `siteready` can
 install its own `SKILL.md` into Claude Code, Codex CLI, and OpenCode's
 skill-discovery paths (`--global`/`--force`/`--uninstall`, npx-cache

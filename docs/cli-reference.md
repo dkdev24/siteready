@@ -26,6 +26,9 @@ siteready diff-report ./out/before/report.json ./out/after/report.json
 # full local loop: scan -> enhance -> rescan -> diff-report, no deployment, no manual steps
 siteready loop ../my-astro-starlight-site
 
+# one local scan against a repo checkout, no public URL — for a site not deployed yet
+siteready scan-local ../my-astro-starlight-site
+
 # scan multiple sites and render them side by side
 siteready compare https://example.com https://a-competitor.com
 

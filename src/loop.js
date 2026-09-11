@@ -64,6 +64,39 @@ export async function runLoop(
 }
 
 /**
+ * Single local scan, no enhance/rescan/diff — for a repo that hasn't been
+ * deployed anywhere yet. Only needs `startLocalServer`'s platform support
+ * (cloudflare-pages/vercel), not a fixer, so it checks `stack.platform`
+ * directly rather than `stack.supported` (which is enhance-fixer-specific
+ * and would wrongly reject e.g. plain Astro without Starlight).
+ */
+export async function runScanLocal(
+  repoPath,
+  { scanners = ["afdocs"], sampling = "deterministic", siteType, distDir = "dist", port, onProgress } = {}
+) {
+  const resolved = path.resolve(repoPath);
+  const stack = await detectStack(resolved);
+  if (stack.platform !== "cloudflare-pages" && stack.platform !== "vercel") {
+    throw new Error(
+      `scan-local needs a local server siteready can run (cloudflare-pages or vercel). Detected platform=${stack.platform ?? "unknown"}.`
+    );
+  }
+
+  const needsTunnel = scanners.some((s) => HOSTED_SCANNERS.includes(s));
+
+  await ensureInstalled(resolved, { onProgress });
+  await buildSite(resolved, { onProgress });
+
+  const target = await startScanTarget(resolved, { platform: stack.platform, distDir, port, needsTunnel, onProgress });
+  try {
+    const { report, rawByScanner } = await scanTarget(target.url, scanners, { sampling, siteType, onProgress });
+    return { stack, report, rawByScanner };
+  } finally {
+    await target.stop();
+  }
+}
+
+/**
  * Starts the local preview server and, if a hosted scanner was requested,
  * layers a Cloudflare Quick Tunnel on top so it's reachable from outside
  * this machine. Returns a single `{ url, stop }` regardless — callers don't

@@ -6,7 +6,7 @@ import { writeReport, writeRaw } from "./report.js";
 import { loadReport, buildDiffReport, writeDiffReport } from "./diff-report.js";
 import { enhance } from "./enhance.js";
 import { openEnhancePr } from "./pr.js";
-import { runLoop } from "./loop.js";
+import { runLoop, runScanLocal } from "./loop.js";
 import { buildCompareReport, writeCompareReport } from "./compare.js";
 import { collectHistory, buildMonitorReport, writeMonitorReport } from "./monitor.js";
 import { installSkill, SUPPORTED_AGENTS } from "./skill-install.js";
@@ -61,11 +61,12 @@ function printHelp() {
        siteready rescan <url> --baseline <path> [options]   re-scan + diff vs a baseline report
        siteready diff-report <baseline> <rescan> [--out <dir>]   diff two existing reports
        siteready loop <repo-path> [options]            scan -> enhance -> rescan -> diff, local only
+       siteready scan-local <repo-path> [options]      one local scan, no public URL needed (pre-deploy)
        siteready compare <url> <url> [<url> ...] [options]   scan N sites, render side by side
        siteready monitor <url> [--out-root <dir>] [--out <dir>]   score-over-time from past scans
        siteready install-skill <agent...> [--global] [--force] [--uninstall]   install SKILL.md for an agent
 
-Options (scan / rescan / loop):
+Options (scan / rescan / loop / scan-local):
   --out <dir>            Output directory (default: ./out/<hostname-or-dir>-<timestamp>)
   --sampling <strategy>   afdocs sampling strategy: random | deterministic | curated | none
                           (default: deterministic)
@@ -73,8 +74,8 @@ Options (scan / rescan / loop):
                           (default: ${DEFAULT_SCANNERS.join(", ")} for scan/rescan — ora is opt-in,
                           since it's the same engine as is-agentic's full ranker and running both by
                           default just doubles the hosted-API cost for overlapping data; afdocs-only
-                          for loop unless you opt in — see below)
-  --port <n>              Local preview server port for loop (default: OS-assigned free port)
+                          for loop/scan-local unless you opt in — see below)
+  --port <n>              Local preview server port for loop/scan-local (default: OS-assigned free port)
   --site-type <type>      content | api | application | auto (default: auto, unfiltered). Excludes
                           API-surface checks (openapi-spec, oauth-support, the Payments layer, etc.)
                           from a "content" site's score — see site-types.js and NEXT_ACTIONS.md #10.
@@ -116,6 +117,13 @@ diff report — no manual steps, no live deployment.
           torn down right after the scan. Quick Tunnels are anonymous and best-effort, so an
           unreachable one is retried as a whole fresh tunnel (3 attempts; override with the
           SITEREADY_TUNNEL_ATTEMPTS env var).
+
+scan-local is a single baseline scan against a local repo checkout, no live deployment and no
+existing report to diff against — for a site that hasn't been publicly deployed yet. Builds the
+site, serves it locally, scans it, writes report.json/report.md. Same Quick Tunnel behavior as loop
+for hosted scanners (is-agentic/ora). Needs a platform \`startLocalServer\` can run (cloudflare-pages
+or vercel, same detection as loop) but not a fixer, so it also works on frameworks enhance doesn't
+support yet.
 
 compare scans each URL one at a time (not fanned out — Ora's rate limit is per IP) with the same
 scanner set, writes each site's full report under \`<out>/<hostname>/\`, and renders a side-by-side
@@ -373,6 +381,43 @@ async function runLoopCommand(repoPath, args) {
   }
 }
 
+async function runScanLocalCommand(repoPath, args) {
+  if (!repoPath) {
+    console.error("Usage: siteready scan-local <repo-path> [options]");
+    process.exit(1);
+  }
+
+  const unsupported = (args.scanners ?? ["afdocs"]).filter((s) => !SUPPORTED_SCANNERS.includes(s));
+  if (unsupported.length) {
+    console.error(`Unsupported scanner(s): ${unsupported.join(", ")}. Supported: ${SUPPORTED_SCANNERS.join(", ")}`);
+    process.exit(1);
+  }
+
+  const scanners = args.scanners ?? ["afdocs"];
+  const outDir = args.out ?? outDirFor(repoPath, "-local");
+
+  console.log(`Scanning local build of ${path.resolve(repoPath)} with: ${scanners.join(", ")}`);
+  const { stack, report, rawByScanner } = await runScanLocal(repoPath, {
+    scanners,
+    sampling: args.sampling ?? "deterministic",
+    siteType: args.siteType,
+    port: args.port,
+    onProgress: (msg) => console.log(msg),
+  });
+
+  console.log(`\nDetected: ${stack.framework} + ${stack.platform}`);
+
+  for (const [name, raw] of Object.entries(rawByScanner)) {
+    await writeRaw(outDir, name, raw);
+  }
+  await writeReport(outDir, report);
+
+  if (report.partial) {
+    console.warn(`\nWarning: partial scan — ${failedScannerNames(report)} failed and were excluded from scoring.`);
+  }
+  console.log(`\nReport written to ${outDir}/report.md (and report.json)`);
+}
+
 async function runInstallSkillCommand(agents, args) {
   if (!agents.length) {
     console.error(`Usage: siteready install-skill <agent...> [--global] [--force] [--uninstall]`);
@@ -416,6 +461,12 @@ async function main() {
   if (command === "loop") {
     const args = parseFlags(argv.slice(2));
     await runLoopCommand(argv[1], args);
+    return;
+  }
+
+  if (command === "scan-local") {
+    const args = parseFlags(argv.slice(2));
+    await runScanLocalCommand(argv[1], args);
     return;
   }
 

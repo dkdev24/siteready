@@ -1,4 +1,4 @@
 title: siteready
 description: Scan a site for agent readiness, auto-fix what's fixable, prove the fix worked.
-theme: jekyll-theme-minimal
+theme: jekyll-theme-hacker
 show_downloads: false

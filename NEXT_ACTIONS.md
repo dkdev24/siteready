@@ -59,7 +59,25 @@ append-only, unlike WORKLOG.md).
 
 6. Add fixers for additional frameworks/platforms as demand comes in (see
    CONTRIBUTING.md for the fixer contribution process). Ongoing/ambient, no
-   fixed priority.
+   fixed priority. **Concrete breakdown toward the "as many combos as
+   possible, zero new accounts" goal lives in #22-#24** (#20/#21 done).
+
+22. **GitLab Pages platform module** (parallel to `platforms/github-pages.js`)
+    — detect via `.gitlab-ci.yml` + a Pages job, same build-locally-
+    serve-statically model as Jekyll/GitHub Pages, no account needed. Not
+    started.
+
+23. Additional static-site-generator framework fixers as demand shows up:
+    Hugo, Eleventy, Docusaurus, Nuxt (static generate), SvelteKit (static
+    adapter). The content-fix contract (`llms.txt`, `.md` mirrors, robots
+    rules) should generalize per CONTRIBUTING.md's fixer shape. Not started,
+    no fixed priority — pick per real demand, same as parent item #6.
+
+24. Document the "no new account/auth" boundary as an explicit acceptance
+    test for any new platform module (in CONTRIBUTING.md, next to the
+    existing fixer contract) — a platform whose only local-dev/build tool
+    forces a login even for local emulation should be flagged as a known gap
+    rather than silently wired in. Not started.
 
 19. `is-agentic`'s `content-no-js`/`json-ld`/`metadata-completeness`/
     `org-schema-completeness`/`bot-detection` all report "Could not fetch
@@ -74,6 +92,25 @@ append-only, unlike WORKLOG.md).
 ---
 
 ## Resolved (condensed — see WORKLOG.md for full history)
+
+20. **Generic static-file local-server fallback** — **done 2026-09-12**,
+    `lib/local-server.js` now falls back to an in-process `node:http` static
+    server (no new dependency, no npx download) for any platform other than
+    cloudflare-pages/vercel. Path-traversal-safe (verified with a raw-socket
+    `..` request), `runScanLocal`'s platform guard widened to admit it.
+    Verified via `npm run verify-loop` (no regression on existing fixtures).
+
+21. **Netlify fixer + platform module** — **done 2026-09-12**,
+    `src/platforms/netlify.js` writes a `netlify/edge-functions/
+    markdown-negotiation.js` (in-file `config.path`, no netlify.toml edit
+    needed) mirroring the Cloudflare/Vercel `.md`-negotiation fixers; wired
+    into `enhance.js` and `detect-stack.js`'s `supported` matrix (astro/
+    astro-starlight + netlify, nextjs + netlify). Framework fixers needed no
+    changes — confirmed platform-agnostic already. Verified: idempotent
+    (`enhance` run twice on a synthetic astro+netlify.toml repo skips on the
+    second run), `npm run verify-loop` still green. Local preview for
+    Netlify targets rides #20's generic static server — no `netlify` CLI or
+    account involved anywhere in the loop.
 
 0. Tunnel flakiness in `loop`'s Cloudflare Quick Tunnel support — **resolved
    2026-09-09**, retry-per-attempt shipped in v1.4.0, verified live. Residual

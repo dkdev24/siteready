@@ -58,11 +58,12 @@ export async function detectStack(repoPath) {
   }
 
   const supported =
-    ((framework === "astro-starlight" || framework === "astro") && platform === "cloudflare-pages") ||
-    (framework === "nextjs" && platform === "vercel");
+    ((framework === "astro-starlight" || framework === "astro") &&
+      (platform === "cloudflare-pages" || platform === "netlify")) ||
+    (framework === "nextjs" && (platform === "vercel" || platform === "netlify"));
   const reason = supported
     ? null
-    : `No fixer for framework=${framework ?? "unknown"} + platform=${platform ?? "unknown"} yet (supports astro-starlight/astro + cloudflare-pages, nextjs + vercel, and jekyll + github-pages)`;
+    : `No fixer for framework=${framework ?? "unknown"} + platform=${platform ?? "unknown"} yet (supports astro-starlight/astro + cloudflare-pages/netlify, nextjs + vercel/netlify, and jekyll + github-pages)`;
 
   return { framework, platform, supported, reason };
 }

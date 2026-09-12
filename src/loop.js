@@ -76,9 +76,14 @@ export async function runScanLocal(
 ) {
   const resolved = path.resolve(repoPath);
   const stack = await detectStack(resolved);
-  if (stack.platform !== "cloudflare-pages" && stack.platform !== "vercel") {
+  // cloudflare-pages/vercel get a bespoke local-server runner; netlify (and
+  // any future static platform) rides `local-server.js`'s generic static-file
+  // fallback. Jekyll/github-pages is excluded here on purpose — its build
+  // isn't an npm project (see detectStack), so `ensureInstalled`/`buildSite`
+  // below don't apply to it.
+  if (!["cloudflare-pages", "vercel", "netlify"].includes(stack.platform)) {
     throw new Error(
-      `scan-local needs a local server siteready can run (cloudflare-pages or vercel). Detected platform=${stack.platform ?? "unknown"}.`
+      `scan-local needs a local server siteready can run (cloudflare-pages, vercel, or netlify). Detected platform=${stack.platform ?? "unknown"}.`
     );
   }
 

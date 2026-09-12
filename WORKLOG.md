@@ -1421,3 +1421,66 @@ Daniel's call: drop it rather than keep burning retries against an infra issue w
 neither confirmed nor ruled out. Revisit only if a future session has a working Quick Tunnel to
 test with. No code changed this session (the proxy script was a scratch/throwaway, never added to
 `src/`).
+
+## v1.12.0 — Generic static-server fallback + Netlify fixer (#20, #21)
+
+**Date:** 2026-09-12
+
+Goal, set by Daniel this session: siteready should aim to support as many framework/platform
+combinations as possible without ever requiring a new account or authentication — filed as
+NEXT_ACTIONS.md #20-#24. This entry ships the first two.
+
+### #20 — Generic static-file local-server fallback
+
+`lib/local-server.js` previously threw for any platform besides `cloudflare-pages` (`wrangler
+pages dev`) and `vercel` (`next start`) — one bespoke runner per platform. Most deploy targets are
+just "serve a static directory over HTTP" with no platform runtime to emulate, so added one
+generic fallback instead: an in-process `node:http` static file server (no new dependency, no npx
+download, no account) for `distDir`. cloudflare-pages/vercel keep their existing bespoke runners
+since their platform runtime (Pages Functions, Edge Middleware) actually matters.
+
+Path-traversal handling verified two ways: (1) `fetch()`-based dot-segment requests never reach
+the server as an escape attempt at all — WHATWG URL parsing collapses `..` at the root boundary
+during URL construction; (2) a raw-socket request with a literal `GET /../secret.txt` in the
+request line (bypassing any client-side normalization) still resolves under the served root once
+passed through `path.join`, confirmed via a scratch script placing a `secret.txt` one directory
+above `distDir` and getting 404, not the file's contents. The `startsWith(root)` check in the code
+is defense-in-depth on top of that, not the only thing preventing escape.
+
+`loop.js`'s `runScanLocal` platform guard widened from `cloudflare-pages`/`vercel` only to also
+admit `netlify` (the one additional value `detect-stack.js` can currently return — Jekyll/
+github-pages is deliberately excluded, its build isn't an npm project so `ensureInstalled`/
+`buildSite` don't apply to it).
+
+### #21 — Netlify fixer + platform module
+
+`detect-stack.js` already detected `netlify.toml` but dead-ended at "no fixer" for every
+framework. Added `src/platforms/netlify.js` (`applyNetlifyFixes`), mirroring the existing
+Cloudflare Pages Functions / Vercel Proxy `.md`-negotiation fixers: writes
+`netlify/edge-functions/markdown-negotiation.js`, serving the framework fixer's `.md` sibling on
+`Accept: text/markdown` or a known AI-bot User-Agent, falling back to a `/404.md` mirror instead of
+the HTML 404. Uses Netlify's in-file `export const config = { path: '/*' }` convention rather than
+a `netlify.toml` edit, so there's nothing else to skip/merge. Recursion into itself on the internal
+`.md` self-fetch is a non-issue for the same reason it already was for the Vercel fixer: the
+self-fetch carries neither the triggering `Accept` header nor a bot User-Agent, so the re-entrant
+invocation just takes the pass-through branch.
+
+Wired into `enhance.js`'s `PLATFORM_FIXERS` map and `detect-stack.js`'s `supported` matrix —
+astro/astro-starlight + netlify and nextjs + netlify are now both supported, alongside their
+existing cloudflare-pages/vercel pairings. The framework fixers (`astro.js`, `astro-starlight.js`,
+`nextjs.js`) needed zero changes — confirmed platform-agnostic already, matching CONTRIBUTING.md's
+framework/platform axis split.
+
+**Verified:** a synthetic temp repo (`package.json` with an `astro` dep + a `netlify.toml`)
+detects as `{framework: astro, platform: netlify, supported: true}`; `enhance()` on it writes the
+astro framework fixer's files plus the new edge function; a second `enhance()` run skips all three
+(idempotent, nothing clobbered). `npm run verify-loop` still passes for both existing fixtures
+(astro-starlight-cf-pages, nextjs-vercel) — no regression on the bespoke-runner path.
+
+Netlify's own CLI (`netlify dev`/`netlify link`) is never invoked anywhere in this — local preview
+for a Netlify-platform target rides #20's generic static server, and the fixer itself only writes
+files. Zero new accounts or auth introduced, per this session's stated goal.
+
+Remaining toward that goal: NEXT_ACTIONS.md #22 (GitLab Pages platform module), #23 (additional
+static-site-generator framework fixers), #24 (document the no-account boundary as an explicit
+acceptance test in CONTRIBUTING.md).

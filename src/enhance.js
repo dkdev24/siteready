@@ -8,6 +8,7 @@ import { applyJekyllFixes } from "./fixers/jekyll.js";
 import { applyCloudflarePagesFixes } from "./platforms/cloudflare-pages.js";
 import { applyVercelFixes } from "./platforms/vercel.js";
 import { applyGithubPagesFixes } from "./platforms/github-pages.js";
+import { applyNetlifyFixes } from "./platforms/netlify.js";
 
 const FRAMEWORK_FIXERS = {
   "astro-starlight": applyAstroStarlightFixes,
@@ -20,6 +21,7 @@ const PLATFORM_FIXERS = {
   "cloudflare-pages": applyCloudflarePagesFixes,
   vercel: applyVercelFixes,
   "github-pages": applyGithubPagesFixes,
+  netlify: applyNetlifyFixes,
 };
 
 /**
@@ -39,8 +41,8 @@ export async function enhance(repoPath) {
   if (!stack.supported) {
     throw new Error(
       `enhance needs a local checkout of the target site's repo, and only supports ` +
-        `Astro (with or without Starlight) + Cloudflare Pages, Next.js + Vercel, or Jekyll + ` +
-        `GitHub Pages, today. ${stack.reason}`
+        `Astro (with or without Starlight) + Cloudflare Pages or Netlify, Next.js + Vercel or ` +
+        `Netlify, or Jekyll + GitHub Pages, today. ${stack.reason}`
     );
   }
 

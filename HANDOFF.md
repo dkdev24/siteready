@@ -8,14 +8,26 @@ file under 80 lines. Detailed history and lists live in the linked docs below.
 ## Current Version
 
 **0.8.0** (doc-tracking system version, see WORKLOG.md). Engine/CLI is at
-package.json `1.11.0`, committed + pushed (`6e38ea9`), **not yet published to
-npm**.
+package.json `1.12.0`, **not yet committed/pushed or published to npm**.
 
 ---
 
 ## Right Now
 
-No blocker. 2026-09-11 (latest session): new Jekyll + GitHub Pages fixer
+No blocker. 2026-09-12 (latest session): new goal set by Daniel — support as
+many framework/platform combos as possible with **zero new accounts/auth**,
+broken into NEXT_ACTIONS.md #20-#24. Shipped #20 (generic `node:http`
+static-file local-server fallback for any non-cloudflare-pages/vercel
+platform, replacing the old "throw if unsupported" behavior — no new
+dependency, path-traversal-safe, verified with `verify-loop`) and #21
+(Netlify fixer: `src/platforms/netlify.js` writes a
+`netlify/edge-functions/markdown-negotiation.js`, same `.md`-negotiation
+pattern as the Cloudflare/Vercel fixers; wired into `enhance.js` +
+`detect-stack.js`). Verified idempotent on a synthetic astro+netlify.toml
+repo; `npm run verify-loop` still green. Full detail: WORKLOG.md `v1.12.0`.
+Not yet committed — review the diff and commit/push next.
+
+Earlier session: new Jekyll + GitHub Pages fixer
 (`src/fixers/jekyll.js` + `src/platforms/github-pages.js`), committed,
 pushed, and verified against the live site — afdocs 0 → 72 (C). A first
 attempt also fixed `markdown-url-support` via a split-file markdown mirror;

@@ -8,7 +8,7 @@ file under 80 lines. Detailed history and lists live in the linked docs below.
 ## Current Version
 
 **0.8.0** (doc-tracking system version, see WORKLOG.md). Engine/CLI is at
-package.json `1.14.0`, committed, tagged, and published to npm.
+package.json `1.15.0`, committed, tagged, and published to npm.
 
 ---
 

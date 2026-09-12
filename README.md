@@ -57,7 +57,7 @@ Full install guide (npx, source checkout, Claude Code skill setup, Node version)
 | Piece | Status |
 |---|---|
 | Scanners | [afdocs](https://agentdocsspec.com/) (doc-heavy sites), [Vercel Is Agentic](https://is-agentic.com/) (any content site) — both run by default. [Ora](https://ora.ai/) (the engine behind Is Agentic) is opt-in (`--scanners ora`) |
-| Fixer | Astro + Starlight or plain Astro, on Cloudflare Pages or Netlify; Next.js (App Router) on Vercel or Netlify; Jekyll on GitHub Pages |
+| Fixer | Astro + Starlight or plain Astro, on Cloudflare Pages, Netlify, or GitLab Pages; Next.js (App Router) on Vercel or Netlify; Jekyll on GitHub Pages or GitLab Pages |
 | Loop | `scan → enhance → rescan → diff-report`, fully local (no live deployment needed) |
 | Scan-local | Baseline scan against a repo checkout, no public URL — for a site not deployed yet |
 | Skill install | `install-skill` — writes SKILL.md for Claude Code, Codex CLI, and OpenCode |
@@ -76,9 +76,8 @@ scan/report layer really is a convenience an agent doesn't strictly need. But th
 the real value: turning a scanner's one-line suggestion into idempotent, cross-platform-verified
 code is where the actual difficulty lives. And the **loop** (`scan → enhance → rescan →
 diff-report`) proves a fix worked before anything deploys, which no ad hoc agent fix session gets
-for free. The honest limit is real too: outside the framework/platform combos a fixer covers
-(Astro ± Starlight + Cloudflare Pages, Next.js + Vercel), siteready is just a nicer wrapper around
-scanner output.
+for free. The honest limit is real too: outside the framework/platform combos a fixer covers (see
+the Fixer row above), siteready is just a nicer wrapper around scanner output.
 
 This is also a different question than GEO ("Generative Engine Optimization") skill packs answer.
 Those are prompt-driven advisors for AI *visibility* (will an LLM mention me). siteready is a build

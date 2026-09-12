@@ -38,8 +38,9 @@ suggestions by hand has no equivalent. It has to deploy live and diff two scans 
 won't know about `is-agentic`'s caching trap above unless it's already been burned by it once.
 
 **This argument fully favors "just use an agent directly" outside the framework/platform combos a
-fixer covers.** Today that's Astro (with or without Starlight) + Cloudflare Pages, and
-Next.js (App Router) + Vercel. Anything else and `enhance` reports `unsupported`, and siteready
+fixer covers.** Today that's Astro (with or without Starlight) on Cloudflare Pages, Netlify, or
+GitLab Pages; Next.js (App Router) on Vercel or Netlify; and Jekyll on GitHub Pages or GitLab
+Pages. Anything else and `enhance` reports `unsupported`, and siteready
 really is just a nicer wrapper around scanner output for that site. That's the honest scope limit,
 and it's also the roadmap. This tool's value scales with fixer/platform coverage (see
 [Contributing](contributing)), not with scanner count. `ora` was deliberately made opt-in rather
@@ -81,8 +82,8 @@ is a build tool for AI *usability*. Four concrete consequences:
    "agent-readiness" and never "GEO."
 
 **A URL-only GEO pack still wins today on coverage and breadth.** It runs against any site, while
-`enhance` reports `unsupported` outside Astro (± Starlight) + Cloudflare Pages, and Next.js +
-Vercel. That's the same honest scope limit as the section above, and the reason fixer/platform
+`enhance` reports `unsupported` outside the framework/platform pairs listed above. That's the same
+honest scope limit as the section above, and the reason fixer/platform
 coverage is the roadmap. A GEO pack also ships competitor comparison and score-over-time tracking.
 siteready has both too now, as the `compare` and `monitor` commands (see
 [CLI reference](cli-reference)).

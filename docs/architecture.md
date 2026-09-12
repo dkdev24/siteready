@@ -126,7 +126,14 @@ framework having no fixer yet degrades to "unsupported," never breaks the pipeli
   runs Proxy/Middleware locally (a static export doesn't) — so `loop` can scan a fixer's target
   with **no live deployment**. Windows needs `taskkill /t` to kill the whole process tree
   (`child.kill()` alone leaves the child process running); POSIX uses a detached process group +
-  `process.kill(-pid)`.
+  `process.kill(-pid)`. Every other platform (Netlify, GitLab Pages, and any future static host)
+  falls back to a generic in-process `node:http` static file server over the build output —
+  no bespoke CLI, no npx download, no account, since serving a static directory needs no
+  platform-specific tooling. `runScanLocal`'s only hard exclusion is Jekyll, by framework rather
+  than platform: its build is Ruby/bundler, not `npm run build`, so `ensureInstalled`/`buildSite`
+  don't apply regardless of which Pages host it targets — every other platform value
+  `detect-stack.js` can return rides one of the two paths above automatically, with no allowlist
+  to keep extending.
 - `lib/tunnel.js` extends that to the **hosted** scanners. `afdocs` fetches the scanned URL from
   this machine, so `localhost` is fine for it; `is-agentic` and `ora` run their own crawler on
   someone else's infrastructure and can never reach `localhost`. Requesting either from `loop`

@@ -76,15 +76,19 @@ export async function runScanLocal(
 ) {
   const resolved = path.resolve(repoPath);
   const stack = await detectStack(resolved);
-  // cloudflare-pages/vercel get a bespoke local-server runner; netlify (and
-  // any future static platform) rides `local-server.js`'s generic static-file
-  // fallback. Jekyll/github-pages is excluded here on purpose — its build
-  // isn't an npm project (see detectStack), so `ensureInstalled`/`buildSite`
-  // below don't apply to it.
-  if (!["cloudflare-pages", "vercel", "netlify"].includes(stack.platform)) {
+  // Jekyll's build isn't an npm project (bundler, not `npm run build`) --
+  // `ensureInstalled`/`buildSite` below assume one, so it's excluded here
+  // regardless of platform (github-pages or gitlab-pages). Every other
+  // platform detectStack can return rides local-server.js's bespoke runner
+  // (cloudflare-pages, vercel) or its generic static-file fallback -- no
+  // per-platform allowlist to keep updating here as more get added.
+  if (stack.framework === "jekyll") {
     throw new Error(
-      `scan-local needs a local server siteready can run (cloudflare-pages, vercel, or netlify). Detected platform=${stack.platform ?? "unknown"}.`
+      `scan-local doesn't support Jekyll yet -- its build isn't an npm project. Detected platform=${stack.platform ?? "unknown"}.`
     );
+  }
+  if (!stack.platform) {
+    throw new Error(`scan-local needs a local server siteready can run, but no platform was detected for ${resolved}.`);
   }
 
   const needsTunnel = scanners.some((s) => HOSTED_SCANNERS.includes(s));

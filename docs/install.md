@@ -36,10 +36,14 @@ hand — see the [README](https://github.com/dkdev24/siteready#readme) for the t
 | Piece | Status |
 |---|---|
 | Scanners | [afdocs](https://agentdocsspec.com/) (doc-heavy sites), [Vercel Is Agentic](https://is-agentic.com/) (any content site) — both run by default. [Ora](https://ora.ai/) (the engine behind Is Agentic) is opt-in (`--scanners ora`) |
-| Fixer | Astro + Starlight + Cloudflare Pages, plain Astro (no Starlight) + Cloudflare Pages, Next.js (App Router) + Vercel |
+| Fixer | Astro + Starlight or plain Astro, on Cloudflare Pages, Netlify, or GitLab Pages; Next.js (App Router) on Vercel or Netlify; Jekyll on GitHub Pages or GitLab Pages |
 | Loop | `scan → enhance → rescan → diff-report`, fully local (no live deployment needed) |
 | CI | Windows, macOS, and Linux, on every push |
 | Other frameworks/platforms | Not yet — additive, by demand (see [Contributing](contributing)) |
+
+No fixer/platform pairing above requires a new account or authentication — Netlify and GitLab
+Pages targets build and serve through the same local-only path as everything else (see
+[Architecture](architecture)).
 
 **Real numbers:** the Astro+Starlight+Cloudflare-Pages fixer takes a fresh Starlight site from
 **0/100 (F) → 97/100 (A)** on afdocs — see `fixtures/astro-starlight-cf-pages/README.md` in the
@@ -65,3 +69,10 @@ routes from, so it sticks to a real `app/not-found.js`, a permissive `robots.txt
 proves it end to end via `scripts/verify-loop.js`: `content-negotiation` flips fail → pass on a
 stripped copy, served locally with `next start` (not a static export — Proxy doesn't run under
 one).
+
+Netlify (`src/platforms/netlify.js`) gets the same `Accept: text/markdown` negotiation as
+Cloudflare Pages and Vercel, via a Netlify Edge Function (`netlify/edge-functions/
+markdown-negotiation.js`) rather than a `netlify.toml` edit. GitHub Pages and GitLab Pages are
+purely static hosts with no equivalent request-header branching — their platform modules write
+nothing and report that one check as a structural gap instead, same as the framework/platform axis
+split for every other pairing (see [Architecture](architecture)).

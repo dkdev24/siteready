@@ -1484,3 +1484,54 @@ files. Zero new accounts or auth introduced, per this session's stated goal.
 Remaining toward that goal: NEXT_ACTIONS.md #22 (GitLab Pages platform module), #23 (additional
 static-site-generator framework fixers), #24 (document the no-account boundary as an explicit
 acceptance test in CONTRIBUTING.md).
+
+## v1.13.0 — GitLab Pages platform module (#22)
+
+**Date:** 2026-09-12
+
+Third step toward the "as many framework/platform combos as possible, zero new accounts" goal
+(#20-#24).
+
+`detect-stack.js` gained `hasGitlabPagesJob()`: checks for `.gitlab-ci.yml` and a naive top-level
+`pages:` job-key regex (no YAML parse dependency — matches the existing style of every other
+platform signal in this file, which are all existence-based, not content-validated). This is
+plugged in at two points:
+
+- The npm-ecosystem branch, as another explicit platform signal alongside `wrangler.toml`/
+  `vercel.json`/`netlify.toml`, ahead of the "no config file" defaults — so an Astro (or Astro +
+  Starlight) repo with a GitLab Pages job now detects `platform: "gitlab-pages"` instead of
+  falling through to the Cloudflare Pages default.
+- The Jekyll early-return branch, replacing the previously hardcoded `platform: "github-pages"`
+  with a check: `hasGitlabPagesJob(repoPath) ? "gitlab-pages" : "github-pages"`.
+
+New `src/platforms/gitlab-pages.js` (`applyGitlabPagesFixes`) mirrors `github-pages.js` exactly —
+GitLab Pages is purely static hosting like GitHub Pages (no Edge Functions/Middleware
+equivalent), so the platform fixer writes nothing and only emits a warning naming the one check
+(markdown-negotiation-vary) a static host structurally can't pass. Wired into `enhance.js`'s
+`PLATFORM_FIXERS` map; `detect-stack.js`'s `supported` matrix extended to include
+astro/astro-starlight + gitlab-pages (Next.js was deliberately left out of the gitlab-pages
+pairing — it needs Vercel/Netlify's Edge Middleware runtime, which a static host has no equivalent
+for).
+
+`loop.js`'s `runScanLocal` guard changed shape: it previously allowlisted specific platform
+strings (`cloudflare-pages`, `vercel`, `netlify`), which meant every new platform value
+`detect-stack.js` could return needed a matching edit here too. Replaced with the actual
+constraint — reject when `stack.framework === "jekyll"` (its build is Ruby/bundler, not `npm run
+build`, so `ensureInstalled`/`buildSite` don't apply regardless of which Pages host it resolves
+to) — plus a check that some platform was detected at all. This is a generic fix: gitlab-pages
+(and any future platform `detect-stack.js` learns) rides `scan-local` automatically, no allowlist
+edit needed.
+
+**Verified:** `detectStack()` against 5 synthetic repos — astro + `.gitlab-ci.yml` with a `pages:`
+job (→ `gitlab-pages`), astro + an unrelated `.gitlab-ci.yml` with no `pages:` job (→ falls through
+to `cloudflare-pages` default, confirming the regex doesn't over-match), astro with no platform
+config at all (→ `cloudflare-pages`, unchanged), jekyll + `.gitlab-ci.yml` pages job (→
+`gitlab-pages`), and jekyll with no `.gitlab-ci.yml` (→ `github-pages`, unchanged — the pre-existing
+default). `enhance()` on the astro+gitlab-pages synthetic repo is idempotent (framework fixer
+writes files, platform fixer only warns, second run skips everything). `runScanLocal` against the
+jekyll+gitlab-pages synthetic repo throws the expected "doesn't support Jekyll yet" error rather
+than attempting an npm build. `npm run verify-loop` still green on both existing fixtures.
+
+Remaining toward the goal: NEXT_ACTIONS.md #23 (additional static-site-generator framework
+fixers), #24 (document the no-account boundary as an explicit acceptance test in
+CONTRIBUTING.md).

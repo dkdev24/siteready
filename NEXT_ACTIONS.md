@@ -60,12 +60,7 @@ append-only, unlike WORKLOG.md).
 6. Add fixers for additional frameworks/platforms as demand comes in (see
    CONTRIBUTING.md for the fixer contribution process). Ongoing/ambient, no
    fixed priority. **Concrete breakdown toward the "as many combos as
-   possible, zero new accounts" goal lives in #22-#24** (#20/#21 done).
-
-22. **GitLab Pages platform module** (parallel to `platforms/github-pages.js`)
-    — detect via `.gitlab-ci.yml` + a Pages job, same build-locally-
-    serve-statically model as Jekyll/GitHub Pages, no account needed. Not
-    started.
+   possible, zero new accounts" goal lives in #23-#24** (#20/#21/#22 done).
 
 23. Additional static-site-generator framework fixers as demand shows up:
     Hugo, Eleventy, Docusaurus, Nuxt (static generate), SvelteKit (static
@@ -92,6 +87,22 @@ append-only, unlike WORKLOG.md).
 ---
 
 ## Resolved (condensed — see WORKLOG.md for full history)
+
+22. **GitLab Pages platform module** — **done 2026-09-12**,
+    `src/platforms/gitlab-pages.js` (static-only, warns rather than writes —
+    same shape as `github-pages.js`). `detect-stack.js` now detects
+    `.gitlab-ci.yml` + a top-level `pages:` job (naive key check, not a YAML
+    parse) as its own platform signal, distinct from the Jekyll+github-pages
+    default; astro/astro-starlight + gitlab-pages is a supported `enhance`
+    pair. `loop.js`'s `runScanLocal` guard changed from a per-platform
+    allowlist to excluding Jekyll by framework (its build isn't an npm
+    project regardless of which Pages host it targets) — a generic fix that
+    admits gitlab-pages (and any future platform) with no further edits.
+    Verified: detectStack across 5 synthetic repos (astro+gitlab-ci,
+    astro+unrelated-ci, astro+no-config, jekyll+gitlab-ci,
+    jekyll+no-gitlab-ci — no regressions on the last two), idempotent
+    `enhance()`, `runScanLocal` correctly rejects Jekyll regardless of
+    platform, `npm run verify-loop` green.
 
 20. **Generic static-file local-server fallback** — **done 2026-09-12**,
     `lib/local-server.js` now falls back to an in-process `node:http` static

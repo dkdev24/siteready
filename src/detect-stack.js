@@ -1,6 +1,18 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+
+// GitLab Pages requires a top-level CI job literally named `pages` (its
+// `public/` artifact is what actually gets published) — this is a naive
+// top-level-key check, not a YAML parse, so it doesn't validate the job
+// publishes `public/`, only that the repo declares intent to deploy via
+// GitLab Pages. Good enough to distinguish it from an unrelated
+// `.gitlab-ci.yml` that only runs tests.
+function hasGitlabPagesJob(repoPath) {
+  const ciPath = path.join(repoPath, ".gitlab-ci.yml");
+  if (!existsSync(ciPath)) return false;
+  return /^pages:\s*$/m.test(readFileSync(ciPath, "utf8"));
+}
 
 /**
  * Detects framework + platform from a local repo checkout (never from a URL
@@ -10,14 +22,15 @@ import path from "node:path";
  * never a thrown error deep in a fixer.
  */
 export async function detectStack(repoPath) {
-  // Jekyll/GitHub Pages sites need no package.json at all (GitHub builds them
-  // server-side), and a repo can mix one with an unrelated root package.json
-  // (e.g. this project's own CLI) — check for it first, independent of the
-  // npm-ecosystem detection below. GitHub Pages' two supported source
-  // locations: repo root or /docs.
+  // Jekyll/GitHub or GitLab Pages sites need no package.json at all (both
+  // hosts build Jekyll server-side), and a repo can mix one with an
+  // unrelated root package.json (e.g. this project's own CLI) — check for it
+  // first, independent of the npm-ecosystem detection below. GitHub Pages'
+  // two supported source locations: repo root or /docs.
   const jekyllRoot = [repoPath, path.join(repoPath, "docs")].find((dir) => existsSync(path.join(dir, "_config.yml")));
   if (jekyllRoot) {
-    return { framework: "jekyll", platform: "github-pages", supported: true, reason: null, siteRoot: jekyllRoot };
+    const platform = hasGitlabPagesJob(repoPath) ? "gitlab-pages" : "github-pages";
+    return { framework: "jekyll", platform, supported: true, reason: null, siteRoot: jekyllRoot };
   }
 
   const pkgPath = path.join(repoPath, "package.json");
@@ -42,6 +55,8 @@ export async function detectStack(repoPath) {
     platform = "vercel";
   } else if (existsSync(path.join(repoPath, "netlify.toml"))) {
     platform = "netlify";
+  } else if (hasGitlabPagesJob(repoPath)) {
+    platform = "gitlab-pages";
   } else if (framework === "nextjs") {
     // Vercel is Next.js's own zero-config default deploy target (same
     // company) — a Next.js project with no platform config file at all is
@@ -59,11 +74,14 @@ export async function detectStack(repoPath) {
 
   const supported =
     ((framework === "astro-starlight" || framework === "astro") &&
-      (platform === "cloudflare-pages" || platform === "netlify")) ||
+      ["cloudflare-pages", "netlify", "gitlab-pages"].includes(platform)) ||
+    // Next.js needs Vercel/Netlify's Edge Middleware runtime — GitLab Pages
+    // is purely static hosting (same reason it's not paired with Next.js
+    // below), no server-side route left for `next start` to serve.
     (framework === "nextjs" && (platform === "vercel" || platform === "netlify"));
   const reason = supported
     ? null
-    : `No fixer for framework=${framework ?? "unknown"} + platform=${platform ?? "unknown"} yet (supports astro-starlight/astro + cloudflare-pages/netlify, nextjs + vercel/netlify, and jekyll + github-pages)`;
+    : `No fixer for framework=${framework ?? "unknown"} + platform=${platform ?? "unknown"} yet (supports astro-starlight/astro + cloudflare-pages/netlify/gitlab-pages, nextjs + vercel/netlify, and jekyll + github-pages/gitlab-pages)`;
 
   return { framework, platform, supported, reason };
 }

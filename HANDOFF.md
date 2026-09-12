@@ -8,24 +8,27 @@ file under 80 lines. Detailed history and lists live in the linked docs below.
 ## Current Version
 
 **0.8.0** (doc-tracking system version, see WORKLOG.md). Engine/CLI is at
-package.json `1.12.0`, **not yet committed/pushed or published to npm**.
+package.json `1.13.0`, **not yet committed/pushed or published to npm**
+(`1.12.0` is — released + on npm).
 
 ---
 
 ## Right Now
 
-No blocker. 2026-09-12 (latest session): new goal set by Daniel — support as
-many framework/platform combos as possible with **zero new accounts/auth**,
-broken into NEXT_ACTIONS.md #20-#24. Shipped #20 (generic `node:http`
-static-file local-server fallback for any non-cloudflare-pages/vercel
-platform, replacing the old "throw if unsupported" behavior — no new
-dependency, path-traversal-safe, verified with `verify-loop`) and #21
-(Netlify fixer: `src/platforms/netlify.js` writes a
-`netlify/edge-functions/markdown-negotiation.js`, same `.md`-negotiation
-pattern as the Cloudflare/Vercel fixers; wired into `enhance.js` +
-`detect-stack.js`). Verified idempotent on a synthetic astro+netlify.toml
-repo; `npm run verify-loop` still green. Full detail: WORKLOG.md `v1.12.0`.
-Not yet committed — review the diff and commit/push next.
+No blocker. 2026-09-12 (latest session, continued): goal set by Daniel —
+support as many framework/platform combos as possible with **zero new
+accounts/auth**, broken into NEXT_ACTIONS.md #20-#24. `v1.12.0` (#20
+generic static-server fallback, #21 Netlify fixer) is committed, tagged,
+released on GitHub, and published to npm. This session added #22: GitLab
+Pages platform module (`src/platforms/gitlab-pages.js`, static-only warning
+like `github-pages.js`) — `detect-stack.js` now detects `.gitlab-ci.yml` + a
+top-level `pages:` job as its own platform signal, and `loop.js`'s
+`runScanLocal` guard was generalized from a per-platform allowlist to
+excluding Jekyll by framework (so gitlab-pages, and any future platform,
+rides it with no further edits). Verified via 5 synthetic-repo detectStack
+cases, idempotent `enhance()`, and `npm run verify-loop`. Full detail:
+WORKLOG.md `v1.13.0`. **Not yet committed** — review the diff and
+commit/push/release/publish next, same as `v1.12.0`.
 
 Earlier session: new Jekyll + GitHub Pages fixer
 (`src/fixers/jekyll.js` + `src/platforms/github-pages.js`), committed,

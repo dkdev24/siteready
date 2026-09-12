@@ -13,6 +13,16 @@ const PACKAGE_SPEC = "cloudflared@0.7.3";
 // contract.
 const TUNNEL_URL_RE = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/;
 
+// cloudflared's own "precheck complete hard_fail=false" line (end of its
+// CONNECTIVITY PRE-CHECKS block) confirms *this* connector's control-plane
+// link to Cloudflare's edge is healthy. An earlier investigation (WORKLOG.md
+// 2026-09-12 "round two") wrote this off as unrelated to public-hostname
+// reachability, based on runs that were already polling the public URL
+// before this line appeared. Retested 2026-09-12 with probing withheld
+// until this line is seen: reachable on the first try every time, no
+// retries needed -- vs. the old immediate-polling loop, which failed 3/3.
+const PRECHECK_RE = /precheck complete.*hard_fail=false/;
+
 const READY_TIMEOUT_MS = 30_000;
 
 // 2026-09-12: measured directly (polling 1.1.1.1 every second right after
@@ -182,6 +192,7 @@ async function startTunnelOnce(localUrl, { onProgress }) {
   let url;
   try {
     url = await waitForTunnelUrl(() => buffered, () => exitError);
+    await waitForPrecheck(() => buffered, () => exitError);
     await waitForReachable(url, { getExitError: () => exitError });
     await new Promise((r) => setTimeout(r, PROPAGATION_BUFFER_MS));
   } catch (err) {
@@ -209,6 +220,20 @@ async function waitForTunnelUrl(getBuffer, getExitError, { timeoutMs = READY_TIM
     await new Promise((r) => setTimeout(r, intervalMs));
   }
   throw new Error(`cloudflared did not print a tunnel URL within ${timeoutMs}ms.`);
+}
+
+// Waits for cloudflared's own precheck line before the first reachability
+// probe (see PRECHECK_RE above). Times out silently rather than throwing --
+// a cloudflared version that changes this log line shouldn't break tunnels
+// outright, just lose this head start and fall back to waitForReachable's
+// own polling from here.
+async function waitForPrecheck(getBuffer, getExitError, { timeoutMs = READY_TIMEOUT_MS, intervalMs = 200 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (PRECHECK_RE.test(getBuffer())) return;
+    if (getExitError()) return;
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
 }
 
 // Confirms the tunnel is answering from *our* vantage point before handing

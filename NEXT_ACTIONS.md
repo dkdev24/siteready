@@ -74,121 +74,20 @@ append-only, unlike WORKLOG.md).
     forces a login even for local emulation should be flagged as a known gap
     rather than silently wired in. Not started.
 
-19. `is-agentic`'s `content-no-js`/`json-ld`/`metadata-completeness`/
-    `org-schema-completeness`/`bot-detection` all report "Could not fetch
-    homepage" against `https://dkdev24.github.io/siteready/`, unchanged
-    before and after the Jekyll fixer (#18) — confirmed 2026-09-11 this isn't
-    a real fetch problem (plain `fetch()` gets a clean `200 text/html`, and
-    `{% seo %}` is confirmed rendering JSON-LD/canonical/og:type in the raw
-    HTML). Scanner-side issue, folds into #2's "need a genuinely fixer-naive
-    site" theme — worth a minimal repro (single flag, single UA) next time
-    #2 is picked up.
-
-    2026-09-12: retried the subfolder-proxy test this depends on (proxy
-    `dkdev24.github.io/siteready/*` to local domain-root, tunnel it, scan the
-    tunnel URL) — still blocked, Quick Tunnel reachability is genuinely
-    unreliable, not yesterday's bad luck. Traced further than "flaky infra":
-    raced `curl` against Node's `fetch()` against the same freshly-minted
-    hostname (rules out `tunnel.js`'s `waitForReachable` client as the cause —
-    both agree, always); then raced the local resolver against Cloudflare's
-    own 1.1.1.1 and Google's 8.8.8.8 for that same hostname (rules out local
-    network/resolver — the *public* resolvers themselves disagree
-    query-to-query for 15+ seconds, i.e. Cloudflare's own anycast answer for a
-    brand-new `*.trycloudflare.com` record flaps at the source). Separately
-    discovered Quick Tunnel *creation* is rate-limited per source IP (HTTP 429,
-    Cloudflare error 1015) after ~20 tunnels spun up within an hour — a
-    distinct failure mode from the DNS flap (fails before a hostname is even
-    issued).
-
-    2026-09-12 round three: ran the proposed test — 6 separately-created
-    tunnels, spaced 4 min apart, single 7s-delayed probe each, no retry loop.
-    **6/6 succeeded.** This isolates the confound in the earlier failing
-    batch: those 5 tunnels were created back-to-back with no gap, not spaced.
-    So the real variable is spacing *between tunnel creations*, not delay
-    before the first probe — back-to-back creation appears to degrade DNS
-    propagation for hostnames issued during the burst.
-
-    Tried a 10s inter-attempt cooldown — re-ran #19's subfolder-proxy scan,
-    still failed 3/3, same `ENOTFOUND`-shaped error. 10s isn't a real gap
-    compared to the 4min spacing that worked; a short in-process cooldown
-    doesn't fix this.
-
-    Daniel's call: stop trying to force `loop`'s two back-to-back tunnels
-    (baseline scan + re-scan) through automatically. Shipped instead (not
-    yet committed — see WORKLOG.md "min-gap guard + rescan-local"):
-    - `src/lib/tunnel.js` now refuses a new tunnel (clear, specific error)
-      if the last one — this run or a separate `siteready` invocation — was
-      created under 2 minutes ago (persisted state file in `os.tmpdir()`).
-    - New `rescan-local` command (scan-local's `rescan` counterpart) so the
-      reliable workflow for hosted scanners actually exists: `scan-local` →
-      `enhance` → (human reviews) → `rescan-local`, each a separate command
-      with a natural gap, instead of `loop`'s forced single-shot pair. Also
-      covers the case where the *initial* scan is against an already-public
-      URL (no tunnel needed at all) and only the local re-scan needs one.
-    - `loop` now warns up front when a hosted scanner will need a tunnel.
-
-    Daniel then asked how sure we actually are that 2min is enough, and what
-    happens near the ~20/hour rate limit — correctly, since only "10s fails"
-    and "4min works" are tested and Cloudflare has no published SLA for
-    either number. Answer implemented rather than argued: the 2min guard is
-    a known-bad-zone filter, not a proof of safety above it —
-    `waitForReachable`'s real probe still runs every time, so an
-    insufficient gap still surfaces as an honest failure. Also caught and
-    fixed a real bug this reasoning surfaced: retry attempts 2/3 were firing
-    with *zero* gap on a reachability-timeout failure (worse than the
-    already-disproven 10s) — now tagged (`err.reachabilityFlap`) and the
-    retry loop aborts immediately on it instead. Added a rolling
-    tunnel-count warning near the ~20/hour limit. Offered a real bisection
-    study (test several gap durations with enough trials for a measured
-    curve) to replace the guess with data — declined; shipping the
-    honest-uncertainty guard as-is, since Quick Tunnel's best-effort/no-SLA
-    nature makes tighter precision low value.
-
-    Then removed the `loop` CLI command entirely (no deprecation, no real
-    users yet) — its whole design was exactly the back-to-back-tunnel
-    pattern this thread just spent a session proving unreliable. `loop.js`'s
-    `runLoop`, `cli.js`'s `loop` command, and the `loop` npm script are gone;
-    `scan-local` → `enhance` → `rescan-local` (run as three separate
-    commands) is now the only local scan/fix/verify path. Updated every
-    reference across README.md, docs/, SKILL.md, AGENTS.md, CONTRIBUTING.md,
-    and code comments; rewrote `scripts/verify-loop.js` to compose
-    `runScanLocal` twice + `enhance` + `buildDiffReport` instead of calling
-    `runLoop`. `npm run verify-loop` still green.
-
-    Shipped as v1.14.0 — committed, tagged, pushed, released on GitHub,
-    published to npm.
-
-    2026-09-12: first verification pass found 3/3 real tunnel attempts still
-    hit the DNS-flap failure (including at a real ~4min gap) — see
-    WORKLOG.md "min-gap guard verified against a real is-agentic scan".
-
-    2026-09-12, later same day: **the whole min-gap premise above was wrong.**
-    Daniel ran 5 tunnels back-to-back (<30s apart) and all were reachable
-    immediately — direct contradiction. Measured the real cause: per-hostname
-    DNS propagation delay is just erratic (5s one run, 19s another, >60s
-    another), and since every Quick Tunnel gets an independent random
-    hostname with no shared DNS state, spacing between *creations* can't
-    possibly affect any single hostname's own propagation time. The "10s
-    fails / 4min works" data from round three was confounded by probe-delay-
-    after-creation, not gap-since-last-tunnel. Removed `MIN_GAP_MS` and the
-    gap-refusal check entirely; raised `waitForReachable`'s timeout
-    30s → 60s (`REACHABILITY_TIMEOUT_MS`); removed the now-invalid
-    `reachabilityFlap` early-abort in the retry loop. See WORKLOG.md "min-gap
-    guard was solving the wrong problem" for full detail. Not committed yet.
-
-    Still true: Quick Tunnel is Cloudflare's own best-effort/no-SLA
-    infrastructure — the fix gives a better-informed timeout, not a
-    guarantee. A same-session re-verification still failed 3/3, plausibly
-    because this investigation alone had already created ~15-20 real tunnels
-    within the hour (a volume/quota effect, not a flaw in the fix).
-
-    Next session: get one real completed `is-agentic` scan with a cooled-off
-    quota to close this out, then revisit #19's actual subfolder-URL
-    hypothesis, which is still neither confirmed nor ruled out.
-
 ---
 
 ## Resolved (condensed — see WORKLOG.md for full history)
+
+19. **is-agentic "could not fetch homepage" on subfolder URLs** — **done
+    2026-09-12**. Confirmed: it's a scanner-side bug that breaks on any
+    non-root path, not a real fetch failure and nothing siteready can fix.
+    Found via a subfolder-proxy test (`dkdev24.github.io/siteready/*`
+    served at local domain-root, tunneled, scanned) that had been blocked
+    for days on Quick Tunnel reachability — root cause there was our own
+    test polling the public hostname before it was actually safe to, not
+    Cloudflare's DNS. Fixed by gating the first probe on cloudflared's
+    "precheck complete hard_fail=false" line (`src/lib/tunnel.js`,
+    `waitForPrecheck`) — reachable first try afterward, no retries needed.
 
 22. **GitLab Pages platform module** — **done 2026-09-12**,
     `src/platforms/gitlab-pages.js` (static-only, warns rather than writes —

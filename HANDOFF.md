@@ -14,29 +14,22 @@ package.json `1.14.0`, committed, tagged, and published to npm.
 
 ## Right Now
 
-No blocker. 2026-09-12, latest finding: the "spacing between tunnel creations causes DNS flap"
-theory below (v1.14.0's min-gap guard) was **wrong** — Daniel got 5/5 real tunnels reachable
-back-to-back, under 30s apart. Measured the real cause: per-hostname DNS propagation delay is just
-erratic (5s–60s+, no SLA), and each Quick Tunnel's independent random hostname has no shared DNS
-state with the last one, so spacing between creations can't affect it. `src/lib/tunnel.js`: removed
-`MIN_GAP_MS`/the gap-refusal check/the `reachabilityFlap` early-abort; raised `waitForReachable`'s
-timeout 30s→60s. `npm run verify-loop` green. Not committed yet. Still best-effort infra — a
-same-session re-check still failed 3/3, likely from ~15-20 tunnels already burned this hour, a
-quota effect not a flaw in the fix. Full detail: WORKLOG.md "min-gap guard was solving the wrong
-problem".
+No blocker. 2026-09-12, latest: **#19 resolved** — `is-agentic`'s "could not fetch homepage" is
+confirmed to be a scanner-side bug on subfolder URLs (clean 70/100 scan once tested against a
+domain-root proxy of the same content), not fixable from siteready. Found via a fix to
+`src/lib/tunnel.js`: probing was starting before it was safe to — now gated on cloudflared's own
+"precheck complete hard_fail=false" line (`waitForPrecheck`), which made the tunnel reachable on
+the first attempt instead of failing repeatedly. Verified (`npm run lint` + `npm run verify-loop`
+green), not committed yet.
 
-Earlier same day (superseded reasoning, kept for context): traced the DNS-flap failure to spacing
-(6/6 success at 4min gaps vs. 5/5 failure back-to-back — the confound above wasn't caught yet),
-shipped the min-gap guard on that basis, then **removed the `loop` command entirely** (no
-deprecation, no real users yet) since its whole premise was the back-to-back-tunnel pattern that
-looked unreliable. `scan-local` → `enhance` → `rescan-local`, three separate commands, is now the
-only path; every doc and `scripts/verify-loop.js` updated accordingly. **v1.14.0**, committed,
-tagged, pushed, released on GitHub, published to npm. (The `loop` removal itself still stands —
-independent of the spacing misdiagnosis.)
-
-Round two (same day, earlier): ruled out `tunnel.js`'s client and the local network as causes of the
-DNS flap; found `cloudflared`'s healthy-precheck banner isn't a public-URL-ready signal. Full detail:
-WORKLOG.md `2026-09-12 — Quick Tunnel reliability, round two`.
+Earlier same day (all superseded by the precheck fix above, kept as pointers only — full chase in
+WORKLOG.md "Quick Tunnel reliability, round two"/"round three"/"min-gap guard was solving the wrong
+problem"): chased the same DNS-reachability problem through a spacing theory (min-gap guard,
+shipped then reverted), a rate-limit theory, and a raised timeout, before landing on the real cause
+above. Also **removed the `loop` CLI command entirely** (no deprecation, no real users yet) since
+its design was the back-to-back-tunnel pattern this chase was investigating —
+`scan-local` → `enhance` → `rescan-local`, three separate commands, is now the only local path.
+Shipped as **v1.14.0**, committed, tagged, pushed, released, published to npm.
 
 Earlier same-day: goal set by Daniel — support as many framework/platform combos as possible with
 **zero new accounts/auth** (NEXT_ACTIONS.md #20-#24). `v1.12.0` (#20 generic static-server

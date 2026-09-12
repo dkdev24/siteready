@@ -1818,3 +1818,43 @@ Verified: `node scripts/check-syntax.js` clean, `npm run verify-loop` green (afd
 doesn't exercise tunnel.js, but confirms no regression elsewhere). `SKILL.md`'s tunnel-failure
 guidance updated to match (no more "2-minute minimum gap" instruction to relay to users). Not
 committed yet — working tree has the change, pending review.
+
+## 2026-09-12 — #19 resolved: precheck-gated tunnel probing + subfolder-URL bug confirmed (no version bump)
+
+Picked #19 back up (`is-agentic` "could not fetch homepage" against
+`dkdev24.github.io/siteready/`) via the subfolder-proxy test that had been blocked on Quick Tunnel
+reachability for days: serve `dkdev24.github.io/siteready/*` at local domain-root through a small
+`node:http` proxy (strips the baked-in `/siteready` prefix from HTML/CSS so root-relative asset
+links resolve), tunnel that local server, scan the tunnel URL with `is-agentic`.
+
+First attempt against the *current* `tunnel.js` (post "min-gap guard was solving the wrong problem")
+still failed 3/3 even with a clean quota (0 tunnels used in the trailing hour) and the raised 60s
+`REACHABILITY_TIMEOUT_MS` — all three freshly-minted hostnames stayed `000`/unresolvable for minutes
+afterward, not just slow.
+
+Daniel identified the actual bug: `cloudflared`'s "precheck complete hard_fail=false" line (end of
+its own CONNECTIVITY PRE-CHECKS block) reliably means the tunnel is safe to probe — every manual
+check he'd done that waited for that line succeeded immediately, no exceptions. This directly
+contradicts the "round two" conclusion (2026-09-12 earlier) that the precheck banner was unrelated
+to public-hostname reachability. Re-examined that conclusion rather than dismissing the new claim:
+"round two"'s own failing batches had already started polling the public URL before the precheck
+line appeared, so a precheck line that was long since true by the time logs were grepped after the
+fact doesn't rule out the hostname having been poisoned by that earlier premature polling. The two
+findings aren't actually in conflict once the timing is accounted for.
+
+Tested directly: a scratch script that spawns `cloudflared` itself, watches its combined
+stdout/stderr for the tunnel URL, does **zero** fetches until the precheck line appears, then makes
+exactly one fetch. Result: URL printed at 4.6s, precheck complete at 10.9s, first fetch got `200` at
+12.1s — reachable on the very first try. Ran the actual #19 `is-agentic` scan through this path:
+clean `70/100 (C)` result, zero "could not fetch homepage" errors on any check (`json-ld`,
+`metadata-completeness`, `org-schema-completeness`, `agent-friendly-404`, etc. all ran normally).
+This **confirms #19's subfolder-URL hypothesis**: `is-agentic`'s homepage-fetch breaks specifically
+on a non-root path. Scanner-side bug, not something `enhance` can act on (nothing controls what path
+a site is deployed under) — closing #19 as understood, not as fixed-in-siteready.
+
+Shipped the fix in `src/lib/tunnel.js`: new `waitForPrecheck()` (watches the buffered `cloudflared`
+output for `PRECHECK_RE`, times out silently after `READY_TIMEOUT_MS` rather than throwing, so an
+unrecognized future log format just loses the head start instead of breaking tunnels outright),
+called between `waitForTunnelUrl()` and `waitForReachable()` in `startTunnelOnce()`. Verified against
+the real `startTunnel()` path (not the scratch bypass): succeeded on attempt 1/3, same clean
+`is-agentic` result. `npm run lint` and `npm run verify-loop` both green. Not committed yet.

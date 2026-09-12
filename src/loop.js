@@ -3,10 +3,31 @@ import { detectStack } from "./detect-stack.js";
 import { enhance } from "./enhance.js";
 import { scanTarget } from "./scan.js";
 import { buildDiffReport } from "./diff-report.js";
-import { buildSite, ensureInstalled, startLocalServer } from "./lib/local-server.js";
+import { buildSite, ensureInstalled, startLocalServer, PLATFORMS_WITH_EDGE_RUNTIME } from "./lib/local-server.js";
 import { startTunnel } from "./lib/tunnel.js";
 
 const HOSTED_SCANNERS = ["is-agentic", "ora"];
+
+/**
+ * A local scan against a platform with no local edge-function runtime
+ * (anything outside PLATFORMS_WITH_EDGE_RUNTIME) can't verify a fixer's
+ * platform-side edge function/middleware (e.g. Netlify's markdown-
+ * negotiation Edge Function) -- the generic static-file server only serves
+ * file content, so those checks read as failing here even when they'd pass
+ * once actually deployed. Surfaced in onProgress output and in the report
+ * itself (report.js renders `localScanNote` if present) so this doesn't
+ * read as a regression or a failed fix.
+ */
+function localScanCaveatFor(platform) {
+  if (PLATFORMS_WITH_EDGE_RUNTIME.includes(platform)) return null;
+  return (
+    `Local scan against ${platform}: this platform's fixes are served by a generic static-file ` +
+    "server here, not its real edge runtime -- any check that depends on a platform-side edge " +
+    "function/middleware (e.g. markdown content-negotiation) may show as failing even though it " +
+    "would pass once actually deployed. Confirm with a public scan/rescan against the deployed " +
+    "URL before trusting this as the final score."
+  );
+}
 
 /**
  * Fully local scan -> enhance -> rescan -> diff-report loop, with no live
@@ -32,10 +53,19 @@ export async function runLoop(
   if (!stack.supported) {
     throw new Error(`loop needs the same local repo checkout enhance needs. ${stack.reason}`);
   }
+  // Same reason as runScanLocal below: Jekyll's build isn't an npm project,
+  // which ensureInstalled/buildSite assume, regardless of platform.
+  if (stack.framework === "jekyll") {
+    throw new Error(
+      `loop doesn't support Jekyll yet -- its build isn't an npm project. Detected platform=${stack.platform ?? "unknown"}.`
+    );
+  }
 
+  const localScanCaveat = localScanCaveatFor(stack.platform);
   const needsTunnel = scanners.some((s) => HOSTED_SCANNERS.includes(s));
 
   await ensureInstalled(resolved, { onProgress });
+  if (localScanCaveat) onProgress?.(`Note: ${localScanCaveat}`);
 
   onProgress?.("--- Baseline scan (before enhance) ---");
   await buildSite(resolved, { onProgress });
@@ -62,7 +92,7 @@ export async function runLoop(
 
   const diff = buildDiffReport(baseline, rescan);
 
-  return { stack, enhanceResult, baseline, baselineRaw, rescan, rescanRaw, diff };
+  return { stack, enhanceResult, baseline, baselineRaw, rescan, rescanRaw, diff, localScanCaveat };
 }
 
 /**
@@ -93,15 +123,17 @@ export async function runScanLocal(
     throw new Error(`scan-local needs a local server siteready can run, but no platform was detected for ${resolved}.`);
   }
 
+  const localScanCaveat = localScanCaveatFor(stack.platform);
   const needsTunnel = scanners.some((s) => HOSTED_SCANNERS.includes(s));
 
   await ensureInstalled(resolved, { onProgress });
+  if (localScanCaveat) onProgress?.(`Note: ${localScanCaveat}`);
   await buildSite(resolved, { onProgress });
 
   const target = await startScanTarget(resolved, { platform: stack.platform, distDir, port, needsTunnel, onProgress });
   try {
     const { report, rawByScanner } = await scanTarget(target.url, scanners, { sampling, siteType, onProgress });
-    return { stack, report, rawByScanner };
+    return { stack, report, rawByScanner, localScanCaveat };
   } finally {
     await target.stop();
   }

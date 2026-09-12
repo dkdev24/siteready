@@ -123,6 +123,19 @@ a fresh tunnel, up to `SITEREADY_TUNNEL_ATTEMPTS` (default 3). **If every attemp
 loop retries yourself — tell the user it's Cloudflare's Quick Tunnel infra being unreliable this
 time and suggest re-running, or scanning a deployed URL directly instead.
 
+**`scan-local`/`rescan-local`/`loop` trade completeness for not needing a deployment.** Pro: they
+work with no live URL at all, and — unlike a real deployed subfolder path (e.g. a GitHub Pages
+project site at `user.github.io/repo/`) — they serve from domain-root, sidestepping `is-agentic`/
+`ora`'s "could not fetch homepage" bug on subfolder URLs (see NEXT_ACTIONS.md #19, resolved).
+Con: for any platform other than Cloudflare Pages or Vercel (Netlify, GitLab Pages, generic static
+hosts), the local preview is a plain static-file server with no platform edge runtime — a fixer's
+platform-side fix (Netlify's markdown-negotiation Edge Function, say) never actually runs locally,
+so that check can read as failing here even right after `enhance` confirms it wrote the fix. The
+tool already surfaces this itself (a "Note:" line in its own output, and `report.localScanNote` in
+the written report) whenever it applies — relay that note to the user rather than reporting the
+local score as final. If the site is (or will be) deployed on one of those platforms, tell them a
+`scan`/`rescan` against the real public URL is what actually confirms the platform-side fix worked.
+
 ## What to tell the user afterward
 
 - After `scan`: point them at `report.md` (or just relay the scorecard — score, grade, top failing

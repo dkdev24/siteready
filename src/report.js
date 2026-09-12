@@ -40,6 +40,12 @@ export function renderMarkdown(report) {
   lines.push(`Generated: ${report.generatedAt}`);
   if (report.siteType && report.siteType !== "auto") lines.push(`Site type: ${report.siteType}`);
   lines.push("");
+  // Set by cli.js's scan-local/rescan-local/loop commands, never by `scan`/
+  // `rescan` against a public URL -- see loop.js's `localScanCaveatFor`.
+  if (report.localScanNote) {
+    lines.push(`> **Note:** ${report.localScanNote}`);
+    lines.push("");
+  }
 
   for (const [scannerName, s] of Object.entries(report.scanners)) {
     lines.push(`## Scanner: ${scannerName}`);

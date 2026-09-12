@@ -30,3 +30,19 @@ WORKLOG.md instead.
   against `ora` directly (the same engine, full ranker) does get the real
   fix. Left open because the underlying third-party volatility — and the
   is-agentic score-adjustment gap — aren't actually resolved.
+- **`scan-local`/`rescan-local`/`loop` can under-report a fixer's platform-side fixes.** Cloudflare
+  Pages and Vercel/Next.js run their real platform runtime locally (`wrangler pages dev`, `next
+  start`), so their Pages Functions/Edge Middleware are exercised the same as a real deploy. Every
+  other platform (Netlify, GitLab Pages, and any future generic fallback) falls back to a plain
+  `node:http` static-file server, which serves file content only — it never executes a platform's
+  edge runtime. Confirmed concretely for Netlify: `applyNetlifyFixes` writes a markdown-negotiation
+  Edge Function under `netlify/edge-functions/` that only Netlify's own deploy target runs, so the
+  `content-negotiation`/`markdown-negotiation-vary` check reads as failing in a local scan even
+  after `enhance`, and would only show as fixed against the real deployed URL. Structural, not a
+  bug — a generic static server has no way to run a platform's edge functions. Mitigated
+  2026-09-12: `src/loop.js`'s `localScanCaveatFor` surfaces this in `onProgress` output and as
+  `report.localScanNote` (rendered in report.md/json) whenever the detected platform isn't
+  Cloudflare Pages or Vercel, so it reads as a known local-scan gap rather than a failed fix. Not
+  resolved beyond that — there's no way to actually run Netlify's edge runtime locally short of a
+  real Netlify CLI dev server, which is out of scope (see "CLI/API/MCP over UI scraping" — same
+  principle: no bespoke per-platform tooling beyond what already exists).

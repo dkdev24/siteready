@@ -133,7 +133,12 @@ framework having no fixer yet degrades to "unsupported," never breaks the pipeli
   than platform: its build is Ruby/bundler, not `npm run build`, so `ensureInstalled`/`buildSite`
   don't apply regardless of which Pages host it targets — every other platform value
   `detect-stack.js` can return rides one of the two paths above automatically, with no allowlist
-  to keep extending.
+  to keep extending. The generic static-file fallback has a real ceiling: it serves file content
+  only, so a platform's edge runtime (Netlify's Edge Functions, for its markdown-negotiation fix)
+  never actually runs — a local scan reads that check as failing even after `enhance`, and only a
+  public scan against the real deployed URL shows it fixed. `loop.js`'s `localScanCaveatFor` names
+  this whenever the detected platform isn't in `local-server.js`'s `PLATFORMS_WITH_EDGE_RUNTIME`
+  (Cloudflare Pages, Vercel), surfaced in CLI output and as `report.localScanNote` — see ISSUES.md.
 - `lib/tunnel.js` extends that to the **hosted** scanners. `afdocs` fetches the scanned URL from
   this machine, so `localhost` is fine for it; `is-agentic` and `ora` run their own crawler on
   someone else's infrastructure and can never reach `localhost`. Requesting either from

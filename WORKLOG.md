@@ -1887,3 +1887,45 @@ Verified: `npm run lint` clean; `node src/cli.js loop <fixture>` end-to-end with
 three commands by hand); a second run with `--scanners is-agentic` opened two real Quick Tunnels
 back-to-back in one process, both reachable on attempt 1/3 (44/100 → 71/100, is-agentic); full
 `npm run verify-loop` (all three fixtures) green.
+
+Also caught (via `git show ab703e1^:src/loop.js`, the pre-removal version) that the original
+`runLoop` never had `runScanLocal`'s Jekyll guard — a latent bug predating removal, not something
+this restoration introduced, but easy to fix while already in this function: added the same
+`stack.framework === "jekyll"` check (Jekyll's build isn't an npm project, which
+`ensureInstalled`/`buildSite` assume) to `runLoop`.
+
+## 2026-09-12 — Documented the local-scan vs. deployed-URL score gap (no version bump)
+
+Daniel's framing: local scanning (`scan-local`/`rescan-local`/`loop`) has a real pro (works with no
+deployment, and — since it serves from domain-root — sidesteps #19's subfolder-URL scanner bug that
+a real subfolder-deployed site like GitHub Pages project sites would hit) and a real con (some
+fixer output needs actual deployment-platform behavior to verify, so local score can read lower than
+a public scan of the same fixed site). Asked for this to be surfaced in docs, the agent skill, and
+the tool's own output — not just known internally.
+
+Traced the con to a specific, confirmed mechanism rather than a vague caveat: `lib/local-server.js`
+only runs a platform's real edge runtime locally for Cloudflare Pages (`wrangler pages dev`) and
+Vercel (`next start`) — every other platform (Netlify, GitLab Pages, any future generic fallback)
+gets a plain `node:http` static-file server that serves file content only. Confirmed concretely for
+Netlify: `applyNetlifyFixes` (`src/platforms/netlify.js`) writes a markdown-negotiation Edge
+Function under `netlify/edge-functions/` that only Netlify's own deploy target executes — a local
+scan against a Netlify-detected repo can never see that fix applied, so `content-negotiation`/
+`markdown-negotiation-vary` reads as failing even right after `enhance` confirms it wrote the file.
+Verified directly: built a Netlify-platform copy of the `astro-cf-pages` fixture and ran
+`scan-local` against it — the new caveat fired, correctly.
+
+Shipped: `local-server.js` now exports `PLATFORMS_WITH_EDGE_RUNTIME` (`["cloudflare-pages",
+"vercel"]`, the single source of truth `startLocalServer`'s own dispatch already encoded). `loop.js`
+adds `localScanCaveatFor(platform)`, returning a caveat message for anything outside that list;
+`runScanLocal` and `runLoop` both emit it via `onProgress` and return it as `localScanCaveat`.
+`cli.js`'s `scan-local`/`rescan-local`/`loop` commands print it (`console.warn`) and attach it as
+`report.localScanNote`, which `report.js`'s `renderMarkdown` now renders as a blockquote note near
+the top of `report.md` (and it round-trips into `report.json` for free, since it's just a field on
+the report object) — never set by `scan`/`rescan` against a public URL. Documented the same
+mechanism in `docs/architecture.md`, `ISSUES.md` (new entry), and `SKILL.md` (a paragraph on when
+to relay this note to the user rather than reporting the local score as final).
+
+Verified: `npm run lint` clean; a real `scan-local` run against a Netlify-detected fixture showed
+the note in `onProgress` output, `report.md`, and `report.json`; the same run against Cloudflare
+Pages/Vercel fixtures (via `npm run verify-loop`, all three fixtures) showed no note, confirming the
+gate is platform-conditional and doesn't fire where it shouldn't.

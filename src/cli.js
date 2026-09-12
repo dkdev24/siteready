@@ -373,7 +373,7 @@ async function runLoopCommand(repoPath, args) {
   const outDir = args.out ?? outDirFor(repoPath, "-loop");
 
   console.log(`Running full loop on ${path.resolve(repoPath)} with: ${scanners.join(", ")}`);
-  const { stack, enhanceResult, baseline, baselineRaw, rescan, rescanRaw, diff } = await runLoop(repoPath, {
+  const { stack, enhanceResult, baseline, baselineRaw, rescan, rescanRaw, diff, localScanCaveat } = await runLoop(repoPath, {
     scanners,
     sampling: args.sampling ?? "deterministic",
     siteType: args.siteType,
@@ -393,12 +393,19 @@ async function runLoopCommand(repoPath, args) {
     for (const w of enhanceResult.warnings) console.log(`  ! ${w}`);
   }
 
+  if (localScanCaveat) {
+    baseline.localScanNote = localScanCaveat;
+    rescan.localScanNote = localScanCaveat;
+  }
   for (const [name, raw] of Object.entries(baselineRaw)) await writeRaw(path.join(outDir, "before"), name, raw);
   for (const [name, raw] of Object.entries(rescanRaw)) await writeRaw(path.join(outDir, "after"), name, raw);
   await writeReport(path.join(outDir, "before"), baseline);
   await writeReport(path.join(outDir, "after"), rescan);
   await writeDiffReport(outDir, diff);
 
+  if (localScanCaveat) {
+    console.warn(`\nNote: ${localScanCaveat}`);
+  }
   if (baseline.partial || rescan.partial) {
     console.warn(
       `\nWarning: partial scan — ${failedScannerNames(baseline.partial ? baseline : rescan)} failed and were excluded from scoring.`
@@ -430,7 +437,7 @@ async function runScanLocalCommand(repoPath, args) {
   const outDir = args.out ?? outDirFor(repoPath, "-local");
 
   console.log(`Scanning local build of ${path.resolve(repoPath)} with: ${scanners.join(", ")}`);
-  const { stack, report, rawByScanner } = await runScanLocal(repoPath, {
+  const { stack, report, rawByScanner, localScanCaveat } = await runScanLocal(repoPath, {
     scanners,
     sampling: args.sampling ?? "deterministic",
     siteType: args.siteType,
@@ -443,8 +450,12 @@ async function runScanLocalCommand(repoPath, args) {
   for (const [name, raw] of Object.entries(rawByScanner)) {
     await writeRaw(outDir, name, raw);
   }
+  if (localScanCaveat) report.localScanNote = localScanCaveat;
   await writeReport(outDir, report);
 
+  if (localScanCaveat) {
+    console.warn(`\nNote: ${localScanCaveat}`);
+  }
   if (report.partial) {
     console.warn(`\nWarning: partial scan — ${failedScannerNames(report)} failed and were excluded from scoring.`);
   }
@@ -468,7 +479,7 @@ async function runRescanLocalCommand(repoPath, args) {
   const siteType = args.siteType ?? baseline.siteType;
 
   console.log(`Re-scanning local build of ${path.resolve(repoPath)} with: ${scanners.join(", ")} (baseline: ${args.baseline})`);
-  const { stack, report, rawByScanner } = await runScanLocal(repoPath, {
+  const { stack, report, rawByScanner, localScanCaveat } = await runScanLocal(repoPath, {
     scanners,
     sampling: args.sampling ?? "deterministic",
     siteType,
@@ -481,11 +492,15 @@ async function runRescanLocalCommand(repoPath, args) {
   for (const [name, raw] of Object.entries(rawByScanner)) {
     await writeRaw(outDir, name, raw);
   }
+  if (localScanCaveat) report.localScanNote = localScanCaveat;
   await writeReport(outDir, report);
 
   const diff = buildDiffReport(baseline, report);
   await writeDiffReport(outDir, diff);
 
+  if (localScanCaveat) {
+    console.warn(`\nNote: ${localScanCaveat}`);
+  }
   if (report.partial) {
     console.warn(`\nWarning: partial re-scan — ${failedScannerNames(report)} failed and were excluded from scoring.`);
   }

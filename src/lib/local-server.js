@@ -126,16 +126,24 @@ async function waitForReady(url, { timeoutMs = 30_000, intervalMs = 500 } = {}) 
   );
 }
 
+// Cloudflare Pages (`wrangler pages dev`) and Vercel/Next.js (`next start`)
+// run the project's own platform runtime locally, including Pages
+// Functions/Edge Middleware — every other platform (Netlify, GitLab Pages,
+// ...) falls back to a generic static-file server that serves file content
+// only. A platform not in this list can't have its edge-function-dependent
+// fixes (e.g. Netlify's markdown-negotiation Edge Function) verified via
+// scan-local/rescan-local/loop — see loop.js's `localScanCaveatFor`.
+export const PLATFORMS_WITH_EDGE_RUNTIME = ["cloudflare-pages", "vercel"];
+
 /**
  * Starts a local preview server for a repo's build output and resolves once
- * it's accepting connections. Cloudflare Pages (`wrangler pages dev`) and
- * Vercel/Next.js (`next start` — this is also what runs Edge Middleware
- * locally, unlike a static export) get their own bespoke runner because
- * their platform runtime matters; every other platform (Netlify, GitLab
- * Pages, ...) falls back to a generic static-file server over `distDir`,
- * since serving a static directory needs no platform-specific tool or
- * account. This is what lets `scan-local`/`rescan-local` exercise a fixer
- * target with no live deployment.
+ * it's accepting connections. Cloudflare Pages and Vercel/Next.js
+ * (`PLATFORMS_WITH_EDGE_RUNTIME`) get their own bespoke runner because their
+ * platform runtime matters; every other platform falls back to a generic
+ * static-file server over `distDir`, since serving a static directory needs
+ * no platform-specific tool or account. This is what lets
+ * `scan-local`/`rescan-local` exercise a fixer target with no live
+ * deployment.
  */
 export async function startLocalServer(repoPath, { platform, distDir = "dist", port, onProgress } = {}) {
   if (!platform) {
@@ -145,7 +153,7 @@ export async function startLocalServer(repoPath, { platform, distDir = "dist", p
   const resolvedPort = port ?? (await getFreePort());
   const url = `http://localhost:${resolvedPort}`;
 
-  if (platform === "cloudflare-pages" || platform === "vercel") {
+  if (PLATFORMS_WITH_EDGE_RUNTIME.includes(platform)) {
     let child;
     if (platform === "cloudflare-pages") {
       onProgress?.(`Starting local Cloudflare Pages preview on ${url}...`);

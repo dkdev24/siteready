@@ -1734,3 +1734,87 @@ replaced with the `scan-local` → `enhance` → `rescan-local` three-step seque
 docs/, SKILL.md, AGENTS.md, CONTRIBUTING.md, and `scripts/verify-loop.js`). Minor bump (removes and
 adds CLI surface, no deprecation needed — no real users yet). Verified: `npm run verify-loop` green,
 `node scripts/check-syntax.js` clean. Committed, tagged, pushed, released on GitHub, published to npm.
+
+## 2026-09-12 — min-gap guard verified against a real is-agentic scan; DNS flap still recurring at 4min (no version bump)
+
+Set out to verify `tunnel.js`'s min-gap guard (v1.14.0) end to end against a real `is-agentic`
+invocation, using this repo's own Jekyll docs site as the local target — `scan-local` can't drive
+this itself (Jekyll is excluded from its npm-build assumption, see `loop.js`), so `docs/` was built
+directly: system Ruby was too old for current Jekyll (2.6.10, needs ≥2.7), Homebrew already had
+Ruby 3.4.4 installed, `gem install --user-install jekyll jekyll-sitemap jekyll-seo-tag
+jekyll-theme-hacker` against that Ruby plus a plain `jekyll build` produced a real `docs/_site`
+(now gitignored). Note: the local build has no `layout:` front matter and GitHub Pages' hosted
+build auto-applies one via a `jekyll-default-layout`-equivalent plugin that isn't present locally —
+so the local render is bare content, not a byte-match for the deployed site; fine for exercising the
+tunnel/guard mechanism, not a substitute for #19's fixer-parity question.
+
+Drove `startLocalServer` + `startTunnel` + `scanTarget(["is-agentic"])` directly (same calls
+`loop.js` makes) from a scratch script. Confirmed the guard mechanics precisely as designed:
+- State is written by `recordTunnelCreated()` right after the gap check passes, *before* the
+  attempt loop — so a tunnel creation that goes on to fail the DNS-flap check still counts against
+  the next gap. First real attempt (no prior state) failed on the known DNS-flap signature; an
+  immediate second call was correctly refused ("created 62s ago, under the 2min minimum gap")
+  with an accurate remaining-wait figure.
+- Waited out a real ~2min gap and a real ~4min gap (the exact spacing round one found 6/6 reliable)
+  and retried for real each time: **both also hit the identical DNS-flap failure** (`did not become
+  reachable within 30000ms`), for 3/3 real attempts today, none of which completed an actual
+  `is-agentic` scan.
+
+This doesn't call the guard's logic into question — it did exactly what it's documented to do — but
+it's a data point against the MIN_GAP_MS=2min threshold (already labeled "an honest known-bad-zone
+filter, not a proven-safe threshold") and against round one's 4min-is-reliable finding: today, 4min
+wasn't enough either. Possibly today's per-machine tunnel-creation history (many tunnels already
+spun up earlier in the day, across sessions) is degrading things beyond what spacing alone fixes;
+not isolated. Stopped after 3 real attempts rather than keep spending Cloudflare's per-IP tunnel
+quota chasing it (Daniel's standing call from round three: don't force this).
+
+Net: no code change. `docs/_site` removed from the working tree, `docs/_site/` added to
+`.gitignore` (was untracked). #19's subfolder-URL hypothesis untouched this session — needs its own
+tunnel budget once the network is behaving, see NEXT_ACTIONS.md #19.
+
+## 2026-09-12 — min-gap guard was solving the wrong problem; removed, reachability timeout raised instead (no version bump yet)
+
+Daniel ran 5 Quick Tunnels back-to-back (each well under 30s apart) by hand and verified every one
+reachable in a browser right after cloudflared's own "DNS ready" message — flatly contradicting the
+v1.14.0 min-gap guard's premise (that tunnels created close together fail) and this session's own
+"3/3 failed even at a real 4min gap" result immediately above. Investigated instead of trusting
+either result at face value.
+
+Root cause, measured directly: polled `dig @1.1.1.1` once a second right after cloudflared's
+"Registered tunnel connection" log line. One run took **19s** to resolve, then worked instantly.
+Reran the same probe minutes later on a fresh tunnel: resolved in **~5s**. This is per-hostname DNS
+propagation variance — each Quick Tunnel gets an independent random `*.trycloudflare.com` hostname
+with no shared DNS state with any previous tunnel, so there is no mechanism by which spacing *between
+tunnel creations* could affect any single hostname's own propagation delay. The two data points that
+originally justified `MIN_GAP_MS` (10s gap → 3/3 fail, 4min gap → 6/6 success, see "round three")
+were confounded: the 4min-gap test used "a single delayed probe," i.e. it also waited longer *after
+creation before checking* — which is the variable that actually matters, not the gap since the prior
+tunnel. Confirmed via reproduction with the exact pinned `cloudflared@0.7.3`-resolved binary and
+separately with Daniel's own Homebrew `cloudflared` (2026.9.1): both showed the same wide, erratic
+propagation-delay variance (some runs resolving in ~5-19s, some still unresolved past 60s), unrelated
+to inter-tunnel spacing.
+
+Fix in `src/lib/tunnel.js`: removed `MIN_GAP_MS`, the pre-creation gap-refusal check,
+`msSinceLastTunnelCreated()`, and the special-cased `reachabilityFlap` early-abort in the retry loop
+(that early-abort was itself built on the same wrong premise — "immediate retry doesn't help" was
+actually "immediate retry with the same undersized 30s timeout doesn't help"). Replaced
+`waitForReachable`'s 30s timeout with a dedicated `REACHABILITY_TIMEOUT_MS = 60_000`, based on the
+measured 19s data point plus margin. The retry loop now just retries with a fresh tunnel/fresh random
+hostname on any failure, uniformly — no special-casing. The separate, real per-IP creation rate limit
+(~20/hour, HTTP 429/1015) is untouched — `recordTunnelCreated()`/`recentTunnelCountForWarning()` stay,
+since that's a genuinely different, frequency-based phenomenon with real evidence behind it (round
+two), not the propagation-delay issue this session was actually chasing.
+
+Honest limit of this fix: Quick Tunnels remain Cloudflare's own explicitly-best-effort, no-SLA
+infrastructure — 60s is a better-informed budget, not a guarantee. A same-session re-verification
+attempt (3 attempts × 60s against the Jekyll docs target) still failed all 3, most likely because this
+session alone had created on the order of 15-20 real tunnels in under an hour by that point (this
+investigation's own reproduction loops included) — plausibly into the same real per-IP rate-limit
+territory `recentTunnelCountForWarning` already warns about, which degrades routing/propagation
+before it hard-rejects with a 429. Not conflated with the fix above: that's a volume/quota effect on
+a busy testing session, not evidence the min-gap removal or the raised timeout is wrong.
+
+Verified: `node scripts/check-syntax.js` clean, `npm run verify-loop` green (afdocs-only path,
+doesn't exercise tunnel.js, but confirms no regression elsewhere). `SKILL.md`'s tunnel-failure
+guidance updated to match (no more "2-minute minimum gap" instruction to relay to users). Not
+committed yet — working tree has the change, pending review.

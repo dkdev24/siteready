@@ -158,11 +158,33 @@ append-only, unlike WORKLOG.md).
     Shipped as v1.14.0 — committed, tagged, pushed, released on GitHub,
     published to npm.
 
-    Next session: verify the min-gap guard against a real successful
-    `is-agentic` scan (needs Cloudflare's per-IP rate limit to cool down
-    first, given how many tunnels this session created), then revisit #19's
-    actual subfolder-URL hypothesis, which is still neither confirmed nor
-    ruled out.
+    2026-09-12: first verification pass found 3/3 real tunnel attempts still
+    hit the DNS-flap failure (including at a real ~4min gap) — see
+    WORKLOG.md "min-gap guard verified against a real is-agentic scan".
+
+    2026-09-12, later same day: **the whole min-gap premise above was wrong.**
+    Daniel ran 5 tunnels back-to-back (<30s apart) and all were reachable
+    immediately — direct contradiction. Measured the real cause: per-hostname
+    DNS propagation delay is just erratic (5s one run, 19s another, >60s
+    another), and since every Quick Tunnel gets an independent random
+    hostname with no shared DNS state, spacing between *creations* can't
+    possibly affect any single hostname's own propagation time. The "10s
+    fails / 4min works" data from round three was confounded by probe-delay-
+    after-creation, not gap-since-last-tunnel. Removed `MIN_GAP_MS` and the
+    gap-refusal check entirely; raised `waitForReachable`'s timeout
+    30s → 60s (`REACHABILITY_TIMEOUT_MS`); removed the now-invalid
+    `reachabilityFlap` early-abort in the retry loop. See WORKLOG.md "min-gap
+    guard was solving the wrong problem" for full detail. Not committed yet.
+
+    Still true: Quick Tunnel is Cloudflare's own best-effort/no-SLA
+    infrastructure — the fix gives a better-informed timeout, not a
+    guarantee. A same-session re-verification still failed 3/3, plausibly
+    because this investigation alone had already created ~15-20 real tunnels
+    within the hour (a volume/quota effect, not a flaw in the fix).
+
+    Next session: get one real completed `is-agentic` scan with a cooled-off
+    quota to close this out, then revisit #19's actual subfolder-URL
+    hypothesis, which is still neither confirmed nor ruled out.
 
 ---
 

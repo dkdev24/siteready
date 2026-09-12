@@ -110,14 +110,14 @@ Read every command's own output before deciding what to do next — `enhance` pr
 wrote, skipped (already present, won't overwrite), or warned about, and exits without touching git.
 `scan-local`/`rescan-local` default to afdocs; adding `--scanners is-agentic,ora` works too, but
 each scan then routes through an ephemeral Cloudflare Quick Tunnel (those scanners crawl from their
-own infrastructure and can't reach `localhost`), which adds ~20-40s per scan and can fail outright
-on a bad network. A non-reachability failure (e.g. `cloudflared` itself exiting) is retried with a
-fresh tunnel automatically; a DNS-propagation failure is not retried in-process (evidence shows an
-immediate retry doesn't recover from it) and the command fails immediately with a clear message.
-**If `rescan-local` fails because a tunnel was opened too recently** (its own error names how long
-to wait — a persisted 2-minute minimum gap since the last tunnel, whether from this command or a
-preceding `scan-local`), don't retry immediately: tell the user the wait time from the error and
-either wait it out or re-run once that gap has passed. Never script around it by looping retries.
+own infrastructure and can't reach `localhost`), which adds up to ~60-90s per scan and can fail
+outright on a bad network. Quick Tunnels are anonymous, best-effort, and each gets its own random
+hostname with its own independent DNS-propagation delay — sometimes a few seconds, sometimes over a
+minute, with no relationship to how recently another tunnel was created. A failed attempt (whether
+`cloudflared` exiting or the hostname not becoming reachable in time) is retried automatically with
+a fresh tunnel, up to `SITEREADY_TUNNEL_ATTEMPTS` (default 3). **If every attempt fails**, don't
+loop retries yourself — tell the user it's Cloudflare's Quick Tunnel infra being unreliable this
+time and suggest re-running, or scanning a deployed URL directly instead.
 
 ## What to tell the user afterward
 

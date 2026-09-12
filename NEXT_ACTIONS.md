@@ -82,7 +82,34 @@ append-only, unlike WORKLOG.md).
     `{% seo %}` is confirmed rendering JSON-LD/canonical/og:type in the raw
     HTML). Scanner-side issue, folds into #2's "need a genuinely fixer-naive
     site" theme — worth a minimal repro (single flag, single UA) next time
-    #2 is picked up, not investigated further this session.
+    #2 is picked up.
+
+    2026-09-12: retried the subfolder-proxy test this depends on (proxy
+    `dkdev24.github.io/siteready/*` to local domain-root, tunnel it, scan the
+    tunnel URL) — still blocked, Quick Tunnel reachability is genuinely
+    unreliable, not yesterday's bad luck. Traced further than "flaky infra":
+    raced `curl` against Node's `fetch()` against the same freshly-minted
+    hostname (rules out `tunnel.js`'s `waitForReachable` client as the cause —
+    both agree, always); then raced the local resolver against Cloudflare's
+    own 1.1.1.1 and Google's 8.8.8.8 for that same hostname (rules out local
+    network/resolver — the *public* resolvers themselves disagree
+    query-to-query for 15+ seconds, i.e. Cloudflare's own anycast answer for a
+    brand-new `*.trycloudflare.com` record flaps at the source). Separately
+    discovered Quick Tunnel *creation* is rate-limited per source IP (HTTP 429,
+    Cloudflare error 1015) after ~20 tunnels spun up within an hour — a
+    distinct failure mode from the DNS flap (fails before a hostname is even
+    issued).
+
+    Open, unresolved: whether a human-realistic delay before the first check
+    (vs. `tunnel.js`'s ~300ms-after-URL-appears poll) reliably dodges the flap.
+    Mixed evidence — one resolver trace stabilized to consistent success by
+    ~4s, but a separate batch of 5 scripted checks that each waited 6s before
+    the first probe still got `ENOTFOUND` for the whole test window on every
+    single trial. Next session: a clean test of single delayed checks (5-8s
+    wait, one probe, repeat across several separately-created tunnels with
+    real gaps between them to stay clear of the rate limit) to see if delay
+    alone explains it or if some fraction of hostnames just never propagate
+    in a usable window regardless of wait.
 
 ---
 

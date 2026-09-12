@@ -1535,3 +1535,63 @@ than attempting an npm build. `npm run verify-loop` still green on both existing
 Remaining toward the goal: NEXT_ACTIONS.md #23 (additional static-site-generator framework
 fixers), #24 (document the no-account boundary as an explicit acceptance test in
 CONTRIBUTING.md).
+
+---
+
+## 2026-09-12 — Quick Tunnel reliability, round two (no version bump)
+
+Follow-up to the 2026-09-11 Quick Tunnel investigation for #19 (17/17 failures, written off as
+transient). Daniel asked to retest whether that was a one-day outage or a real problem.
+
+First check: a bare `cloudflared tunnel --url` against a throwaway local server worked cleanly —
+DNS resolved immediately, `curl` got 200 on the first try. Looked like yesterday's failure really
+was transient.
+
+Then re-ran the actual #19 investigation (subfolder-proxy: serve `dkdev24.github.io/siteready/*`
+at local domain-root via a small `node:http` proxy, tunnel it, scan the tunnel URL to test whether
+is-agentic's "could not fetch homepage" is a subfolder-URL problem) — and it failed again, 3/3 then
+8/8 via `tunnel.js`'s own retry logic (`SITEREADY_TUNNEL_ATTEMPTS=8`). Same failure shape as
+yesterday: `waitForReachable` (`src/lib/tunnel.js:149`) times out, `fetch` throwing `ENOTFOUND` for
+the freshly-minted `*.trycloudflare.com` hostname.
+
+Daniel noticed a real pattern worth chasing: every *manual* check (a bare `cloudflared` + one curl
+or browser hit) succeeded; every *scripted* multi-attempt run failed outright. Investigated rather
+than dismissing it as coincidence:
+
+- Raced `curl` against Node's `fetch()` against the identical URL at the identical moments (5 fresh
+  tunnels × 10 paired checks). Zero divergence — both always failed together (`ENOTFOUND`) or
+  succeeded together. Rules out `tunnel.js`'s choice of client as the cause.
+- Raced the local (ISP) resolver against Cloudflare's own 1.1.1.1 and Google's 8.8.8.8 for the same
+  freshly-minted hostname, polling every ~0.7s for 15s. The *public* resolvers flapped
+  query-to-query for the whole window (resolved, then empty, then resolved again) — meaning
+  Cloudflare's own anycast network disagrees with itself about whether a brand-new
+  `*.trycloudflare.com` record exists yet. Rules out the local network/resolver/machine as the
+  cause. This reframes the mechanism from "our polling is flaky" to "the record's global
+  propagation is itself non-deterministic per query," which is consistent with — but sharper than —
+  yesterday's "DNS propagation unreliable" conclusion.
+- Checked whether `cloudflared`'s own "CONNECTIVITY PRE-CHECKS: Environment is healthy" banner (and
+  its per-component "DNS Resolution: PASS" lines) could serve as a "wait for this, then it's safe"
+  signal, per Daniel's suggestion. It can't: those DNS checks target Cloudflare's *internal*
+  `region1/region2.v2.argotunnel.com` control-plane hostnames, not the tunnel's public
+  `*.trycloudflare.com` URL. Confirmed directly — grepped this session's own captured `cloudflared`
+  logs from the failed 5/5 batch above, and every single one shows a clean "Environment is healthy"
+  precheck despite the public hostname never resolving. There is no `cloudflared`-emitted signal
+  that the public URL is ready; `waitForReachable`'s own HTTP probe is the only real check.
+- Separately hit Cloudflare's Quick Tunnel creation rate limit (HTTP 429, error 1015) after
+  spinning up roughly 20 tunnels within about an hour across this session's retries plus Daniel's
+  manual runs. A distinct failure mode from the DNS flap — it fails before a hostname is even
+  issued. Not a bug, expected anti-abuse throttling; the fix is just to slow down and wait it out.
+
+Daniel's counter-observation after the rate limit cleared: every time he manually watched for the
+"tunnel created" banner and then opened the URL in a browser, it worked — never once failed. Not
+fully reconciled by session end. Partial explanation: a human's natural delay between reading the
+banner and acting lands past the flappiest part of the window (one resolver trace in this session
+stabilized to consistent success by ~4s after the URL appeared). But that doesn't fully hold up
+either — a separate batch of 5 scripted trials that each waited 6s before their first check still
+got `ENOTFOUND` for the *entire* remaining test window on all 5, which a pure "propagation settles
+by ~4-6s" model doesn't predict. Left as an open question rather than forcing a conclusion.
+
+No code changed. #19's subfolder-URL hypothesis is still neither confirmed nor ruled out — blocked
+on Quick Tunnel reachability a second time. NEXT_ACTIONS.md #19 updated with the full trace and the
+concrete next test (single delayed check, repeated across several separately-created tunnels with
+real gaps, to isolate "delay helps" from "some hostnames just never propagate in time").

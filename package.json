@@ -1,8 +1,8 @@
 {
   "name": "siteready",
-  "version": "1.13.0",
+  "version": "1.14.0",
   "type": "module",
-  "description": "Scan a website with agent-readiness scanners (afdocs, Vercel Is Agentic, Ora), get a unified scorecard, auto-fix supported issues (Astro + Starlight, or plain Astro, + Cloudflare Pages, Netlify, or GitLab Pages; Next.js + Vercel or Netlify; Jekyll + GitHub Pages or GitLab Pages), then re-scan and diff against the baseline -- fully local, no live deployment required to verify the loop.",
+  "description": "Scan a website with agent-readiness scanners (afdocs, Vercel Is Agentic, Ora), get a unified scorecard, auto-fix supported issues (Astro + Starlight, or plain Astro, + Cloudflare Pages, Netlify, or GitLab Pages; Next.js + Vercel or Netlify; Jekyll + GitHub Pages or GitLab Pages), then re-scan and diff against the baseline -- fully local, no live deployment required to verify the fix.",
   "license": "MIT",
   "keywords": [
     "agent-readiness",
@@ -41,7 +41,6 @@
     "enhance": "node src/cli.js enhance",
     "rescan": "node src/cli.js rescan",
     "diff-report": "node src/cli.js diff-report",
-    "loop": "node src/cli.js loop",
     "lint": "node scripts/check-syntax.js && node scripts/check-middleware-dedup.js",
     "verify-loop": "node scripts/verify-loop.js",
     "check-scanner-versions": "node scripts/check-scanner-versions.js"

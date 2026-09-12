@@ -23,11 +23,13 @@ siteready rescan https://example.com --baseline ./out/example.com-.../report.jso
 # diff two already-written reports directly
 siteready diff-report ./out/before/report.json ./out/after/report.json
 
-# full local loop: scan -> enhance -> rescan -> diff-report, no deployment, no manual steps
-siteready loop ../my-astro-starlight-site
-
 # one local scan against a repo checkout, no public URL — for a site not deployed yet
 siteready scan-local ../my-astro-starlight-site
+
+# local re-scan + diff vs a baseline report, against a repo checkout — run after enhance,
+# as a separate step (not scripted back-to-back with scan-local) so a real gap falls between
+# their two Cloudflare Quick Tunnels if hosted scanners are in use
+siteready rescan-local ../my-astro-starlight-site --baseline ./out/my-astro-starlight-site-local-.../report.json
 
 # scan multiple sites and render them side by side
 siteready compare https://example.com https://a-competitor.com
@@ -52,7 +54,7 @@ Default location: `./out/<hostname-or-dir>-<timestamp>/`
 | `report.md` | Human-readable scorecard per scanner — overall score, category breakdown, failing/warning checks with fix hints |
 | `report.json` | Normalized, machine-readable version of the same data |
 | `raw/is-agentic.json`, `raw/afdocs.json`, `raw/ora.json` | Unmodified scanner output, for debugging |
-| `diff-report.md` / `diff-report.json` | From `rescan`, `diff-report`, or `loop` — before/after score deltas plus per-check Fixed / Regressed / Still-failing breakdowns |
+| `diff-report.md` / `diff-report.json` | From `rescan`, `rescan-local`, or `diff-report` — before/after score deltas plus per-check Fixed / Regressed / Still-failing breakdowns |
 | `compare-report.md` / `compare-report.json` | From `compare` — every target's score side by side per scanner, plus each site's own full report under `<out>/<hostname>/` |
 | `monitor-report.md` / `monitor-report.json` | From `monitor` — a score-over-time table across every past scan for a hostname, plus regressions flagged between consecutive scans |
 

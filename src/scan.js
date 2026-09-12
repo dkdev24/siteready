@@ -16,8 +16,9 @@ export const DEFAULT_SCANNERS = ["is-agentic", "afdocs"];
 /**
  * Runs the given scanners against a target and returns a normalized report,
  * plus each scanner's raw output keyed by name. Shared by the `scan` and
- * `rescan` CLI paths (and by `loop`, v0.4) so re-scanning a target after
- * `enhance` uses exactly the same logic as the original baseline scan.
+ * `rescan` CLI paths (and by `scan-local`/`rescan-local`) so re-scanning a
+ * target after `enhance` uses exactly the same logic as the original
+ * baseline scan.
  */
 export async function scanTarget(target, scannerNames, { sampling = "deterministic", siteType, onProgress } = {}) {
   const unsupported = scannerNames.filter((s) => !SUPPORTED_SCANNERS.includes(s));

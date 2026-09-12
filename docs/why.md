@@ -8,7 +8,7 @@ title: Why siteready
 
 Every scanner here already returns a `fix`/`recommendation` string on each failing check, so an
 agent with repo access could, in principle, call `afdocs`/`is-agentic`/Ora directly and act on that
-text itself, no siteready in the loop. Worth asking honestly where that leaves this tool, because
+text itself, with no siteready involved. Worth asking honestly where that leaves this tool, because
 the answer isn't the same for every layer of it.
 
 **The scan/report layer is genuinely weaker in an agent-native world.** Normalizing three scanners'
@@ -31,11 +31,13 @@ improvising a fix from a scanner's one-sentence suggestion has to rediscover eve
 hard way, against a real site, in production. siteready's fixers are that already-paid-for cost,
 applied idempotently (skip what already exists, never overwrite) and verified cross-platform in CI.
 
-**The loop is the other asset an ad hoc fix session doesn't have.** `scan → enhance → rescan →
-diff-report` proves a fix worked locally, before anything ships, with no live deployment needed
-(`fixtures/*/README.md` reproduce real before/after numbers this way). An agent applying
-suggestions by hand has no equivalent. It has to deploy live and diff two scans itself, and it
-won't know about `is-agentic`'s caching trap above unless it's already been burned by it once.
+**The scan → enhance → rescan → diff-report cycle is the other asset an ad hoc fix session doesn't
+have.** It proves a fix worked locally, before anything ships, with no live deployment needed
+(`fixtures/*/README.md` reproduce real before/after numbers this way; `scan-local`/`rescan-local`
+run each step separately, so a real gap — e.g. reviewing the report — falls between them rather than
+forcing the whole cycle through in one automated shot). An agent applying suggestions by hand has no
+equivalent. It has to deploy live and diff two scans itself, and it won't know about `is-agentic`'s
+caching trap above unless it's already been burned by it once.
 
 **This argument fully favors "just use an agent directly" outside the framework/platform combos a
 fixer covers.** Today that's Astro (with or without Starlight) on Cloudflare Pages, Netlify, or

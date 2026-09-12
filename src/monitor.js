@@ -27,7 +27,7 @@ export async function collectHistory(outRoot, target) {
       const report = await loadReport(path.join(outRoot, entry.name, "report.json"));
       if (hostnameFor(report.target) === hostname) reports.push(report);
     } catch {
-      // not a scan report directory (e.g. a compare/monitor/loop output) — skip
+      // not a scan report directory (e.g. a compare/monitor output) — skip
     }
   }
 

@@ -1,15 +1,18 @@
 #!/usr/bin/env node
 // Strips each reference fixture back to its pre-fixer state in a temp copy,
-// runs the full local `loop` against it, and asserts the fixer produced a
-// real, verifiable improvement. This is the "does the release loop actually
-// work" check — syntax-checking (scripts/check-syntax.js) only proves the
-// code parses.
+// runs a local scan-local -> enhance -> rescan-local cycle against it, and
+// asserts the fixer produced a real, verifiable improvement. This is the
+// "does the release loop actually work" check — syntax-checking
+// (scripts/check-syntax.js) only proves the code parses. Uses afdocs only,
+// so no Cloudflare Quick Tunnel is ever involved here.
 import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { runLoop } from "../src/loop.js";
+import { runScanLocal } from "../src/loop.js";
+import { enhance } from "../src/enhance.js";
+import { buildDiffReport } from "../src/diff-report.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -149,12 +152,12 @@ async function runFixture(fixture) {
     await cp(fixture.dir, target, { recursive: true });
     await fixture.strip(target);
 
-    console.log(`\n=== ${fixture.name}: running loop against stripped fixture copy at ${target} ===`);
-    const { baseline, rescan, enhanceResult } = await runLoop(target, {
-      scanners: ["afdocs"],
-      sampling: "deterministic",
-      onProgress: (msg) => console.log(msg),
-    });
+    console.log(`\n=== ${fixture.name}: running scan-local -> enhance -> rescan-local against stripped fixture copy at ${target} ===`);
+    const scanOpts = { scanners: ["afdocs"], sampling: "deterministic", onProgress: (msg) => console.log(msg) };
+    const { report: baseline } = await runScanLocal(target, scanOpts);
+    const enhanceResult = await enhance(target);
+    const { report: rescan } = await runScanLocal(target, scanOpts);
+    buildDiffReport(baseline, rescan); // exercised here too, same as a real rescan-local run
 
     await fixture.verify({ baseline, rescan, enhanceResult });
     console.log(`OK: ${fixture.name} verified.`);
@@ -167,7 +170,7 @@ async function main() {
   for (const fixture of FIXTURES) {
     await runFixture(fixture);
   }
-  console.log("\nOK: loop verified for all fixtures — enhance produces real, verifiable improvements.");
+  console.log("\nOK: scan-local -> enhance -> rescan-local verified for all fixtures — enhance produces real, verifiable improvements.");
 }
 
 main().catch((err) => {

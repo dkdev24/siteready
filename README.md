@@ -14,8 +14,8 @@ anything.
 siteready doesn't just advise. It ships the fix and proves it worked. Scores come from the
 standards' own scanners ([afdocs](https://agentdocsspec.com/), [Is Agentic](https://is-agentic.com/)
 / [Ora](https://ora.ai/)), not from a model grading itself. Fixes are real code, applied
-idempotently and verified cross-platform in CI. The local loop shows you the before/after diff
-before anything deploys.
+idempotently and verified cross-platform in CI. A local scan-local → enhance → rescan-local cycle
+shows you the before/after diff before anything deploys.
 
 ## What this is: a tool, not a skill
 
@@ -71,13 +71,13 @@ fixers are smaller in scope than the Starlight one): **[docs/install](https://dk
 ## Why use this, instead of pointing an agent at the scanners directly?
 
 Every scanner here already returns a `fix`/`recommendation` string on each failing check, so an
-agent with repo access could in principle act on that text directly, no siteready in the loop. The
+agent with repo access could in principle act on that text directly, with no siteready involved. The
 scan/report layer really is a convenience an agent doesn't strictly need. But the **fixers** are
 the real value: turning a scanner's one-line suggestion into idempotent, cross-platform-verified
-code is where the actual difficulty lives. And the **loop** (`scan → enhance → rescan →
-diff-report`) proves a fix worked before anything deploys, which no ad hoc agent fix session gets
-for free. The honest limit is real too: outside the framework/platform combos a fixer covers (see
-the Fixer row above), siteready is just a nicer wrapper around scanner output.
+code is where the actual difficulty lives. And a **scan → enhance → rescan → diff-report** cycle
+proves a fix worked before anything deploys, which no ad hoc agent fix session gets for free. The
+honest limit is real too: outside the framework/platform combos a fixer covers (see the Fixer row
+above), siteready is just a nicer wrapper around scanner output.
 
 This is also a different question than GEO ("Generative Engine Optimization") skill packs answer.
 Those are prompt-driven advisors for AI *visibility* (will an LLM mention me). siteready is a build
@@ -92,8 +92,8 @@ Full comparison, with the specific bugs/edge-cases that make hand-rolled fixes f
 ```bash
 siteready https://example.com                       # scan + report
 siteready enhance ../my-astro-starlight-site         # apply fixes to a local checkout
-siteready loop ../my-astro-starlight-site            # scan -> enhance -> rescan -> diff-report
 siteready scan-local ../my-astro-starlight-site       # one local scan, no public URL (pre-deploy)
+siteready rescan-local ../my-astro-starlight-site --baseline ./out/.../report.json   # local re-scan + diff
 siteready compare https://example.com https://a-competitor.com
 siteready monitor https://example.com                # score-over-time from past scans
 siteready install-skill claude codex opencode         # install SKILL.md for these agents
@@ -108,20 +108,20 @@ formats, and how `enhance` finds/writes fixes: **[docs/cli-reference](https://dk
 ```
 siteready/
 ├── src/
-│   ├── cli.js              # entry point: scan / enhance / rescan / diff-report / loop / scan-local
+│   ├── cli.js              # entry point: scan / enhance / rescan / diff-report / scan-local / rescan-local
 │   ├── scan.js              # runs configured scanner adapters -> normalized report (shared by scan & rescan)
 │   ├── report.js            # normalized report -> report.md / report.json
 │   ├── diff-report.js       # baseline vs re-scan -> diff-report.md / diff-report.json
 │   ├── detect-stack.js      # framework/host fingerprinting from the LOCAL repo (package.json, config files)
 │   ├── enhance.js           # detects stack, applies the matching fixer + platform module
 │   ├── pr.js                # opt-in enhance --pr flow (branch, commit, push, gh pr create)
-│   ├── loop.js               # local scan -> enhance -> rescan -> diff-report orchestration, + scan-local (baseline-only)
+│   ├── loop.js               # local baseline scan orchestration (`scan-local`/`rescan-local`), no live deployment
 │   ├── scanners/            # pluggable scanner adapters — export run*Scan(url, options) -> { normalized, raw }
 │   ├── fixers/               # pluggable, framework-scoped remediation
 │   ├── platforms/            # deployment-target adapters (negotiation/headers)
 │   └── lib/
 │       ├── npx-runner.js     # cross-platform npx invocation (see docs/architecture)
-│       └── local-server.js   # build + serve a repo locally for `loop`/`scan-local` (no live deployment)
+│       └── local-server.js   # build + serve a repo locally for `scan-local`/`rescan-local` (no live deployment)
 └── fixtures/
     ├── astro-starlight-cf-pages/   # reference fixture the Astro+Starlight fixer is verified against
     ├── astro-cf-pages/             # reference fixture the plain-Astro fixer is verified against

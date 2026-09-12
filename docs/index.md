@@ -15,8 +15,8 @@ none of them auto-fix anything.
 
 siteready doesn't just advise. It ships the fix and proves it worked. Scores come from the
 standards' own scanners, not from a model grading itself. Fixes are real code, applied
-idempotently and verified cross-platform in CI. The local loop shows you the before/after diff
-before anything deploys.
+idempotently and verified cross-platform in CI. A local scan-local → enhance → rescan-local cycle
+shows you the before/after diff before anything deploys.
 
 **Real numbers:** the Astro+Starlight+Cloudflare-Pages fixer takes a fresh Starlight site from
 **0/100 (F) → 97/100 (A)** on afdocs, fully reproducible with no deployment required.

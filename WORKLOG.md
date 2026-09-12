@@ -1595,3 +1595,142 @@ No code changed. #19's subfolder-URL hypothesis is still neither confirmed nor r
 on Quick Tunnel reachability a second time. NEXT_ACTIONS.md #19 updated with the full trace and the
 concrete next test (single delayed check, repeated across several separately-created tunnels with
 real gaps, to isolate "delay helps" from "some hostnames just never propagate in time").
+
+## 2026-09-12 — Quick Tunnel reliability, round three: delay + real gaps (no version bump)
+
+Ran the exact test this session's earlier entry proposed: 6 separately-created Quick Tunnels, each
+spaced 4 minutes apart (to stay clear of the ~20/hour creation rate limit), each doing exactly ONE
+probe 7s after its URL was printed — no polling, no retry loop, just the single delayed check.
+Script: scratchpad `tunnel-delay-test.mjs` (throwaway, not committed).
+
+Result: **6/6 succeeded**, first-try 200s, probe latency 839-997ms each.
+
+This isolates the variable the previous entry's "5 scripted checks, all failed" batch left
+confounded: that batch's 5 tunnels were created back-to-back with no real gap between them. This
+batch's 6 tunnels, spaced 4 minutes apart, all worked with a plain fixed delay. So "delay before
+first check" was never the missing piece — **spacing between tunnel *creations*** is. Rapid
+back-to-back tunnel creation (whether or not it crosses the hard 429 rate limit) appears to degrade
+DNS propagation reliability for the hostnames issued during that burst; tunnels created with real
+gaps between them propagate cleanly and quickly.
+
+Practical implication for `tunnel.js`: its retry loop (`DEFAULT_ATTEMPTS = 3`) already creates
+fresh tunnels back-to-back on failure — which, per this finding, is close to the worst-case pattern
+for propagation reliability, not a neutral retry. A next-session candidate: space retry attempts
+apart (a cooldown between a failed attempt's teardown and the next `startTunnelOnce`) rather than
+firing the next one immediately. Not implemented this session — this run was 6/6 clean and doesn't
+by itself prove the fix, it only explains why the earlier back-to-back batch failed outright. Filed
+as NEXT_ACTIONS.md #19 follow-up rather than shipped speculatively.
+
+## 2026-09-12 — Quick Tunnel retry cooldown didn't hold up; min-gap guard + rescan-local instead (no version bump yet)
+
+Followed up on round three's candidate fix: added a 10s `RETRY_COOLDOWN_MS` between `tunnel.js`
+retry attempts, then re-ran the actual #19 subfolder-proxy scan to verify. It failed 3/3 attempts
+again, same `ENOTFOUND`-shaped `fetch failed` — 10s clearly isn't a real gap compared to the 4min
+spacing that gave 6/6 in round three. Only two real data points exist (10s: fails, 4min: works),
+with nothing in between tested.
+
+Asked Daniel how to proceed rather than guess at a magic cooldown number. His answer reframed the
+fix at the right altitude: `loop`'s baseline-scan-then-re-scan is the actual back-to-back pattern
+that matters (two `startTunnel` calls seconds apart within one process), and it shouldn't be forced
+through automatically — the loop needs a real gap (e.g. a human reviewing the report and the
+enhancer's diff) between the two tunnels, which means running the steps as separate commands rather
+than one single-shot `loop` invocation. He also asked for a specific, clear error when tunnels are
+created too close together, instead of the generic multi-attempt `ENOTFOUND` cascade.
+
+Shipped:
+- `src/lib/tunnel.js`: replaced the (now-disproven) inter-attempt cooldown with a persisted
+  min-gap guard. Last tunnel creation time is written to a small state file in `os.tmpdir()`
+  (`siteready-tunnel-state.json`) so the check works across separate CLI invocations, not just
+  within one process. `startTunnel()` now refuses to open a new tunnel — with a specific, actionable
+  error naming how long to wait — if the last one was created under `MIN_GAP_MS` (2 minutes) ago,
+  whether that prior tunnel came from this run or an earlier `siteready` command. Verified: two
+  back-to-back `startTunnel()` calls against an unroutable port — the second is rejected in ~1ms by
+  the guard, not by another real network attempt.
+- `src/loop.js`: `runLoop` now prints a warning up front when a hosted scanner needs a tunnel,
+  naming the back-to-back risk and pointing at the split-command alternative below.
+- New `rescan-local` CLI command (`src/cli.js`), scan-local's counterpart to `rescan` — re-runs a
+  baseline report's scanners against a fresh local build and writes a diff report, needing only one
+  Quick Tunnel. Lets the reliable workflow for hosted scanners actually exist: `scan-local` →
+  `enhance` → (human reviews) → `rescan-local`, each a separate command with a natural gap between
+  the two tunnel-needing steps, instead of `loop`'s forced single-shot back-to-back pair. Also covers
+  Daniel's other named case: an initial scan against an already-public URL needs no tunnel at all
+  (`afdocs`/`is-agentic`/`ora` all reach a public URL directly), so only the local `rescan-local`
+  step ever needs one.
+- Help text (`siteready -h`) updated for both the new command and the `loop`/tunnel spacing caveat.
+
+Verified: `npm run verify-loop` green (no regression — the fixtures don't use hosted scanners, so
+the tunnel path isn't exercised there); `rescan-local` run manually against `fixtures/astro-cf-pages`
+end-to-end (scan-local baseline → rescan-local → diff-report, correct 0→0 delta). The min-gap guard
+itself is unit-verified as above; not re-verified against a real successful `is-agentic` scan this
+session (would need to wait out Cloudflare's per-IP rate limit after this session's tunnel-heavy
+testing) — that's the natural next-session check once #19's subfolder hypothesis is revisited.
+
+Daniel then asked how confident we actually are in `MIN_GAP_MS = 2min` (only tested points are 10s-fails
+and 4min-works, nothing between) and what the guard does as usage approaches the ~20/hour rate limit.
+Answer: we can't be fully sure either — Cloudflare publishes no SLA for Quick Tunnel DNS propagation or
+the exact creation-rate limit, both are empirically observed on our own network path only. Reframed the
+guard's role accordingly rather than pretending 2min is proven: it's a known-bad-zone filter (below it,
+direct evidence of failure), not a guarantee above it — `waitForReachable` still does the real check every
+time, so an insufficient gap still surfaces as an honest failure, never a false success.
+
+While reasoning through this, found and fixed a real inconsistency: the retry loop's attempts 2/3 were
+firing back-to-back with *zero* gap whenever the failure was the reachability-timeout kind — worse than
+the 10s cooldown already shown to fail 3/3. Tagged that specific failure (`err.reachabilityFlap`) in
+`waitForReachable` and made the retry loop abort immediately on it instead of burning attempts into a
+pattern we already have direct evidence doesn't recover. Also added a lightweight rolling tunnel-count
+tracker (same `os.tmpdir()` state file) that warns — doesn't block, since the real threshold is unknown —
+once 15+ tunnels have been created in the trailing hour, so a 429 reads as an expected warning rather than
+a surprise.
+
+Offered Daniel a real bisection study (test several intermediate gap durations with enough trials each to
+get a measured success-rate curve) to replace the 2min guess with data. Declined — ship the current
+honest-uncertainty guard as-is; Quick Tunnel's explicit best-effort/no-SLA nature makes chasing tighter
+precision low value. Verified: back-to-back `startTunnel()` calls against an unroutable port still
+correctly abort attempt 1 immediately on the flap tag (no wasted attempts 2/3) and the second call is
+still rejected by the gap guard; `npm run verify-loop` green.
+
+Not committed/tagged/published this session — working tree has the changes, pending review.
+
+## 2026-09-12 — Removed the `loop` command entirely (no version bump yet)
+
+Follow-up to the min-gap-guard work above. Daniel's call: since `loop`'s whole reason for existing —
+chaining baseline-scan → enhance → re-scan → diff-report into one automatic shot — is exactly the
+back-to-back-tunnel pattern this session spent most of its time proving unreliable, remove the
+command outright rather than keep it around as a footgun. No deprecation needed — no real users yet.
+
+Removed:
+- `runLoop` from `src/loop.js` (kept `runScanLocal`, `startScanTarget`, `HOSTED_SCANNERS` — those
+  back the still-existing `scan-local`/`rescan-local` commands and have no back-to-back-tunnel
+  problem on their own).
+- The `loop` CLI command from `src/cli.js` (`runLoopCommand`, its dispatch entry, its `--help` text)
+  and the `loop` npm script from `package.json`. Folded its Quick Tunnel explanation into
+  `scan-local`/`rescan-local`'s own help text instead of losing it.
+- Every `loop` reference across README.md, docs/ (index, why, architecture, cli-reference),
+  CONTRIBUTING.md, AGENTS.md, SKILL.md, and code comments (tunnel.js, scan.js, monitor.js,
+  local-server.js) — replaced with `scan-local`/`enhance`/`rescan-local` as the three-step
+  equivalent, run as separate commands so a real gap naturally falls between the two tunnel-needing
+  steps. SKILL.md got the most substantial rewrite (it's the agent-facing adapter): its decision
+  table, command list, and "what to tell the user" guidance now point at the three-step sequence
+  and explain *why* `loop` doesn't exist anymore, instead of silently dropping a row.
+- `scripts/verify-loop.js` (still named that — it verifies the same "does the fixer actually work"
+  property, just not via `loop` anymore) now composes `runScanLocal` (baseline) → `enhance` →
+  `runScanLocal` (rescan) → `buildDiffReport` directly instead of calling `runLoop`. Same fixtures,
+  same assertions, same CI hook (`npm run verify-loop`, unchanged in `.github/workflows/ci.yml`).
+
+Verified: `npm run verify-loop` green with the rewritten script (all three fixtures still show the
+expected before/after check flips); `siteready --help` no longer lists `loop`; running
+`node src/cli.js loop .` now falls through to the default `scan` command treating "loop" as a URL
+(same as any other unrecognized word — expected, not a special-cased error).
+
+Not committed/tagged/published this session — working tree has the changes, pending review, same as
+the min-gap-guard work above.
+
+## v1.14.0 — Quick Tunnel min-gap guard + `loop` command removed
+
+Combines the two entries directly above into one release: the persisted min-gap guard / rate-limit
+warning / reachability-flap-abort fix in `src/lib/tunnel.js`, the new `rescan-local` CLI command,
+and the full removal of `loop` (command, function, npm script, and every doc/comment reference —
+replaced with the `scan-local` → `enhance` → `rescan-local` three-step sequence throughout README.md,
+docs/, SKILL.md, AGENTS.md, CONTRIBUTING.md, and `scripts/verify-loop.js`). Minor bump (removes and
+adds CLI surface, no deprecation needed — no real users yet). Verified: `npm run verify-loop` green,
+`node scripts/check-syntax.js` clean. Committed, tagged, pushed, released on GitHub, published to npm.

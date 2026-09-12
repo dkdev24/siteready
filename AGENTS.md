@@ -59,14 +59,14 @@ their detail; don't load them just because a session started.
 
 | Path | Purpose |
 |---|---|
-| `src/cli.js` | CLI entrypoint (scan / enhance / rescan / diff-report / loop) |
+| `src/cli.js` | CLI entrypoint (scan / enhance / rescan / diff-report / scan-local / rescan-local) |
 | `src/scan.js`, `src/scanners/` | Scanner orchestration (afdocs, is-agentic, ora) |
 | `src/enhance.js`, `src/fixers/` | Framework/platform detection + auto-fixers |
 | `src/skill-install.js`, `src/installers/` | `install-skill` command — writes SKILL.md into an agent's skill-discovery path |
 | `src/report.js`, `src/diff-report.js` | Scorecard normalization + before/after diffing |
-| `src/loop.js` | Full local scan→enhance→rescan→diff-report loop |
+| `src/loop.js` | Local baseline scan orchestration (`scan-local`/`rescan-local`), no live deployment |
 | `fixtures/astro-starlight-cf-pages/`, `fixtures/astro-cf-pages/`, `fixtures/nextjs-vercel/` | Reference fixer targets + reproduction steps |
-| `scripts/verify-loop.js` | CI verification of the full loop |
+| `scripts/verify-loop.js` | CI verification of the scan-local→enhance→rescan-local cycle |
 | `siteready-plan.md` | Original design plan — **frozen, not maintained.** Historical design rationale only; its §13 lists where it's now wrong. Don't update it; don't cite it as current state |
 | `SKILL.md` | Claude Code skill entrypoint — orchestration instructions for running siteready as an agent, cwd-agnostic (uses `<skill-dir>`) |
 
@@ -118,5 +118,5 @@ their detail; don't load them just because a session started.
 - **Node version note:** siteready itself needs Node ≥18, but the `fixtures/astro-starlight-cf-pages`
   fixture's Astro dependency currently requires Node ≥22.12 to build, and `fixtures/nextjs-vercel`'s
   `next@16` dependency requires Node ≥20.9 — CI runs Node 22 for this reason. A "Node.js vX is not
-  supported" failure from `loop`/`verify-loop.js` is a fixture's dependency, not siteready itself —
+  supported" failure from `scan-local`/`verify-loop.js` is a fixture's dependency, not siteready itself —
   upgrade Node, don't downgrade a fixture's declared range.

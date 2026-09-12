@@ -34,20 +34,29 @@ It orchestrates existing scanners and applies existing fixes; it is not itself a
 **Run every command with the target site's own project as your working directory, not from inside
 `<skill-dir>`.** siteready is a separate tool from whatever site you're testing — only the `node
 .../src/cli.js` invocation itself points into `<skill-dir>`; every path *argument* (a repo checkout
-for `enhance`/`loop`, `--out`, `--baseline`) should be relative to the target project (`.` for "the
-project I'm already in"), so reports and diffs land next to the site being tested, not buried
-inside the siteready installation.
+for `enhance`/`scan-local`/`rescan-local`, `--out`, `--baseline`) should be relative to the target
+project (`.` for "the project I'm already in"), so reports and diffs land next to the site being
+tested, not buried inside the siteready installation.
 
 ## Decide which commands apply
 
 | The user has... | Run |
 |---|---|
 | Just a URL, wants a score/report | `scan` only |
-| A URL + a local checkout of that site's repo, wants it fixed | `scan` → `enhance` → `rescan` (or just `loop`, see below) |
+| A URL + a local checkout of that site's repo, wants it fixed | `scan` → `enhance` → `rescan` |
+| A local checkout not deployed anywhere yet, wants it scored and fixed | `scan-local` → `enhance` → `rescan-local` |
 | Two existing `report.json` files, wants a before/after | `diff-report` directly |
-| A local checkout, wants the whole thing done in one shot | `loop` |
 | Multiple URLs, wants them scored side by side | `compare` |
 | One URL, wants to know if it's trending up or down | `monitor` (reads past scans, no new scan) |
+
+**Run `scan-local`/`enhance`/`rescan-local` as three separate commands, reporting each result back
+to the user before the next — never script all three in one shot.** There used to be a single `loop`
+command that chained them automatically; it was removed because, when a hosted scanner
+(`is-agentic`/`ora`) is in play, its baseline scan and re-scan each open a Cloudflare Quick Tunnel,
+and creating two tunnels back-to-back is unreliable (see the tunnel note below) — a real gap between
+the two steps (e.g. the user reviewing the report and the `enhance` diff) avoids that. For `afdocs`
+only (no tunnel involved), the three steps still don't need to be a single script — keep them
+separate anyway so the user sees and can act on each step's own output.
 
 **`enhance` needs a local checkout of the target site's own repo — a URL alone is not enough.**
 Its fixes are source-file edits (an `llms.txt` endpoint, a Cloudflare Pages Function, a layout
@@ -75,8 +84,13 @@ node <skill-dir>/src/cli.js rescan https://example.com --baseline ./out/example.
 # diff two already-written report.json files directly
 node <skill-dir>/src/cli.js diff-report ./out/before/report.json ./out/after/report.json
 
-# full local loop: scan -> enhance -> rescan -> diff-report, no live deployment, no manual steps
-node <skill-dir>/src/cli.js loop .
+# local baseline scan — no live deployment, for a site not deployed anywhere yet; run with the
+# repo as your cwd, target it as "."
+node <skill-dir>/src/cli.js scan-local .
+
+# local re-scan + diff vs the scan-local baseline above — run as its own step, after enhance,
+# not scripted back-to-back with scan-local (see the tunnel note below)
+node <skill-dir>/src/cli.js rescan-local . --baseline ./out/.../report.json
 
 # scan multiple URLs and render them side by side (scanned one at a time — see Ora rate-limit note)
 node <skill-dir>/src/cli.js compare https://example.com https://a-competitor.com
@@ -94,12 +108,16 @@ score's meaning.
 
 Read every command's own output before deciding what to do next — `enhance` prints exactly what it
 wrote, skipped (already present, won't overwrite), or warned about, and exits without touching git.
-`loop` prints all four steps' output in sequence, ending in a `diff-report.md`. It defaults to
-afdocs; adding `--scanners is-agentic,ora` works too, but each scan then routes through an
-ephemeral Cloudflare Quick Tunnel (those scanners crawl from their own infrastructure and can't
-reach `localhost`), which adds ~20-40s per scan and can fail outright on a bad network — the CLI
-retries with a fresh tunnel and says so if it gives up. Don't retry the whole `loop` by hand on
-that failure; report it and either re-run once or scan a deployed URL instead.
+`scan-local`/`rescan-local` default to afdocs; adding `--scanners is-agentic,ora` works too, but
+each scan then routes through an ephemeral Cloudflare Quick Tunnel (those scanners crawl from their
+own infrastructure and can't reach `localhost`), which adds ~20-40s per scan and can fail outright
+on a bad network. A non-reachability failure (e.g. `cloudflared` itself exiting) is retried with a
+fresh tunnel automatically; a DNS-propagation failure is not retried in-process (evidence shows an
+immediate retry doesn't recover from it) and the command fails immediately with a clear message.
+**If `rescan-local` fails because a tunnel was opened too recently** (its own error names how long
+to wait — a persisted 2-minute minimum gap since the last tunnel, whether from this command or a
+preceding `scan-local`), don't retry immediately: tell the user the wait time from the error and
+either wait it out or re-run once that gap has passed. Never script around it by looping retries.
 
 ## What to tell the user afterward
 
@@ -115,9 +133,9 @@ that failure; report it and either re-run once or scan a deployed URL instead.
   authenticated `gh` was found — say so plainly rather than treating it as a silent success.
   Never `git add`/`commit`/`push` in the target repo on the user's behalf just because `enhance`
   ran — that decision is theirs.
-- After `loop`/`diff-report`: lead with the score delta and the "Fixed" / "Still failing" /
+- After `rescan-local`/`diff-report`: lead with the score delta and the "Fixed" / "Still failing" /
   "Regressed" breakdown from `diff-report.md`, not just the raw JSON.
-- **If a `rescan`/`loop` shows zero movement on `is-agentic` for a check you know was fixed and
+- **If a `rescan`/`rescan-local` shows zero movement on `is-agentic` for a check you know was fixed and
   deployed, don't report it as "the fix didn't work."** `is-agentic` is a hosted third-party scanner
   that caches results per domain server-side with no forced-refresh lever from this CLI — it can
   return the identical cached result (same `scanned_at`) even after a confirmed-live deploy. Verify

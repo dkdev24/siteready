@@ -100,16 +100,69 @@ append-only, unlike WORKLOG.md).
     distinct failure mode from the DNS flap (fails before a hostname is even
     issued).
 
-    Open, unresolved: whether a human-realistic delay before the first check
-    (vs. `tunnel.js`'s ~300ms-after-URL-appears poll) reliably dodges the flap.
-    Mixed evidence — one resolver trace stabilized to consistent success by
-    ~4s, but a separate batch of 5 scripted checks that each waited 6s before
-    the first probe still got `ENOTFOUND` for the whole test window on every
-    single trial. Next session: a clean test of single delayed checks (5-8s
-    wait, one probe, repeat across several separately-created tunnels with
-    real gaps between them to stay clear of the rate limit) to see if delay
-    alone explains it or if some fraction of hostnames just never propagate
-    in a usable window regardless of wait.
+    2026-09-12 round three: ran the proposed test — 6 separately-created
+    tunnels, spaced 4 min apart, single 7s-delayed probe each, no retry loop.
+    **6/6 succeeded.** This isolates the confound in the earlier failing
+    batch: those 5 tunnels were created back-to-back with no gap, not spaced.
+    So the real variable is spacing *between tunnel creations*, not delay
+    before the first probe — back-to-back creation appears to degrade DNS
+    propagation for hostnames issued during the burst.
+
+    Tried a 10s inter-attempt cooldown — re-ran #19's subfolder-proxy scan,
+    still failed 3/3, same `ENOTFOUND`-shaped error. 10s isn't a real gap
+    compared to the 4min spacing that worked; a short in-process cooldown
+    doesn't fix this.
+
+    Daniel's call: stop trying to force `loop`'s two back-to-back tunnels
+    (baseline scan + re-scan) through automatically. Shipped instead (not
+    yet committed — see WORKLOG.md "min-gap guard + rescan-local"):
+    - `src/lib/tunnel.js` now refuses a new tunnel (clear, specific error)
+      if the last one — this run or a separate `siteready` invocation — was
+      created under 2 minutes ago (persisted state file in `os.tmpdir()`).
+    - New `rescan-local` command (scan-local's `rescan` counterpart) so the
+      reliable workflow for hosted scanners actually exists: `scan-local` →
+      `enhance` → (human reviews) → `rescan-local`, each a separate command
+      with a natural gap, instead of `loop`'s forced single-shot pair. Also
+      covers the case where the *initial* scan is against an already-public
+      URL (no tunnel needed at all) and only the local re-scan needs one.
+    - `loop` now warns up front when a hosted scanner will need a tunnel.
+
+    Daniel then asked how sure we actually are that 2min is enough, and what
+    happens near the ~20/hour rate limit — correctly, since only "10s fails"
+    and "4min works" are tested and Cloudflare has no published SLA for
+    either number. Answer implemented rather than argued: the 2min guard is
+    a known-bad-zone filter, not a proof of safety above it —
+    `waitForReachable`'s real probe still runs every time, so an
+    insufficient gap still surfaces as an honest failure. Also caught and
+    fixed a real bug this reasoning surfaced: retry attempts 2/3 were firing
+    with *zero* gap on a reachability-timeout failure (worse than the
+    already-disproven 10s) — now tagged (`err.reachabilityFlap`) and the
+    retry loop aborts immediately on it instead. Added a rolling
+    tunnel-count warning near the ~20/hour limit. Offered a real bisection
+    study (test several gap durations with enough trials for a measured
+    curve) to replace the guess with data — declined; shipping the
+    honest-uncertainty guard as-is, since Quick Tunnel's best-effort/no-SLA
+    nature makes tighter precision low value.
+
+    Then removed the `loop` CLI command entirely (no deprecation, no real
+    users yet) — its whole design was exactly the back-to-back-tunnel
+    pattern this thread just spent a session proving unreliable. `loop.js`'s
+    `runLoop`, `cli.js`'s `loop` command, and the `loop` npm script are gone;
+    `scan-local` → `enhance` → `rescan-local` (run as three separate
+    commands) is now the only local scan/fix/verify path. Updated every
+    reference across README.md, docs/, SKILL.md, AGENTS.md, CONTRIBUTING.md,
+    and code comments; rewrote `scripts/verify-loop.js` to compose
+    `runScanLocal` twice + `enhance` + `buildDiffReport` instead of calling
+    `runLoop`. `npm run verify-loop` still green.
+
+    Shipped as v1.14.0 — committed, tagged, pushed, released on GitHub,
+    published to npm.
+
+    Next session: verify the min-gap guard against a real successful
+    `is-agentic` scan (needs Cloudflare's per-IP rate limit to cool down
+    first, given how many tunnels this session created), then revisit #19's
+    actual subfolder-URL hypothesis, which is still neither confirmed nor
+    ruled out.
 
 ---
 

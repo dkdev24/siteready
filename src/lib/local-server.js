@@ -65,8 +65,8 @@ function startStaticFileServer(root, resolvedPort) {
 }
 
 /**
- * Asks the OS for a free TCP port instead of guessing one, so `loop` doesn't
- * collide with anything else already running locally.
+ * Asks the OS for a free TCP port instead of guessing one, so `scan-local`/
+ * `rescan-local` doesn't collide with anything else already running locally.
  */
 export async function getFreePort() {
   return new Promise((resolve, reject) => {
@@ -134,8 +134,8 @@ async function waitForReady(url, { timeoutMs = 30_000, intervalMs = 500 } = {}) 
  * their platform runtime matters; every other platform (Netlify, GitLab
  * Pages, ...) falls back to a generic static-file server over `distDir`,
  * since serving a static directory needs no platform-specific tool or
- * account. This is what lets `loop`/`scan-local` exercise a fixer target
- * with no live deployment.
+ * account. This is what lets `scan-local`/`rescan-local` exercise a fixer
+ * target with no live deployment.
  */
 export async function startLocalServer(repoPath, { platform, distDir = "dist", port, onProgress } = {}) {
   if (!platform) {

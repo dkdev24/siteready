@@ -9,14 +9,14 @@ title: Architecture
 ```
 siteready/
 ├── src/
-│   ├── cli.js              # entry point: scan / enhance / rescan / diff-report / loop
+│   ├── cli.js              # entry point: scan / enhance / rescan / diff-report / scan-local / rescan-local
 │   ├── scan.js              # runs configured scanner adapters -> normalized report (shared by scan & rescan)
 │   ├── report.js            # normalized report -> report.md / report.json
 │   ├── diff-report.js       # baseline vs re-scan -> diff-report.md / diff-report.json
 │   ├── detect-stack.js      # framework/host fingerprinting from the LOCAL repo (package.json, config files)
 │   ├── enhance.js           # detects stack, applies the matching fixer + platform module
 │   ├── pr.js                # opt-in enhance --pr flow (branch, commit, push, gh pr create)
-│   ├── loop.js               # local scan -> enhance -> rescan -> diff-report orchestration
+│   ├── loop.js               # local baseline scan orchestration (scan-local / rescan-local)
 │   ├── skill-install.js      # install-skill orchestration: resolves package root, dispatches to installers/
 │   ├── scanners/            # pluggable scanner adapters — export run*Scan(url, options) -> { normalized, raw }
 │   ├── fixers/               # pluggable, framework-scoped remediation
@@ -24,7 +24,7 @@ siteready/
 │   ├── installers/           # pluggable per-agent SKILL.md installers (claude, agents-skill for codex/opencode)
 │   └── lib/
 │       ├── npx-runner.js     # cross-platform npx invocation (see Cross-platform notes below)
-│       └── local-server.js   # build + serve a repo locally for `loop` (no live deployment)
+│       └── local-server.js   # build + serve a repo locally for `scan-local`/`rescan-local` (no live deployment)
 └── fixtures/
     ├── astro-starlight-cf-pages/   # reference fixture the Astro+Starlight fixer is verified against
     ├── astro-cf-pages/             # reference fixture the plain-Astro fixer is verified against
@@ -123,8 +123,8 @@ framework having no fixer yet degrades to "unsupported," never breaks the pipeli
 - `lib/local-server.js` builds a repo (`npm install` + `npm run build`) and serves the output
   locally — `wrangler pages dev` for Cloudflare Pages (via a long-running process spawned through
   `lib/npx-runner.js`), or `npm run start` (`next start`) for Vercel/Next.js, which is also what
-  runs Proxy/Middleware locally (a static export doesn't) — so `loop` can scan a fixer's target
-  with **no live deployment**. Windows needs `taskkill /t` to kill the whole process tree
+  runs Proxy/Middleware locally (a static export doesn't) — so `scan-local`/`rescan-local` can scan
+  a fixer's target with **no live deployment**. Windows needs `taskkill /t` to kill the whole process tree
   (`child.kill()` alone leaves the child process running); POSIX uses a detached process group +
   `process.kill(-pid)`. Every other platform (Netlify, GitLab Pages, and any future static host)
   falls back to a generic in-process `node:http` static file server over the build output —
@@ -136,14 +136,19 @@ framework having no fixer yet degrades to "unsupported," never breaks the pipeli
   to keep extending.
 - `lib/tunnel.js` extends that to the **hosted** scanners. `afdocs` fetches the scanned URL from
   this machine, so `localhost` is fine for it; `is-agentic` and `ora` run their own crawler on
-  someone else's infrastructure and can never reach `localhost`. Requesting either from `loop`
-  opens an ephemeral Cloudflare Quick Tunnel (`cloudflared tunnel --url`, no account or signup)
-  to the local preview server, so the whole loop works against every scanner with no deployment.
-  The site is briefly reachable by anyone holding the random URL and is torn down right after the
-  scan — same risk class as a preview deployment, shorter-lived. Quick Tunnels are anonymous and
-  best-effort, so an unreachable one is retried as a *whole fresh tunnel* (3 attempts; override
-  with `SITEREADY_TUNNEL_ATTEMPTS`) — the failure mode is the handed-out hostname never resolving,
-  which only a new hostname fixes.
+  someone else's infrastructure and can never reach `localhost`. Requesting either from
+  `scan-local`/`rescan-local` opens an ephemeral Cloudflare Quick Tunnel (`cloudflared tunnel --url`,
+  no account or signup) to the local preview server, so those commands work against every scanner
+  with no deployment. The site is briefly reachable by anyone holding the random URL and is torn
+  down right after the scan — same risk class as a preview deployment, shorter-lived. Quick Tunnels
+  are anonymous and best-effort; a non-reachability failure (e.g. `cloudflared` exiting) is retried
+  as a whole fresh tunnel (3 attempts; override with `SITEREADY_TUNNEL_ATTEMPTS`), but a DNS
+  propagation flap (the handed-out hostname never resolving) is *not* retried in-process — evidence
+  (WORKLOG.md 2026-09-12 "round three") shows an immediate fresh tunnel doesn't recover from it, only
+  real time between tunnel creations does. Every `startTunnel` call also refuses to open a new
+  tunnel — with a clear, specific error — if one was created less than 2 minutes ago by this or a
+  separate `siteready` invocation (e.g. `rescan-local` run right after `scan-local`), and warns once
+  usage nears the empirically-observed (also undocumented) ~20/hour creation rate limit.
 - `pr.js` is the opt-in `--pr` flow for `enhance` — it degrades to "left as an unstaged diff"
   (never throws) if there's no git remote or `gh` isn't authenticated, so a user without those
   configured still gets the default behavior.
@@ -151,8 +156,8 @@ framework having no fixer yet degrades to "unsupported," never breaks the pipeli
   It's a hosted third-party scanner (`npx is-agentic@1.0.1`) that caches results per domain
   server-side; `rescan` calling it twice — once right after a fix ships, once after the deploy is
   confirmed live via `curl` — can return the *identical* cached result both times (same
-  `scanned_at`). `afdocs`, by contrast, re-crawls live on every call. If `rescan`/`loop` shows zero
-  movement on `is-agentic` for a check you know you fixed, verify the live site directly (`curl` the
+  `scanned_at`). `afdocs`, by contrast, re-crawls live on every call. If `rescan`/`rescan-local` shows
+  zero movement on `is-agentic` for a check you know you fixed, verify the live site directly (`curl` the
   page, grep for the expected content) before concluding the fix didn't work — then, if it's
   confirmed live, either wait out the cache or manually trigger a rescan on is-agentic.com's own
   page. Its score has also shown double-digit swings scan-to-scan on an unchanged site — treat it as
@@ -193,6 +198,6 @@ scanner/fixer needs its own OS branching:
 **Node version note:** siteready itself only needs Node ≥18, but `fixtures/astro-starlight-cf-pages`
 pins a floating Astro range that currently requires **Node ≥22.12** to build, and `next@16` (used
 by `fixtures/nextjs-vercel`) requires **Node ≥20.9** — CI runs on Node 22 to satisfy both. If
-`loop`/`verify-loop.js` fails with "Node.js vX is not supported by Astro" (or an equivalent Next.js
-engine error), that's a fixture's own dependency, not siteready — upgrade Node, don't downgrade the
-fixture's declared range.
+`scan-local`/`verify-loop.js` fails with "Node.js vX is not supported by Astro" (or an equivalent
+Next.js engine error), that's a fixture's own dependency, not siteready — upgrade Node, don't
+downgrade the fixture's declared range.

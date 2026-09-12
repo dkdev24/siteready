@@ -94,6 +94,7 @@ siteready https://example.com                       # scan + report
 siteready enhance ../my-astro-starlight-site         # apply fixes to a local checkout
 siteready scan-local ../my-astro-starlight-site       # one local scan, no public URL (pre-deploy)
 siteready rescan-local ../my-astro-starlight-site --baseline ./out/.../report.json   # local re-scan + diff
+siteready loop ../my-astro-starlight-site            # scan-local + enhance + rescan-local, one shot
 siteready compare https://example.com https://a-competitor.com
 siteready monitor https://example.com                # score-over-time from past scans
 siteready install-skill claude codex opencode         # install SKILL.md for these agents

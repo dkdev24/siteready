@@ -44,17 +44,19 @@ tested, not buried inside the siteready installation.
 |---|---|
 | Just a URL, wants a score/report | `scan` only |
 | A URL + a local checkout of that site's repo, wants it fixed | `scan` → `enhance` → `rescan` |
-| A local checkout not deployed anywhere yet, wants it scored and fixed | `scan-local` → `enhance` → `rescan-local` |
+| A local checkout not deployed anywhere yet, wants it scored and fixed | `scan-local` → `enhance` → `rescan-local` (default), or `loop` for a single-shot pass |
 | Two existing `report.json` files, wants a before/after | `diff-report` directly |
 | Multiple URLs, wants them scored side by side | `compare` |
 | One URL, wants to know if it's trending up or down | `monitor` (reads past scans, no new scan) |
 
-**Run `scan-local`/`enhance`/`rescan-local` as three separate commands, reporting each result back
-to the user before the next — never script all three in one shot.** There used to be a single `loop`
-command that chained them automatically; it was removed so the user sees and can act on each step's
-own output (the `enhance` diff, in particular, is worth a look before re-scanning) — not because of
-any tunnel-spacing concern (an earlier theory that back-to-back tunnels were unreliable turned out
-to be wrong; see the tunnel note below).
+**Default to `scan-local`/`enhance`/`rescan-local` as three separate commands, reporting each
+result back to the user before the next.** This lets them see and act on each step's own output —
+the `enhance` diff, in particular, is worth a look before re-scanning. `loop` chains all three into
+one command with no review step in between; use it only when the user asks for a single pass or a
+quick check (e.g. a POC), not as your default even for a routine request. It's no longer blocked on
+tunnel reliability — an earlier theory that two Quick Tunnels opened back-to-back were unsafe turned
+out to be wrong (see the tunnel note below) — so `loop`'s only real cost is losing the chance to
+review `enhance`'s diff before it gets re-scanned.
 
 **`enhance` needs a local checkout of the target site's own repo — a URL alone is not enough.**
 Its fixes are source-file edits (an `llms.txt` endpoint, a Cloudflare Pages Function, a layout
@@ -89,6 +91,10 @@ node <skill-dir>/src/cli.js scan-local .
 # local re-scan + diff vs the scan-local baseline above — run as its own step, after enhance,
 # so the enhance diff gets reviewed before re-scanning (see the tunnel note below)
 node <skill-dir>/src/cli.js rescan-local . --baseline ./out/.../report.json
+
+# scan-local + enhance + rescan-local chained into one command — only when the user wants a
+# single pass with no review step in between (e.g. a quick POC), not the default
+node <skill-dir>/src/cli.js loop .
 
 # scan multiple URLs and render them side by side (scanned one at a time — see Ora rate-limit note)
 node <skill-dir>/src/cli.js compare https://example.com https://a-competitor.com

@@ -9,14 +9,14 @@ title: Architecture
 ```
 siteready/
 ├── src/
-│   ├── cli.js              # entry point: scan / enhance / rescan / diff-report / scan-local / rescan-local
+│   ├── cli.js              # entry point: scan / enhance / rescan / diff-report / scan-local / rescan-local / loop
 │   ├── scan.js              # runs configured scanner adapters -> normalized report (shared by scan & rescan)
 │   ├── report.js            # normalized report -> report.md / report.json
 │   ├── diff-report.js       # baseline vs re-scan -> diff-report.md / diff-report.json
 │   ├── detect-stack.js      # framework/host fingerprinting from the LOCAL repo (package.json, config files)
 │   ├── enhance.js           # detects stack, applies the matching fixer + platform module
 │   ├── pr.js                # opt-in enhance --pr flow (branch, commit, push, gh pr create)
-│   ├── loop.js               # local baseline scan orchestration (scan-local / rescan-local)
+│   ├── loop.js               # local scan orchestration (scan-local / rescan-local / loop)
 │   ├── skill-install.js      # install-skill orchestration: resolves package root, dispatches to installers/
 │   ├── scanners/            # pluggable scanner adapters — export run*Scan(url, options) -> { normalized, raw }
 │   ├── fixers/               # pluggable, framework-scoped remediation
@@ -137,9 +137,11 @@ framework having no fixer yet degrades to "unsupported," never breaks the pipeli
 - `lib/tunnel.js` extends that to the **hosted** scanners. `afdocs` fetches the scanned URL from
   this machine, so `localhost` is fine for it; `is-agentic` and `ora` run their own crawler on
   someone else's infrastructure and can never reach `localhost`. Requesting either from
-  `scan-local`/`rescan-local` opens an ephemeral Cloudflare Quick Tunnel (`cloudflared tunnel --url`,
-  no account or signup) to the local preview server, so those commands work against every scanner
-  with no deployment. The site is briefly reachable by anyone holding the random URL and is torn
+  `scan-local`/`rescan-local`/`loop` opens an ephemeral Cloudflare Quick Tunnel (`cloudflared tunnel
+  --url`, no account or signup) to the local preview server, so those commands work against every
+  scanner with no deployment. `loop` opens two, back-to-back in one process (baseline scan, then
+  re-scan) — reliable since the precheck fix below, which is what let `loop` come back after being
+  removed over a (disproven) theory that two tunnels that close together were unsafe. The site is briefly reachable by anyone holding the random URL and is torn
   down right after the scan — same risk class as a preview deployment, shorter-lived. Quick Tunnels
   are anonymous and best-effort; any failure (`cloudflared` exiting, or the hostname not becoming
   reachable in time) is retried as a whole fresh tunnel (3 attempts; override with

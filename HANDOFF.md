@@ -14,13 +14,19 @@ package.json `1.14.0`, committed, tagged, and published to npm.
 
 ## Right Now
 
-No blocker. 2026-09-12, latest: **#19 resolved** — `is-agentic`'s "could not fetch homepage" is
-confirmed to be a scanner-side bug on subfolder URLs (clean 70/100 scan once tested against a
-domain-root proxy of the same content), not fixable from siteready. Found via a fix to
-`src/lib/tunnel.js`: probing was starting before it was safe to — now gated on cloudflared's own
-"precheck complete hard_fail=false" line (`waitForPrecheck`), which made the tunnel reachable on
-the first attempt instead of failing repeatedly. Verified (`npm run lint` + `npm run verify-loop`
-green), not committed yet.
+No blocker. 2026-09-12, latest: **`loop` command restored** — since the precheck fix below makes
+two back-to-back Quick Tunnels no less reliable than one, the reason `loop` was removed (v1.14.0)
+no longer holds. `src/loop.js`/`src/cli.js` bring back `runLoop`/`loop` as an opt-in single-shot
+`scan-local → enhance → rescan-local`, alongside the three-separate-commands path as the still-
+recommended default (SKILL.md updated accordingly). Verified: a real run with `--scanners
+is-agentic` opened two tunnels back-to-back, both reachable on attempt 1/3. Not committed yet.
+
+Just before that, **#19 resolved** — `is-agentic`'s "could not fetch homepage" is confirmed to be a
+scanner-side bug on subfolder URLs (clean 70/100 scan once tested against a domain-root proxy of
+the same content), not fixable from siteready. Found via the same fix: probing was starting before
+it was safe to — now gated on cloudflared's own "precheck complete hard_fail=false" line
+(`waitForPrecheck`), which made the tunnel reachable on the first attempt instead of failing
+repeatedly. Committed as `d1fed70`/`5d21ed1`.
 
 Earlier same day (all superseded by the precheck fix above, kept as pointers only — full chase in
 WORKLOG.md "Quick Tunnel reliability, round two"/"round three"/"min-gap guard was solving the wrong

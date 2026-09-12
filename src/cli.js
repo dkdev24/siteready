@@ -6,7 +6,7 @@ import { writeReport, writeRaw } from "./report.js";
 import { loadReport, buildDiffReport, writeDiffReport } from "./diff-report.js";
 import { enhance } from "./enhance.js";
 import { openEnhancePr } from "./pr.js";
-import { runScanLocal } from "./loop.js";
+import { runLoop, runScanLocal } from "./loop.js";
 import { buildCompareReport, writeCompareReport } from "./compare.js";
 import { collectHistory, buildMonitorReport, writeMonitorReport } from "./monitor.js";
 import { installSkill, SUPPORTED_AGENTS } from "./skill-install.js";
@@ -62,11 +62,12 @@ function printHelp() {
        siteready diff-report <baseline> <rescan> [--out <dir>]   diff two existing reports
        siteready scan-local <repo-path> [options]      one local scan, no public URL needed (pre-deploy)
        siteready rescan-local <repo-path> --baseline <path> [options]   local re-scan + diff vs a baseline
+       siteready loop <repo-path> [options]            scan-local -> enhance -> rescan-local, one shot
        siteready compare <url> <url> [<url> ...] [options]   scan N sites, render side by side
        siteready monitor <url> [--out-root <dir>] [--out <dir>]   score-over-time from past scans
        siteready install-skill <agent...> [--global] [--force] [--uninstall]   install SKILL.md for an agent
 
-Options (scan / rescan / scan-local / rescan-local):
+Options (scan / rescan / scan-local / rescan-local / loop):
   --out <dir>            Output directory (default: ./out/<hostname-or-dir>-<timestamp>)
   --sampling <strategy>   afdocs sampling strategy: random | deterministic | curated | none
                           (default: deterministic)
@@ -118,18 +119,22 @@ yet.
           otherwise. The site is briefly reachable by anyone with the random tunnel URL, torn down
           right after the scan. Quick Tunnels are anonymous and best-effort, so an unreachable one
           is retried as a whole fresh tunnel (3 attempts; override with the SITEREADY_TUNNEL_ATTEMPTS
-          env var). Cloudflare's DNS propagation for a fresh tunnel is unreliable if another tunnel
-          (this command or a separate one, e.g. a following rescan-local) was created under 2
-          minutes ago — siteready refuses to open it and names how long to wait, rather than retry
-          into a likely failure. Run scan-local, enhance, and rescan-local as separate commands
-          (rather than scripting them back-to-back) so a real gap — e.g. reviewing the report —
-          naturally falls between the two tunnels.
+          env var). Reachability is confirmed by waiting for cloudflared's own "precheck complete"
+          signal before probing, not by a fixed delay — two tunnels opened back-to-back (e.g. by
+          \`loop\`) are no less reliable than one.
 
 rescan-local is scan-local's counterpart to rescan: re-runs a baseline report's scanners (override
 with --scanners) against a fresh local build, writes report.json/report.md plus a diff-report, no
 live deployment. Use it after enhance to verify fixes locally before deploying — pairs with a
 scan-local (or a public scan/rescan) baseline. Same Quick Tunnel behavior as scan-local for hosted
 scanners.
+
+loop chains scan-local -> enhance -> rescan-local into one command, no manual steps in between —
+an opt-in single-shot convenience (e.g. a quick POC), not the default recommendation: running the
+three as separate commands still lets you review the enhance diff before re-scanning. Writes
+before/after reports under <out>/before and <out>/after plus a diff-report, same as running the
+three commands by hand. Requires the same fixer-supported framework/platform pair enhance does
+(unlike scan-local, which works on anything startLocalServer can serve).
 
 compare scans each URL one at a time (not fanned out — Ora's rate limit is per IP) with the same
 scanner set, writes each site's full report under \`<out>/<hostname>/\`, and renders a side-by-side
@@ -352,6 +357,63 @@ async function runEnhanceCommand(repoPath, args) {
   }
 }
 
+async function runLoopCommand(repoPath, args) {
+  if (!repoPath) {
+    console.error("Usage: siteready loop <repo-path> [options]");
+    process.exit(1);
+  }
+
+  const unsupported = (args.scanners ?? ["afdocs"]).filter((s) => !SUPPORTED_SCANNERS.includes(s));
+  if (unsupported.length) {
+    console.error(`Unsupported scanner(s): ${unsupported.join(", ")}. Supported: ${SUPPORTED_SCANNERS.join(", ")}`);
+    process.exit(1);
+  }
+
+  const scanners = args.scanners ?? ["afdocs"];
+  const outDir = args.out ?? outDirFor(repoPath, "-loop");
+
+  console.log(`Running full loop on ${path.resolve(repoPath)} with: ${scanners.join(", ")}`);
+  const { stack, enhanceResult, baseline, baselineRaw, rescan, rescanRaw, diff } = await runLoop(repoPath, {
+    scanners,
+    sampling: args.sampling ?? "deterministic",
+    siteType: args.siteType,
+    port: args.port,
+    onProgress: (msg) => console.log(msg),
+  });
+
+  console.log(`\nDetected: ${stack.framework} + ${stack.platform}`);
+  if (enhanceResult.written.length) {
+    console.log("Wrote:");
+    for (const f of enhanceResult.written) console.log(`  + ${f}`);
+  } else {
+    console.log("Wrote nothing (already applied).");
+  }
+  if (enhanceResult.warnings.length) {
+    console.log("Warnings:");
+    for (const w of enhanceResult.warnings) console.log(`  ! ${w}`);
+  }
+
+  for (const [name, raw] of Object.entries(baselineRaw)) await writeRaw(path.join(outDir, "before"), name, raw);
+  for (const [name, raw] of Object.entries(rescanRaw)) await writeRaw(path.join(outDir, "after"), name, raw);
+  await writeReport(path.join(outDir, "before"), baseline);
+  await writeReport(path.join(outDir, "after"), rescan);
+  await writeDiffReport(outDir, diff);
+
+  if (baseline.partial || rescan.partial) {
+    console.warn(
+      `\nWarning: partial scan — ${failedScannerNames(baseline.partial ? baseline : rescan)} failed and were excluded from scoring.`
+    );
+  }
+  console.log(`\nBefore/after reports written under ${outDir}/before and ${outDir}/after`);
+  console.log(`Diff report written to ${outDir}/diff-report.md`);
+  for (const [name, s] of Object.entries(diff.scanners)) {
+    if (s.comparable && s.score) {
+      const sign = s.score.delta > 0 ? "+" : "";
+      console.log(`  ${name}: ${s.score.before} -> ${s.score.after} (${sign}${s.score.delta})`);
+    }
+  }
+}
+
 async function runScanLocalCommand(repoPath, args) {
   if (!repoPath) {
     console.error("Usage: siteready scan-local <repo-path> [options]");
@@ -491,6 +553,12 @@ async function main() {
   if (command === "rescan-local") {
     const args = parseFlags(argv.slice(2));
     await runRescanLocalCommand(argv[1], args);
+    return;
+  }
+
+  if (command === "loop") {
+    const args = parseFlags(argv.slice(2));
+    await runLoopCommand(argv[1], args);
     return;
   }
 

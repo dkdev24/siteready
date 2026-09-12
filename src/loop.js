@@ -1,10 +1,69 @@
 import path from "node:path";
 import { detectStack } from "./detect-stack.js";
+import { enhance } from "./enhance.js";
 import { scanTarget } from "./scan.js";
+import { buildDiffReport } from "./diff-report.js";
 import { buildSite, ensureInstalled, startLocalServer } from "./lib/local-server.js";
 import { startTunnel } from "./lib/tunnel.js";
 
 const HOSTED_SCANNERS = ["is-agentic", "ora"];
+
+/**
+ * Fully local scan -> enhance -> rescan -> diff-report loop, with no live
+ * deployment and no manual steps in between. Opt-in single-shot convenience
+ * for a quick pass/POC; `scan-local` -> `enhance` -> `rescan-local` as three
+ * separate commands remains the default recommendation (SKILL.md, README)
+ * since it lets a human or agent review the `enhance` diff before re-scanning.
+ * Only supports the fixer/platform pairs `enhance` itself supports, since
+ * that's also what determines whether a rescan is meaningful.
+ *
+ * Removed 2026-09-12 over a (later disproven) theory that two Quick Tunnels
+ * opened back-to-back were unreliable -- see WORKLOG.md "#19 resolved": the
+ * real cause was `tunnel.js` probing a freshly-minted hostname before it was
+ * safe to, now fixed there directly (`waitForPrecheck`). Restored once that
+ * fix made two tunnels in one process no less reliable than one.
+ */
+export async function runLoop(
+  repoPath,
+  { scanners = ["afdocs"], sampling = "deterministic", siteType, distDir = "dist", port, onProgress } = {}
+) {
+  const resolved = path.resolve(repoPath);
+  const stack = await detectStack(resolved);
+  if (!stack.supported) {
+    throw new Error(`loop needs the same local repo checkout enhance needs. ${stack.reason}`);
+  }
+
+  const needsTunnel = scanners.some((s) => HOSTED_SCANNERS.includes(s));
+
+  await ensureInstalled(resolved, { onProgress });
+
+  onProgress?.("--- Baseline scan (before enhance) ---");
+  await buildSite(resolved, { onProgress });
+  let target = await startScanTarget(resolved, { platform: stack.platform, distDir, port, needsTunnel, onProgress });
+  let baseline, baselineRaw;
+  try {
+    ({ report: baseline, rawByScanner: baselineRaw } = await scanTarget(target.url, scanners, { sampling, siteType, onProgress }));
+  } finally {
+    await target.stop();
+  }
+
+  onProgress?.("--- Enhance ---");
+  const enhanceResult = await enhance(resolved);
+
+  onProgress?.("--- Re-scan (after enhance) ---");
+  await buildSite(resolved, { onProgress });
+  target = await startScanTarget(resolved, { platform: stack.platform, distDir, port, needsTunnel, onProgress });
+  let rescan, rescanRaw;
+  try {
+    ({ report: rescan, rawByScanner: rescanRaw } = await scanTarget(target.url, scanners, { sampling, siteType, onProgress }));
+  } finally {
+    await target.stop();
+  }
+
+  const diff = buildDiffReport(baseline, rescan);
+
+  return { stack, enhanceResult, baseline, baselineRaw, rescan, rescanRaw, diff };
+}
 
 /**
  * Single local scan, no enhance/rescan/diff — for a repo that hasn't been

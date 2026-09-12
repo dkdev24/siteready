@@ -30,6 +30,10 @@ siteready scan-local ../my-astro-starlight-site
 # as a separate step so you can review what enhance changed before re-scanning
 siteready rescan-local ../my-astro-starlight-site --baseline ./out/my-astro-starlight-site-local-.../report.json
 
+# scan-local + enhance + rescan-local, chained into one command with no review step in between —
+# an opt-in single-shot convenience (e.g. a quick POC), not the default recommendation
+siteready loop ../my-astro-starlight-site
+
 # scan multiple sites and render them side by side
 siteready compare https://example.com https://a-competitor.com
 

@@ -1857,4 +1857,33 @@ output for `PRECHECK_RE`, times out silently after `READY_TIMEOUT_MS` rather tha
 unrecognized future log format just loses the head start instead of breaking tunnels outright),
 called between `waitForTunnelUrl()` and `waitForReachable()` in `startTunnelOnce()`. Verified against
 the real `startTunnel()` path (not the scratch bypass): succeeded on attempt 1/3, same clean
-`is-agentic` result. `npm run lint` and `npm run verify-loop` both green. Not committed yet.
+`is-agentic` result. `npm run lint` and `npm run verify-loop` both green.
+
+Committed as `d1fed70` (tunnel fix + doc updates for #19), followed by `5d21ed1` (correcting
+`architecture.md`/`SKILL.md` passages that still described the reverted min-gap guard as current
+behavior).
+
+## 2026-09-12 — Restored the `loop` command (no version bump)
+
+Daniel's read: since the precheck fix above makes two Quick Tunnels opened back-to-back no less
+reliable than one, the actual reason `loop` was removed no longer holds — restore it as an opt-in
+single-shot convenience (`scan-local` → `enhance` → `rescan-local` chained with no review step in
+between), alongside the three-separate-commands path as the still-recommended default.
+
+Restored `runLoop()` in `src/loop.js` (same shape as before removal: baseline scan, `enhance`,
+re-scan, `buildDiffReport`, using `stack.supported` rather than `runScanLocal`'s plain
+`stack.platform` check since a rescan is only meaningful for a fixer-supported framework/platform
+pair) and `runLoopCommand` + `loop` CLI dispatch in `src/cli.js`, writing `<out>/before` and
+`<out>/after` reports plus a diff-report — same convention as before removal. Also caught and fixed
+two passages that were already stale independent of this restoration: `src/cli.js`'s help text still
+described the reverted 2-minute tunnel-gap refusal as current behavior, and `docs/cli-reference.md`'s
+`rescan-local` comment still cited "a real gap between the two tunnels" as the reason to run it
+separately from `scan-local`. Updated `AGENTS.md`, `README.md`, `SKILL.md`, and `docs/architecture.md`/
+`docs/cli-reference.md` to present `loop` as the opt-in single-shot option next to the default
+three-command path.
+
+Verified: `npm run lint` clean; `node src/cli.js loop <fixture>` end-to-end with `afdocs` only
+(scores and enhance diff matched the fixture's documented expected behavior, same as running the
+three commands by hand); a second run with `--scanners is-agentic` opened two real Quick Tunnels
+back-to-back in one process, both reachable on attempt 1/3 (44/100 → 71/100, is-agentic); full
+`npm run verify-loop` (all three fixtures) green.

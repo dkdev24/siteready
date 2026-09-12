@@ -27,8 +27,7 @@ siteready diff-report ./out/before/report.json ./out/after/report.json
 siteready scan-local ../my-astro-starlight-site
 
 # local re-scan + diff vs a baseline report, against a repo checkout — run after enhance,
-# as a separate step (not scripted back-to-back with scan-local) so a real gap falls between
-# their two Cloudflare Quick Tunnels if hosted scanners are in use
+# as a separate step so you can review what enhance changed before re-scanning
 siteready rescan-local ../my-astro-starlight-site --baseline ./out/my-astro-starlight-site-local-.../report.json
 
 # scan multiple sites and render them side by side

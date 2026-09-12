@@ -141,14 +141,14 @@ framework having no fixer yet degrades to "unsupported," never breaks the pipeli
   no account or signup) to the local preview server, so those commands work against every scanner
   with no deployment. The site is briefly reachable by anyone holding the random URL and is torn
   down right after the scan — same risk class as a preview deployment, shorter-lived. Quick Tunnels
-  are anonymous and best-effort; a non-reachability failure (e.g. `cloudflared` exiting) is retried
-  as a whole fresh tunnel (3 attempts; override with `SITEREADY_TUNNEL_ATTEMPTS`), but a DNS
-  propagation flap (the handed-out hostname never resolving) is *not* retried in-process — evidence
-  (WORKLOG.md 2026-09-12 "round three") shows an immediate fresh tunnel doesn't recover from it, only
-  real time between tunnel creations does. Every `startTunnel` call also refuses to open a new
-  tunnel — with a clear, specific error — if one was created less than 2 minutes ago by this or a
-  separate `siteready` invocation (e.g. `rescan-local` run right after `scan-local`), and warns once
-  usage nears the empirically-observed (also undocumented) ~20/hour creation rate limit.
+  are anonymous and best-effort; any failure (`cloudflared` exiting, or the hostname not becoming
+  reachable in time) is retried as a whole fresh tunnel (3 attempts; override with
+  `SITEREADY_TUNNEL_ATTEMPTS`). Before probing a freshly-minted hostname at all, `startTunnel` waits
+  for `cloudflared`'s own "precheck complete hard_fail=false" log line — probing before that line
+  appears was the actual cause of early DNS-reachability failures (WORKLOG.md 2026-09-12 "#19
+  resolved"), not propagation speed or spacing between tunnel creations, both of which were tried
+  and reverted first. `startTunnel` also warns once usage nears the empirically-observed (also
+  undocumented) ~20/hour creation rate limit, but no longer refuses or delays a new tunnel itself.
 - `pr.js` is the opt-in `--pr` flow for `enhance` — it degrades to "left as an unstaged diff"
   (never throws) if there's no git remote or `gh` isn't authenticated, so a user without those
   configured still gets the default behavior.

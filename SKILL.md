@@ -51,12 +51,10 @@ tested, not buried inside the siteready installation.
 
 **Run `scan-local`/`enhance`/`rescan-local` as three separate commands, reporting each result back
 to the user before the next — never script all three in one shot.** There used to be a single `loop`
-command that chained them automatically; it was removed because, when a hosted scanner
-(`is-agentic`/`ora`) is in play, its baseline scan and re-scan each open a Cloudflare Quick Tunnel,
-and creating two tunnels back-to-back is unreliable (see the tunnel note below) — a real gap between
-the two steps (e.g. the user reviewing the report and the `enhance` diff) avoids that. For `afdocs`
-only (no tunnel involved), the three steps still don't need to be a single script — keep them
-separate anyway so the user sees and can act on each step's own output.
+command that chained them automatically; it was removed so the user sees and can act on each step's
+own output (the `enhance` diff, in particular, is worth a look before re-scanning) — not because of
+any tunnel-spacing concern (an earlier theory that back-to-back tunnels were unreliable turned out
+to be wrong; see the tunnel note below).
 
 **`enhance` needs a local checkout of the target site's own repo — a URL alone is not enough.**
 Its fixes are source-file edits (an `llms.txt` endpoint, a Cloudflare Pages Function, a layout
@@ -89,7 +87,7 @@ node <skill-dir>/src/cli.js diff-report ./out/before/report.json ./out/after/rep
 node <skill-dir>/src/cli.js scan-local .
 
 # local re-scan + diff vs the scan-local baseline above — run as its own step, after enhance,
-# not scripted back-to-back with scan-local (see the tunnel note below)
+# so the enhance diff gets reviewed before re-scanning (see the tunnel note below)
 node <skill-dir>/src/cli.js rescan-local . --baseline ./out/.../report.json
 
 # scan multiple URLs and render them side by side (scanned one at a time — see Ora rate-limit note)

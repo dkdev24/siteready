@@ -1,2 +1,0 @@
-# Agent Instructions
-@AGENTS.md

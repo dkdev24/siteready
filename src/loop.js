@@ -19,6 +19,13 @@ const HOSTED_SCANNERS = ["is-agentic", "ora"];
  * read as a regression or a failed fix.
  */
 function localScanCaveatFor(platform) {
+  if (platform === "aws-cloudfront-opennext") {
+    return (
+      "Local scan against aws-cloudfront-opennext: `next start` runs the app's own middleware/proxy, but " +
+      "not CloudFront (cache key, S3-served public/ files) or the OpenNext server function. Negotiation " +
+      "results here don't prove the deployed behavior; confirm with a scan of the deployed URL."
+    );
+  }
   if (PLATFORMS_WITH_EDGE_RUNTIME.includes(platform)) return null;
   return (
     `Local scan against ${platform}: this platform's fixes are served by a generic static-file ` +
@@ -64,12 +71,13 @@ export async function runLoop(
   const localScanCaveat = localScanCaveatFor(stack.platform);
   const needsTunnel = scanners.some((s) => HOSTED_SCANNERS.includes(s));
 
-  await ensureInstalled(resolved, { onProgress });
+  const siteRoot = stack.siteRoot ?? resolved;
+  await ensureInstalled(siteRoot, { installRoot: stack.workspaceRoot ?? siteRoot, onProgress });
   if (localScanCaveat) onProgress?.(`Note: ${localScanCaveat}`);
 
   onProgress?.("--- Baseline scan (before enhance) ---");
-  await buildSite(resolved, { onProgress });
-  let target = await startScanTarget(resolved, { platform: stack.platform, distDir, port, needsTunnel, onProgress });
+  await buildSite(siteRoot, { onProgress });
+  let target = await startScanTarget(siteRoot, { platform: stack.platform, distDir, port, needsTunnel, onProgress });
   let baseline, baselineRaw;
   try {
     ({ report: baseline, rawByScanner: baselineRaw } = await scanTarget(target.url, scanners, { sampling, siteType, onProgress }));
@@ -81,8 +89,8 @@ export async function runLoop(
   const enhanceResult = await enhance(resolved);
 
   onProgress?.("--- Re-scan (after enhance) ---");
-  await buildSite(resolved, { onProgress });
-  target = await startScanTarget(resolved, { platform: stack.platform, distDir, port, needsTunnel, onProgress });
+  await buildSite(siteRoot, { onProgress });
+  target = await startScanTarget(siteRoot, { platform: stack.platform, distDir, port, needsTunnel, onProgress });
   let rescan, rescanRaw;
   try {
     ({ report: rescan, rawByScanner: rescanRaw } = await scanTarget(target.url, scanners, { sampling, siteType, onProgress }));
@@ -126,11 +134,12 @@ export async function runScanLocal(
   const localScanCaveat = localScanCaveatFor(stack.platform);
   const needsTunnel = scanners.some((s) => HOSTED_SCANNERS.includes(s));
 
-  await ensureInstalled(resolved, { onProgress });
+  const siteRoot = stack.siteRoot ?? resolved;
+  await ensureInstalled(siteRoot, { installRoot: stack.workspaceRoot ?? siteRoot, onProgress });
   if (localScanCaveat) onProgress?.(`Note: ${localScanCaveat}`);
-  await buildSite(resolved, { onProgress });
+  await buildSite(siteRoot, { onProgress });
 
-  const target = await startScanTarget(resolved, { platform: stack.platform, distDir, port, needsTunnel, onProgress });
+  const target = await startScanTarget(siteRoot, { platform: stack.platform, distDir, port, needsTunnel, onProgress });
   try {
     const { report, rawByScanner } = await scanTarget(target.url, scanners, { sampling, siteType, onProgress });
     return { stack, report, rawByScanner, localScanCaveat };
@@ -145,8 +154,8 @@ export async function runScanLocal(
  * this machine. Returns a single `{ url, stop }` regardless — callers don't
  * need to know whether a tunnel is involved.
  */
-async function startScanTarget(resolved, { platform, distDir, port, needsTunnel, onProgress }) {
-  const server = await startLocalServer(resolved, { platform, distDir, port, onProgress });
+async function startScanTarget(siteRoot, { platform, distDir, port, needsTunnel, onProgress }) {
+  const server = await startLocalServer(siteRoot, { platform, distDir, port, onProgress });
   if (!needsTunnel) {
     return server;
   }

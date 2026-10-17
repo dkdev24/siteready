@@ -22,6 +22,14 @@ async function removeIfPresent(dir, relPaths) {
   }
 }
 
+// Removes the `postbuild` hook the nextjs fixer adds, so a stripped copy is back to "before".
+async function removePostbuild(dir, rel = "package.json") {
+  const file = path.join(dir, rel);
+  const pkg = JSON.parse(await readFile(file, "utf8"));
+  delete pkg.scripts.postbuild;
+  await writeFile(file, JSON.stringify(pkg, null, 2) + "\n", "utf8");
+}
+
 function checkStatus(report, id) {
   return report?.checks?.find((c) => c.id === id)?.status ?? null;
 }
@@ -122,7 +130,8 @@ const FIXTURES = [
     name: "nextjs-vercel",
     dir: path.join(__dirname, "..", "fixtures", "nextjs-vercel"),
     async strip(dir) {
-      await removeIfPresent(dir, ["app/not-found.js", "public/robots.txt", "proxy.js"]);
+      await removeIfPresent(dir, ["app/not-found.js", "public/robots.txt", "proxy.js", "scripts", "public/llms.txt"]);
+      await removePostbuild(dir);
     },
     // Same afdocs overall-score gating as the Astro fixtures (see
     // astro-cf-pages/README.md) — nextjs.js never writes llms.txt either, so
@@ -130,7 +139,7 @@ const FIXTURES = [
     // http-status-codes isn't asserted here — Next.js's own built-in 404
     // fallback already returns a real 404 with no fixer involved, so that
     // check passes before and after; only content-negotiation moves.
-    async verify({ baseline, rescan }) {
+    async verify({ baseline, rescan, dir }) {
       const before = checkStatus(baseline.scanners.afdocs, "content-negotiation");
       const after = checkStatus(rescan.scanners.afdocs, "content-negotiation");
       console.log(`afdocs check content-negotiation: ${before} -> ${after}`);
@@ -139,6 +148,42 @@ const FIXTURES = [
       }
       if (after !== "pass") {
         throw new Error(`Expected content-negotiation to pass post-enhance, got ${after}.`);
+      }
+      // This fixture commits its own .md siblings: the generator must leave them
+      // byte-identical (it only replaces files it wrote), and still add llms.txt.
+      const source = path.join(__dirname, "..", "fixtures", "nextjs-vercel", "public");
+      for (const rel of ["index.md", "about.md", "posts/hello-world.md", "posts/second-post.md"]) {
+        const [orig, now] = await Promise.all([readFile(path.join(source, rel), "utf8"), readFile(path.join(dir, "public", rel), "utf8")]);
+        if (orig !== now) throw new Error(`The generator changed the committed ${rel}; it must only replace files it wrote.`);
+      }
+      if (!existsSync(path.join(dir, "public", "llms.txt"))) throw new Error("Expected the generator to write public/llms.txt.");
+    },
+  },
+  {
+    name: "nextjs-opennext-monorepo",
+    dir: path.join(__dirname, "..", "fixtures", "nextjs-opennext-monorepo"),
+    // Fixer targets live in the monorepo's app package, not the repo root. This
+    // fixture ships no .md siblings: the generator has to produce them.
+    async strip(dir) {
+      await removeIfPresent(dir, ["apps/web/app/not-found.js", "apps/web/public/robots.txt", "apps/web/proxy.js", "apps/web/scripts"]);
+      await removePostbuild(dir, "apps/web/package.json");
+    },
+    // Proves siteRoot wiring (install/build/start ran from apps/web), that the
+    // fixer wrote into the app package rather than the workspace root, and that
+    // the postbuild generator + proxy turn three failing afdocs checks into passes.
+    async verify({ baseline, rescan, enhanceResult }) {
+      if (enhanceResult.stack.platform !== "aws-cloudfront-opennext") {
+        throw new Error(`Expected platform aws-cloudfront-opennext, detected ${enhanceResult.stack.platform}.`);
+      }
+      if (!enhanceResult.written.every((f) => f.includes(`apps${path.sep}web${path.sep}`))) {
+        throw new Error(`Expected every fix under apps/web, got: ${enhanceResult.written.join(", ")}`);
+      }
+      for (const id of ["llms-txt-exists", "markdown-url-support", "content-negotiation"]) {
+        const before = checkStatus(baseline.scanners.afdocs, id);
+        const after = checkStatus(rescan.scanners.afdocs, id);
+        console.log(`afdocs check ${id}: ${before} -> ${after}`);
+        if (before !== "fail") throw new Error(`Expected baseline ${id} to fail pre-enhance, got ${before}.`);
+        if (after !== "pass") throw new Error(`Expected ${id} to pass post-enhance, got ${after}.`);
       }
     },
   },
@@ -159,7 +204,7 @@ async function runFixture(fixture) {
     const { report: rescan } = await runScanLocal(target, scanOpts);
     buildDiffReport(baseline, rescan); // exercised here too, same as a real rescan-local run
 
-    await fixture.verify({ baseline, rescan, enhanceResult });
+    await fixture.verify({ baseline, rescan, enhanceResult, dir: target });
     // The middleware enhance writes must never serve agents worse than a plain request.
     const agentFailures = (rescan.scanners["agent-headers"]?.checks ?? []).filter((c) => c.status === "fail");
     if (agentFailures.length) {
@@ -174,7 +219,9 @@ async function runFixture(fixture) {
 }
 
 async function main() {
-  for (const fixture of FIXTURES) {
+  // Optional filter: `node scripts/verify-loop.js <fixture-name>` runs one fixture.
+  const only = process.argv[2];
+  for (const fixture of FIXTURES.filter((f) => !only || f.name === only)) {
     await runFixture(fixture);
   }
   console.log("\nOK: scan-local -> enhance -> rescan-local verified for all fixtures — enhance produces real, verifiable improvements.");

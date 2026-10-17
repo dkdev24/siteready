@@ -18,8 +18,10 @@ node src/cli.js http://localhost:3000 --scanners afdocs --sampling deterministic
 ## Why this fixture uses static `.md` siblings instead of markdown-mirror routes
 
 The Astro fixtures' `.md.ts` routes render a mirror on request from a content collection — Next.js
-has no equivalent built-in convention, and `nextjs.js` deliberately doesn't invent one (same reason
-`astro.js` never generates `llms.txt` — see its docstring). Instead this fixture's `.md` files live
+has no equivalent built-in convention, so `nextjs.js` generates mirrors from the build output
+instead (see `../nextjs-opennext-monorepo`, which ships none and lets the generator produce them).
+This fixture keeps committed `.md` files on purpose: `verify-loop` asserts the generator leaves
+files it didn't write byte-identical while still adding `llms.txt`. Its `.md` files live
 as ordinary static files under `public/`, served automatically by Next.js at the same path as their
 HTML page (`/posts/hello-world` + `/posts/hello-world.md`). `vercel.js`'s middleware only needs a
 `.md` sibling to exist at `<path>.md` — it doesn't care how it got there.

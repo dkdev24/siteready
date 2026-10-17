@@ -7,6 +7,7 @@ import { applyNextjsFixes } from "./fixers/nextjs.js";
 import { applyJekyllFixes } from "./fixers/jekyll.js";
 import { applyCloudflarePagesFixes } from "./platforms/cloudflare-pages.js";
 import { applyVercelFixes } from "./platforms/vercel.js";
+import { applyAwsCloudfrontOpennextFixes } from "./platforms/aws-cloudfront-opennext.js";
 import { applyGithubPagesFixes } from "./platforms/github-pages.js";
 import { applyNetlifyFixes } from "./platforms/netlify.js";
 import { applyGitlabPagesFixes } from "./platforms/gitlab-pages.js";
@@ -21,6 +22,7 @@ const FRAMEWORK_FIXERS = {
 const PLATFORM_FIXERS = {
   "cloudflare-pages": applyCloudflarePagesFixes,
   vercel: applyVercelFixes,
+  "aws-cloudfront-opennext": applyAwsCloudfrontOpennextFixes,
   "github-pages": applyGithubPagesFixes,
   netlify: applyNetlifyFixes,
   "gitlab-pages": applyGitlabPagesFixes,
@@ -44,7 +46,7 @@ export async function enhance(repoPath) {
     throw new Error(
       `enhance needs a local checkout of the target site's repo, and only supports ` +
         `Astro (with or without Starlight) + Cloudflare Pages, Netlify, or GitLab Pages; ` +
-        `Next.js + Vercel or Netlify; or Jekyll + GitHub Pages or GitLab Pages, today. ${stack.reason}`
+        `Next.js + Vercel, Netlify, or AWS (CloudFront + OpenNext); or Jekyll + GitHub Pages or GitLab Pages, today. ${stack.reason}`
     );
   }
 

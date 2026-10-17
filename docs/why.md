@@ -41,7 +41,7 @@ caching trap above unless it's already been burned by it once.
 
 **This argument fully favors "just use an agent directly" outside the framework/platform combos a
 fixer covers.** Today that's Astro (with or without Starlight) on Cloudflare Pages, Netlify, or
-GitLab Pages; Next.js (App Router) on Vercel or Netlify; and Jekyll on GitHub Pages or GitLab
+GitLab Pages; Next.js (App Router) on Vercel, Netlify, or AWS (CloudFront + OpenNext); and Jekyll on GitHub Pages or GitLab
 Pages. Anything else and `enhance` reports `unsupported`, and siteready
 really is just a nicer wrapper around scanner output for that site. That's the honest scope limit,
 and it's also the roadmap. This tool's value scales with fixer/platform coverage (see

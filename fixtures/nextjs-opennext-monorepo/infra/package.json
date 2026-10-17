@@ -1,0 +1,8 @@
+{
+  "name": "fixtures-opennext-infra",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "cdk-nextjs-standalone": "^4.3.6"
+  }
+}

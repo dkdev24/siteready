@@ -75,6 +75,12 @@ append-only, unlike WORKLOG.md).
     rather than silently wired in. Not started.
 
 ---
+26. **Verify the AWS/OpenNext warnings on a real deploy**: CloudFront cache key includes `Accept`?
+    `public/*.md` reachable via CloudFront/S3? Also `next start` under `output: "standalone"` is untested.
+27. **Merge negotiation into an existing `proxy.ts`/`middleware.ts`** (found dogfooding v1.19.0): apps
+    with i18n/auth usually have one, so the platform fixer skips and `content-negotiation` stays failing.
+    Options: emit a helper module the existing proxy can call, or an AST-free documented snippet.
+28. **In-HTML `llms.txt` directive for Next.js** (afdocs `llms-txt-directive-html`): needs a layout edit.
 
 ## Resolved (condensed — see WORKLOG.md for full history)
 
@@ -194,3 +200,5 @@ append-only, unlike WORKLOG.md).
     Pages enabled via API, source `main`:`/docs`. Live at
     https://dkdev24.github.io/siteready/. Content adapted from README.md, no
     new/internal identifiers introduced.
+25. **Next.js `llms.txt` + `.md` mirrors** — **done 2026-10-17 (v1.19.0)**: generated from the build
+    output by a `postbuild` script; see WORKLOG v1.19.0.

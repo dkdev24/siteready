@@ -175,7 +175,7 @@ local score as final. If the site is (or will be) deployed on one of those platf
 ## Supported fixer today
 
 **Astro + Starlight + Cloudflare Pages**, **plain Astro (no Starlight) + Cloudflare Pages**, and
-**Next.js (App Router) + Vercel** have auto-fixers (see `README.md` "Status"). The plain-Astro
+**Next.js (App Router) + Vercel or AWS (CloudFront + OpenNext)** have auto-fixers (see `README.md` "Status"). The plain-Astro
 fixer is intentionally narrower — no `docs` collection or component-override convention to build on
 means it can't safely generate a content-aware `llms.txt` or `.md` mirror routes without guessing
 the site's own routing (a wrong guess produces broken links). It covers what's safe for any Astro

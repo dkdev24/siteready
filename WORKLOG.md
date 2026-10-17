@@ -2028,3 +2028,99 @@ Verified: `scripts/check-md-mirror.js` (added to lint) fails on the v1.16.1 fixe
 mirror); a copy of the Starlight fixture enhanced and built with real Astro: the warning fires
 against the committed old route, and with it removed the new route builds, links come out absolute
 against `site`, no relative links or component tags remain.
+
+---
+
+## v1.18.0 — Monorepo path detection + AWS (CloudFront + OpenNext) platform fixer
+
+**Date:** 2026-10-17
+
+**Why:** A production Next.js 16 pnpm monorepo on AWS (CDK + OpenNext) had no fixer path: the app
+lives in `apps/web` (root `package.json` has no `next`), `detectStack` defaulted any Next.js repo
+with no config file to Vercel, and `scan-local`/`loop` built and served from the repo root. Built
+generically, not for that one repo; it stays a test target after this release, not a fixture.
+
+**Changes**
+- `detect-stack.js`: workspace discovery (npm/yarn `workspaces`, `pnpm-workspace.yaml`; `dir/*` and
+  literal entries only). Given a workspace root it finds the single Astro/Next.js package (`siteRoot`);
+  given an app dir it walks up (stopping at `.git`) to the workspace root (`workspaceRoot`) for platform
+  signals. More than one framework package → unsupported, candidates listed. New platform id
+  `aws-cloudfront-opennext` for Next.js, after `wrangler`/`vercel.json`/`netlify.toml`/GitLab and before the
+  Vercel default. Signals: `open-next.config.*`, `sst.config.*`, or a `@opennextjs/aws`/`open-next`/
+  `cdk-nextjs-standalone`/`cdk-nextjs`/`sst` dependency in the app, workspace root, any member, or an
+  infra-looking sibling (has `cdk.json`/`sst.config.*`) that isn't a member. `detectStack` now always
+  returns `siteRoot`.
+- `platforms/aws-cloudfront-opennext.js`: writes `proxy.js` (Next ≥16) or `middleware.js` (older or
+  unreadable version) for `Accept: text/markdown`; skips if any proxy/middleware (`.js/.mjs/.ts`, root
+  or `src/`) exists. Always warns about the two things it can't check from a checkout: CloudFront cache
+  key must include `Accept`, and `public/*.md` must resolve through CloudFront/S3. Does not edit infra.
+- `loop.js`/`local-server.js`: install/build/start run from `siteRoot`; `ensureInstalled` checks the
+  workspace root's `node_modules` and refuses to run `npm install` in a pnpm/yarn/bun workspace
+  (tells the user to install first). The new platform runs `next start` and carries its own caveat.
+- **Shipped-behavior change, `fixers/nextjs.js`:** the existing-file checks were too narrow for
+  TypeScript/i18n apps. It now skips the generated `not-found.js` when any `not-found.{js,jsx,ts,tsx}`
+  exists at any depth under `app/`, and skips `public/robots.txt` when `app/robots.{js,ts}` exists.
+- Fixture `fixtures/nextjs-opennext-monorepo` (infra sibling, not a workspace member) + verify-loop
+  entry; `node scripts/verify-loop.js <name>` runs one fixture. New `scripts/check-detect-stack.js`
+  in `npm run lint` (temp layouts, no installs).
+
+**Not verified / limits:** `next start` proves the negotiation code, not CloudFront cache-key
+behavior or S3-served `public/` files; an OpenNext cache policy default for `Accept` could not be
+confirmed from docs. `output: "standalone"` apps with `next start`: untested. The Next.js framework
+fixer still writes no `llms.txt`/`.md` mirrors, so negotiation has nothing to serve on a site without
+its own `.md` siblings. An existing proxy (common with i18n) is skipped, not merged.
+
+---
+
+## v1.19.0 — Next.js `llms.txt` + `.md` mirrors generated from the build output (#25)
+
+**Date:** 2026-10-17
+
+**Why:** On every Next.js platform the fixer only wrote `not-found`, `robots.txt` and the negotiation
+file, so a site with no `.md` files gained almost nothing (dogfooding a production Next.js 16 pnpm
+monorepo on AWS: afdocs 41 → 41). Next.js has no content convention to read from source, so the
+generator works from the *build output* instead, which is the same for any content source.
+
+**Changes**
+- `src/templates/next-agent-readiness.mjs` (zero dependencies, copied verbatim into the site as
+  `scripts/agent-readiness.mjs`): after `next build`, reads `.next/prerender-manifest.json` (page routes
+  only, status 200, no `/_*` or file-extension routes), converts each prerendered HTML file to markdown
+  (`<main>`, else body minus header/nav/footer; hidden/aria-hidden, scripts, styles, buttons, svg dropped;
+  cards linked by their heading; tables, lists, code fences), writes `public/<route>.md` with the
+  `llms.txt` directive first, and `public/llms.txt` (split into `/<section>/llms.txt` above ~30 KB,
+  locale segments labelled by language name, noindex pages skipped, a description repeated site-wide
+  omitted). Ownership is a trailing marker comment: it only replaces or removes files it wrote, skips
+  `llms.txt` if an `app/llms.txt` route exists, and never fails the build (every error is a warning, exit 0).
+  Page list comes only from the manifest: the runtime cache entries `next start` writes into
+  `.next/server/app` (scanner probes) are not in it.
+- Link origin: a page's canonical URL, else `og:url`, else `AGENT_READINESS_ORIGIN`; none means
+  root-relative links plus a warning. (`og:image` is deliberately not used; it is often a CDN.)
+- `fixers/nextjs.js`: copies the script and adds `"postbuild"` to `package.json` (indent and line endings
+  preserved, listed under `written`) only if a `build` script exists and `postbuild` doesn't; otherwise
+  skips and prints the line to add. Skips with a warning for `output: "export"` (public/ is copied before
+  postbuild would run) and for the Pages Router. Always warns: add the generated files to `.gitignore`;
+  a deploy that calls `next build` directly must run the script itself; server-rendered routes and the
+  in-HTML `llms.txt` directive (afdocs `llms-txt-directive-html`, needs a layout change) aren't covered.
+- Verified hook paths: `postbuild` runs under `npm run`, `pnpm run`, `pnpm -r` and `pnpm --filter`, and
+  OpenNext's build (`pnpm build` / `npm run build`, as used by `cdk-nextjs-standalone`) runs the package's
+  build script. A file written into `public/` after `next build` is served by `next start`, and takes
+  precedence over a dynamic `[lang]` route.
+- `scripts/check-next-agent-readiness.js` (in `npm run lint`): converter on React/RSC shapes, generator
+  on a fake `.next` (ownership, stale removal, never-fail on missing/corrupt manifests, split,
+  origin), fixer wiring (idempotent, preserves tabs, skips existing postbuild / export).
+  `fixtures/nextjs-opennext-monorepo` now ships no `.md` and asserts `llms-txt-exists`,
+  `markdown-url-support`, `content-negotiation` fail → pass (afdocs 41 → 59 locally); the
+  `nextjs-vercel` fixture keeps its committed `.md` and asserts they stay byte-identical.
+  `check-detect-stack.js` updated: the Next.js fixer now also writes the script.
+
+**Dogfood (production Next.js 16 pnpm monorepo, local build, no deploy):** afdocs 41 → 89 (B), 92
+markdown pages + `llms.txt`; `agent-headers` stays 100. Still failing: `content-negotiation` (an
+existing `proxy.ts` is skipped, not merged), `llms-txt-directive-html` (layout change),
+`cache-header-hygiene` (CDN config), `markdown-link-portability` warn (no canonical, so root-relative links).
+50 of its 142 prerendered pages are empty redirect shells and were correctly skipped; no `/` page is
+prerendered (the root is rewritten), so no `/index.md`.
+
+**Limits:** converter is a small purpose-built one, not a full HTML parser (a player widget's status
+text leaks into a page); `prerender-manifest.json` is a Next internal (version 4 today), and an
+unrecognized format only warns. Versions: this is 1.19.0; 1.18.0 (monorepo + AWS) is unreleased.
+

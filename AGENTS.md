@@ -65,7 +65,7 @@ their detail; don't load them just because a session started.
 | `src/skill-install.js`, `src/installers/` | `install-skill` command — writes SKILL.md into an agent's skill-discovery path |
 | `src/report.js`, `src/diff-report.js` | Scorecard normalization + before/after diffing |
 | `src/loop.js` | Local scan orchestration (`scan-local`/`rescan-local`, plus the single-shot `loop` command), no live deployment |
-| `fixtures/astro-starlight-cf-pages/`, `fixtures/astro-cf-pages/`, `fixtures/nextjs-vercel/` | Reference fixer targets + reproduction steps |
+| `fixtures/astro-starlight-cf-pages/`, `fixtures/astro-cf-pages/`, `fixtures/nextjs-vercel/`, `fixtures/nextjs-opennext-monorepo/` | Reference fixer targets + reproduction steps |
 | `scripts/verify-loop.js` | CI verification of the scan-local→enhance→rescan-local cycle |
 | `siteready-plan.md` | Original design plan — **frozen, not maintained.** Historical design rationale only; its §13 lists where it's now wrong. Don't update it; don't cite it as current state |
 | `SKILL.md` | Claude Code skill entrypoint — orchestration instructions for running siteready as an agent, cwd-agnostic (uses `<skill-dir>`) |

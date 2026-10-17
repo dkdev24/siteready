@@ -8,7 +8,7 @@ file under 80 lines. Detailed history and lists live in the linked docs below.
 ## Current Version
 
 **0.8.0** (doc-tracking system version, see WORKLOG.md). Engine/CLI is at
-package.json `1.17.0`, committed, tagged, and published to npm.
+package.json `1.19.0`, **uncommitted, untagged, unpublished** (v1.17.0 is the last published).
 
 ---
 
@@ -33,6 +33,16 @@ v1.16.1 (same day): afdocs pin 0.20.0 → 0.22.2, closes #1 (schema-compatible, 
 **v1.17.0** (same day): Starlight `.md` mirror runs the body through `toAgentMarkdown()`
 (`src/lib/md-mirror.js`): absolute links, components → markdown. Existing raw-body routes get a
 warning (enhance never overwrites). Regression check `scripts/check-md-mirror.js` in lint.
+
+**v1.19.0** (2026-10-17, uncommitted, #25 done): the Next.js fixer now generates `llms.txt` + `.md` mirrors from the
+build output (`scripts/agent-readiness.mjs` wired as `postbuild`; zero-dep, ownership-marked, never fails the build). Dogfood on
+a real Next.js/pnpm/AWS monorepo, local: afdocs 41 → 89. Open: existing proxy skipped (#27), in-HTML directive (#28). Detail: WORKLOG v1.19.0.
+**v1.18.0** (2026-10-17, uncommitted): monorepo path detection (npm/yarn/pnpm workspaces, up and
+down) + `aws-cloudfront-opennext` platform for Next.js (CloudFront + OpenNext/SST/cdk-nextjs-standalone),
+new fixture `nextjs-opennext-monorepo`, `scripts/check-detect-stack.js` in lint. Also narrowed-bug fix in
+`fixers/nextjs.js` (skips existing nested/TS `not-found`, `app/robots.*`). Can't verify CloudFront cache
+key or S3-served `public/*.md` locally; the fixer warns. Next: scan a real deployed Next.js-on-AWS site
+as a test target (enhance on a copy only; an existing `proxy.ts` is skipped, not merged). Detail: WORKLOG v1.18.0.
 
 **#15 still open, not done** — the partial-report fix itself is unstarted.
 

@@ -28,7 +28,8 @@ siteready/
 └── fixtures/
     ├── astro-starlight-cf-pages/   # reference fixture the Astro+Starlight fixer is verified against
     ├── astro-cf-pages/             # reference fixture the plain-Astro fixer is verified against
-    └── nextjs-vercel/              # reference fixture the Next.js+Vercel fixer is verified against
+    ├── nextjs-vercel/              # reference fixture the Next.js+Vercel fixer is verified against
+    └── nextjs-opennext-monorepo/   # monorepo + AWS (CloudFront/OpenNext) fixer target
 ```
 
 Every scanner adapter and every fixer is independently pluggable — a scanner going offline or a

@@ -96,10 +96,18 @@ function runNpmScript(args, repoPath) {
   });
 }
 
-export async function ensureInstalled(repoPath, { onProgress } = {}) {
-  if (existsSync(path.join(repoPath, "node_modules"))) return;
+// `installRoot` is the workspace root for a monorepo app (hoisted deps live
+// there), else the app dir. siteready only runs `npm install` itself: in a
+// pnpm/yarn/bun workspace that would create a second, conflicting install, so
+// it asks the user to install with their own package manager instead.
+export async function ensureInstalled(repoPath, { installRoot = repoPath, onProgress } = {}) {
+  if (existsSync(path.join(repoPath, "node_modules")) || existsSync(path.join(installRoot, "node_modules"))) return;
+  const other = ["pnpm-lock.yaml", "yarn.lock", "bun.lock", "bun.lockb"].find((f) => existsSync(path.join(installRoot, f)));
+  if (other) {
+    throw new Error(`Dependencies aren't installed and ${installRoot} uses ${other.split(/[-.]/)[0]} (found ${other}). Install them with that package manager first, then re-run.`);
+  }
   onProgress?.("Installing dependencies (npm install)...");
-  await runNpmScript(["install"], repoPath);
+  await runNpmScript(["install"], installRoot);
 }
 
 export async function buildSite(repoPath, { onProgress } = {}) {
@@ -133,7 +141,7 @@ async function waitForReady(url, { timeoutMs = 30_000, intervalMs = 500 } = {}) 
 // only. A platform not in this list can't have its edge-function-dependent
 // fixes (e.g. Netlify's markdown-negotiation Edge Function) verified via
 // scan-local/rescan-local/loop — see loop.js's `localScanCaveatFor`.
-export const PLATFORMS_WITH_EDGE_RUNTIME = ["cloudflare-pages", "vercel"];
+export const PLATFORMS_WITH_EDGE_RUNTIME = ["cloudflare-pages", "vercel", "aws-cloudfront-opennext"];
 
 /**
  * Starts a local preview server for a repo's build output and resolves once

@@ -2176,3 +2176,28 @@ flagged two unused bindings in the generated script.
 the default sampling shows 59 because the sitemap and canonical URLs name the live host, so afdocs samples
 only the start page. Not a site problem, but local scores are only final against a deployed URL.
 
+---
+
+## v1.19.3 — Never wire the mirror generator on OpenNext (v1.19.0-v1.19.2 broke a production site)
+
+**Date:** 2026-10-17
+
+**Incident:** `enhance` from v1.19.0-v1.19.2 wired the Next.js mirror generator on every Next.js platform,
+including AWS CloudFront + OpenNext. Deployed to a real site, the generated `public/academy/`, `public/ko/`
+and `public/playground/` directories became CloudFront behaviors (`<dir>/*`) routed to the S3 static bucket,
+so every HTML page under those prefixes answered 403 on Staging and Production until the generator was
+removed (confirmed from the distribution's behavior list). My smoke test requested only the new `.md` URLs.
+The v1.19.0 WORKLOG entry's AWS warnings covered cache keys and `.md` reachability, not this.
+
+**Changes**
+- `enhance.js` passes `platform` to the framework fixer; `fixers/nextjs.js` does not wire the generator when
+  `platform === "aws-cloudfront-opennext"` and warns why. The generator's header comment says the same.
+- Fixtures: `nextjs-vercel` now ships no `.md` (generator produces them; asserts `llms-txt-exists`,
+  `markdown-url-support`); `nextjs-opennext-monorepo` keeps committed `.md` and asserts the generator is NOT
+  wired and `content-negotiation` flips. Check script covers the OpenNext skip.
+
+**Limits:** OpenNext detection is signal-based (`open-next.config.*`, `sst`, `cdk-nextjs-standalone`, ...); a
+site on OpenNext with none of them in the checkout is detected as Vercel and would still get the generator.
+Anyone who ran `enhance` with v1.19.0-v1.19.2 on an OpenNext site should remove `scripts/agent-readiness.mjs`
+and the `postbuild` hook, and check CloudFront behaviors for `public/` directories.
+

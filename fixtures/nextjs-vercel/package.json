@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "postbuild": "node scripts/agent-readiness.mjs"
   },
   "dependencies": {
     "next": "^16.3.4",

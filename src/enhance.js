@@ -53,7 +53,7 @@ export async function enhance(repoPath) {
   // Jekyll/GitHub Pages sites can live under a repo subdir (e.g. /docs) rather
   // than the repo root every other framework builds from.
   const siteRoot = stack.siteRoot ?? resolved;
-  const framework = await FRAMEWORK_FIXERS[stack.framework](siteRoot);
+  const framework = await FRAMEWORK_FIXERS[stack.framework](siteRoot, { platform: stack.platform });
   const platform = await PLATFORM_FIXERS[stack.platform](siteRoot);
 
   return {

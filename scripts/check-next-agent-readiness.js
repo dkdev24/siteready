@@ -168,6 +168,13 @@ try {
   assert.ok(!f.written.some((p) => /package\.json|agent-readiness/.test(p)));
   assert.equal(await readFile(path.join(root, "package.json"), "utf8"), pkgText);
 
+  // OpenNext: never wired (public/ directories become S3 CloudFront behaviors), with a warning
+  root = await app(tabbed);
+  f = await applyNextjsFixes(root, { platform: "aws-cloudfront-opennext" });
+  assert.ok(!existsSync(path.join(root, "scripts/agent-readiness.mjs")));
+  assert.equal(await readFile(path.join(root, "package.json"), "utf8"), tabbed);
+  assert.ok(f.warnings.some((w) => /NOT set up/.test(w) && /403/.test(w)));
+
   root = await app('{ "scripts": { "build": "next build", "postbuild": "echo mine" } }');
   f = await applyNextjsFixes(root);
   assert.match(await readFile(path.join(root, "package.json"), "utf8"), /echo mine/);

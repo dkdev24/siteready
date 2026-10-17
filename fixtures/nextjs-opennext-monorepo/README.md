@@ -11,11 +11,10 @@ a workspace member, so nothing is installed for it). Exercises two things the si
   signal comes from the sibling infra package, not from the app.
 
 Reference for `../../src/platforms/aws-cloudfront-opennext.js` (+ `../../src/fixers/nextjs.js`).
-It commits **no `.md` files**: `apps/web`'s `postbuild` runs `scripts/agent-readiness.mjs`, which
-generates `public/llms.txt` and the `.md` mirrors from the built pages (git-ignored). `verify-loop`
-checks that `llms-txt-exists`, `markdown-url-support` and `content-negotiation` flip fail → pass.
-Checked in with the fixers already applied (the "after" state); `scripts/verify-loop.js` strips it
-back to "before" in a temp copy.
+It commits its `.md` siblings and `verify-loop` asserts the mirror generator is **not** wired here:
+on OpenNext every directory in `public/` becomes a CloudFront behavior routed to S3, so generated mirrors
+under a route prefix make the HTML pages there return 403 (v1.19.0-v1.19.2 did this to a real site).
+`verify-loop` checks that `content-negotiation` flips fail → pass and that `enhance` warns about mirrors.
 
 ## What this can and can't verify
 

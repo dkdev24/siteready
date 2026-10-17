@@ -149,12 +149,13 @@ const FIXTURES = [
       if (after !== "pass") {
         throw new Error(`Expected content-negotiation to pass post-enhance, got ${after}.`);
       }
-      // This fixture commits its own .md siblings: the generator must leave them
-      // byte-identical (it only replaces files it wrote), and still add llms.txt.
-      const source = path.join(__dirname, "..", "fixtures", "nextjs-vercel", "public");
-      for (const rel of ["index.md", "about.md", "posts/hello-world.md", "posts/second-post.md"]) {
-        const [orig, now] = await Promise.all([readFile(path.join(source, rel), "utf8"), readFile(path.join(dir, "public", rel), "utf8")]);
-        if (orig !== now) throw new Error(`The generator changed the committed ${rel}; it must only replace files it wrote.`);
+      // The generator (postbuild) has to produce the .md siblings and llms.txt this fixture no longer ships.
+      for (const id of ["llms-txt-exists", "markdown-url-support"]) {
+        const b = checkStatus(baseline.scanners.afdocs, id);
+        const a = checkStatus(rescan.scanners.afdocs, id);
+        console.log(`afdocs check ${id}: ${b} -> ${a}`);
+        if (b !== "fail") throw new Error(`Expected baseline ${id} to fail pre-enhance, got ${b}.`);
+        if (a !== "pass") throw new Error(`Expected ${id} to pass post-enhance, got ${a}.`);
       }
       if (!existsSync(path.join(dir, "public", "llms.txt"))) throw new Error("Expected the generator to write public/llms.txt.");
     },
@@ -162,15 +163,13 @@ const FIXTURES = [
   {
     name: "nextjs-opennext-monorepo",
     dir: path.join(__dirname, "..", "fixtures", "nextjs-opennext-monorepo"),
-    // Fixer targets live in the monorepo's app package, not the repo root. This
-    // fixture ships no .md siblings: the generator has to produce them.
+    // Fixer targets live in the monorepo's app package, not the repo root. The committed .md siblings stay:
+    // on OpenNext the generator is deliberately NOT wired (public/ directories become S3 CloudFront behaviors).
     async strip(dir) {
-      await removeIfPresent(dir, ["apps/web/app/not-found.js", "apps/web/public/robots.txt", "apps/web/proxy.js", "apps/web/scripts"]);
-      await removePostbuild(dir, "apps/web/package.json");
+      await removeIfPresent(dir, ["apps/web/app/not-found.js", "apps/web/public/robots.txt", "apps/web/proxy.js"]);
     },
-    // Proves siteRoot wiring (install/build/start ran from apps/web), that the
-    // fixer wrote into the app package rather than the workspace root, and that
-    // the postbuild generator + proxy turn three failing afdocs checks into passes.
+    // Proves siteRoot wiring (install/build/start ran from apps/web), that the fixer wrote into the app
+    // package, that the generator was left out, and that negotiation flips fail -> pass.
     async verify({ baseline, rescan, enhanceResult }) {
       if (enhanceResult.stack.platform !== "aws-cloudfront-opennext") {
         throw new Error(`Expected platform aws-cloudfront-opennext, detected ${enhanceResult.stack.platform}.`);
@@ -178,13 +177,15 @@ const FIXTURES = [
       if (!enhanceResult.written.every((f) => f.includes(`apps${path.sep}web${path.sep}`))) {
         throw new Error(`Expected every fix under apps/web, got: ${enhanceResult.written.join(", ")}`);
       }
-      for (const id of ["llms-txt-exists", "markdown-url-support", "content-negotiation"]) {
-        const before = checkStatus(baseline.scanners.afdocs, id);
-        const after = checkStatus(rescan.scanners.afdocs, id);
-        console.log(`afdocs check ${id}: ${before} -> ${after}`);
-        if (before !== "fail") throw new Error(`Expected baseline ${id} to fail pre-enhance, got ${before}.`);
-        if (after !== "pass") throw new Error(`Expected ${id} to pass post-enhance, got ${after}.`);
+      if (enhanceResult.written.some((f) => /agent-readiness|package\.json/.test(f))) {
+        throw new Error(`The mirror generator must not be wired on OpenNext, got: ${enhanceResult.written.join(", ")}`);
       }
+      if (!enhanceResult.warnings.some((w) => /NOT set up/.test(w))) throw new Error("Expected the OpenNext warning about mirrors.");
+      const before = checkStatus(baseline.scanners.afdocs, "content-negotiation");
+      const after = checkStatus(rescan.scanners.afdocs, "content-negotiation");
+      console.log(`afdocs check content-negotiation: ${before} -> ${after}`);
+      if (before !== "fail") throw new Error(`Expected baseline content-negotiation to fail pre-enhance, got ${before}.`);
+      if (after !== "pass") throw new Error(`Expected content-negotiation to pass post-enhance, got ${after}.`);
     },
   },
 ];

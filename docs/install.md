@@ -68,7 +68,10 @@ shape as the plain-Astro fixer for its static files: a real `app/not-found.js` (
 root `proxy.js` (Next.js 16's renamed `middleware.js`) for `Accept: text/markdown` negotiation.
 
 Next.js has no content-collection convention to read `llms.txt` or `.md` mirrors from, so the fixer
-generates them from the **build output** instead. It copies a zero-dependency script to
+generates them from the **build output** instead. **Not on AWS (CloudFront + OpenNext):** every directory in
+`public/` becomes a CloudFront behavior routed to S3, so mirrors under a route prefix would make the HTML
+pages there return 403. There `enhance` skips the generator and says so; serve mirrors from a route handler
+or a CloudFront function. It copies a zero-dependency script to
 `scripts/agent-readiness.mjs` and adds `"postbuild": "node scripts/agent-readiness.mjs"` (only if the
 app has a `build` script and no `postbuild` yet; npm, pnpm and OpenNext's build all run it). After
 `next build` the script reads `.next/prerender-manifest.json`, converts every prerendered page's HTML

@@ -47,7 +47,7 @@ const ROBOTS_TXT = ({ sitemapUrl }) =>
  * one. Never touches git — see astro-starlight.js's docstring for the same
  * rule.
  */
-export async function applyNextjsFixes(repoPath) {
+export async function applyNextjsFixes(repoPath, { platform } = {}) {
 	const written = [];
 	const skipped = [];
 	const warnings = [];
@@ -76,7 +76,7 @@ export async function applyNextjsFixes(repoPath) {
 	if (robotsRoute) skipped.push(`${robotsRoute} (robots metadata route already exists)`);
 	else await writeIfAbsent(path.join(repoPath, "public/robots.txt"), ROBOTS_TXT({ sitemapUrl }), written, skipped);
 
-	await wireAgentReadiness(repoPath, appDir, { written, skipped, warnings });
+	await wireAgentReadiness(repoPath, appDir, { written, skipped, warnings, platform });
 
 	return { written, skipped, warnings };
 }
@@ -87,8 +87,18 @@ export async function applyNextjsFixes(repoPath) {
  * static export (`output: "export"`) copies `public/` during the build itself,
  * so a postbuild step would be too late there.
  */
-async function wireAgentReadiness(repoPath, appDir, { written, skipped, warnings }) {
+async function wireAgentReadiness(repoPath, appDir, { written, skipped, warnings, platform }) {
 	if (!appDir) return; // Pages Router: already warned above
+	// OpenNext (CloudFront + S3) gives every top-level entry of public/ its own CloudFront behavior, and a
+	// directory becomes `<dir>/*` routed to the static bucket. Mirrors under public/academy/ would send every
+	// page under /academy/ to S3 (403). That took a real site down in v1.19.0-v1.19.2, so it is never wired there.
+	if (platform === "aws-cloudfront-opennext") {
+		warnings.push(
+			"AWS/OpenNext: llms.txt and .md mirrors were NOT set up. Files generated into public/ would be served by CloudFront from S3, and every directory in public/ becomes a `<dir>/*` behavior, so mirrors under a route prefix (public/docs/, public/ko/) would make the HTML pages under that prefix return 403. " +
+				"Serve them from a route handler or a CloudFront function instead."
+		);
+		return;
+	}
 	const configPath = ["next.config.js", "next.config.mjs", "next.config.cjs", "next.config.ts"].map((f) => path.join(repoPath, f)).find(existsSync);
 	if (configPath && /output\s*:\s*['"`]export['"`]/.test(await readFile(configPath, "utf8"))) {
 		warnings.push("Next.js: `output: \"export\"` copies public/ during the build, before a postbuild step could add files, so llms.txt and .md mirrors were not set up.");

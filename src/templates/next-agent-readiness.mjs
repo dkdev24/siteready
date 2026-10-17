@@ -11,6 +11,9 @@
 //    `.md` or `llms.txt` you wrote by hand is left alone and counted as skipped.
 //  - Node builtins only, so it runs in any CI regardless of the site's package type.
 //
+// Do not use it on OpenNext/CloudFront hosting: every directory under public/ becomes an S3-routed
+// CloudFront behavior (`<dir>/*`), so mirrors under a route prefix make the HTML pages there return 403.
+//
 // Only prerendered (static) pages are covered; server-rendered routes have no HTML
 // at build time. Generated files are rebuilt every build: add them to .gitignore.
 import { existsSync } from "node:fs";

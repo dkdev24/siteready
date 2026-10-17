@@ -1929,3 +1929,47 @@ Verified: `npm run lint` clean; a real `scan-local` run against a Netlify-detect
 the note in `onProgress` output, `report.md`, and `report.json`; the same run against Cloudflare
 Pages/Vercel fixtures (via `npm run verify-loop`, all three fixtures) showed no note, confirming the
 gate is platform-conditional and doesn't fire where it shouldn't.
+
+## v1.16.0 — Markdown-negotiation middleware fix + `agent-headers` scanner
+
+2026-10-17. A real production Astro + Starlight docs site on Cloudflare Pages, whose middleware
+was derived from siteready's template, served clean markdown to scanners but not to real agent
+sessions: Claude Code's WebFetch sends `Accept: text/markdown, text/html, */*` (UA `Claude-User`),
+and with that header the site's nested `llms*.txt` indexes redirected to a section page,
+`llms-full.txt` and every explicit `.md` sibling returned 404. The agents fell back to scraping
+HTML. Every external scanner passed it.
+
+**Template bug (Cloudflare Pages + Netlify).** Both treated every markdown-preferring or AI-bot
+request as a page request: look up `<path>.md`, else serve `/404.md` with status 404. For a path
+that already has an extension that lookup is `page.md.md`, `robots.txt.md`, `sitemap.xml.md`, so
+GPTBot got a 404 for `robots.txt`/`sitemap.xml` and markdown-preferring clients got a 404 for the
+`.md` URLs llms.txt advertises. Fixed: skip negotiation for any path ending in a file extension.
+Also added `Claude-User` to `BOT_UA`. Vercel's Proxy was not affected (it falls through to normal
+routing on a miss). This changes a shipped fixer's output, which AGENTS.md's "additive plugins"
+rule otherwise forbids; it's a correctness fix to generated code, not a contract change, and
+`enhance` still never overwrites an existing middleware, so already-enhanced sites must patch by
+hand (release notes say how).
+
+**Why the scanners missed it.** afdocs 0.20.0 checks each dimension with one header pattern:
+`content-negotiation` sends `Accept: text/markdown` to pages (worked), `markdown-url-support`
+fetches `.md` URLs with no Accept (worked), `llms-txt-links-markdown` assumes a `.md` link is fine
+without fetching it, and for `.txt` links follows redirects and accepts any `text/markdown`
+response, so a redirect to the section page counted as a pass.
+
+**New scanner `agent-headers`** (`src/scanners/agent-headers.js`, default for scan/rescan and
+scan-local/rescan-local/loop; in-house `fetch()`, no API cost). Collects URLs from `llms.txt`
+(target path first, then origin root; follows linked `llms*.txt` one level), up to 5 per kind:
+index files, `.md` links, pages, plus `robots.txt`/`sitemap.xml`. Requests each with a plain
+request, Claude Code's headers, and a GPTBot UA, `redirect: "manual"`. Fails when a URL that works
+for the plain request returns an error or redirects to a different path for an agent profile
+(trailing-slash redirects are fine). Score = passing kinds / tested kinds.
+
+Verified:
+- `scripts/check-agent-headers.js` (added to `npm run lint`): runs the generated CF middleware
+  against in-memory assets (all 4 checks pass) and a middleware with the old behavior (index files
+  and `.md` links fail). Against the v1.15.0 template it fails 3 of 4 (index files, `.md` links,
+  robots/sitemap).
+- `verify-loop.js` now runs agent-headers too and asserts no failure after `enhance`.
+- Live: three production sites score 100 (one now tests 5 index files, 5 `.md` links, 5 pages via
+  its nested indexes). The docs site's pre-fix middleware, replayed under `wrangler pages dev`
+  with its production URLs rewritten to localhost: score 50, index files and `.md` links fail.

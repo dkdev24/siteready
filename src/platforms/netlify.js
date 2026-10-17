@@ -14,15 +14,21 @@ const EDGE_FUNCTION = `// Netlify Edge Function: serves the pre-built \`.md\` si
 // when the User-Agent identifies a known AI crawler, which rarely sends
 // \`Accept: text/markdown\` itself. Static \`netlify.toml\` headers/redirects
 // can't branch on a request header, so this has to be an Edge Function.
-const BOT_UA = /GPTBot|ClaudeBot|ChatGPT-User|PerplexityBot|Google-Extended|Applebot-Extended|CCBot|Bytespider|DeepSeekBot/i;
+const BOT_UA = /GPTBot|ClaudeBot|Claude-User|ChatGPT-User|PerplexityBot|Google-Extended|Applebot-Extended|CCBot|Bytespider|DeepSeekBot/i;
 
 export default async (request, context) => {
 	const accept = request.headers.get('Accept') ?? '';
 	const userAgent = request.headers.get('User-Agent') ?? '';
 	const wantsMarkdown = accept.includes('text/markdown') || BOT_UA.test(userAgent);
 
-	if (wantsMarkdown) {
-		const url = new URL(request.url);
+	const url = new URL(request.url);
+	// Paths with their own extension (\`.md\` siblings, llms.txt, robots.txt,
+	// sitemap.xml) are served as-is: looking up \`<path>.md\` for them finds
+	// nothing (\`page.md.md\`), so a markdown-preferring agent would get a 404
+	// instead of the file it asked for.
+	const hasExtension = /\\.[a-z0-9]+$/i.test(url.pathname);
+
+	if (wantsMarkdown && !hasExtension) {
 		const pathname = url.pathname.replace(/\\/$/, '');
 		const mdPath = pathname === '' ? '/index.md' : \`\${pathname}.md\`;
 		// A bare self-fetch, not context.next() — the .md path is a plain

@@ -93,7 +93,14 @@ framework having no fixer yet degrades to "unsupported," never breaks the pipeli
   instead of trusting a PATH-resolved `npx` (which can point at an entirely different Node/npm
   install), and it treats a scanned site's own failing checks (which make the scanner CLI exit
   non-zero) as the expected case, not a tool failure.
-- `scanners/ora.js` is the one exception to the npx-runner rule above: Ora
+- `scanners/agent-headers.js` is in-house (no external CLI or API), so it calls `fetch()` directly
+  too. It requests each kind of URL `/llms.txt` links to (index files, `.md` links, pages, plus
+  `robots.txt`/`sitemap.xml`) with real agent headers (Claude Code's `Accept: text/markdown, …`, a
+  GPTBot UA) and `redirect: "manual"`, and fails when the result is worse than a plain request:
+  an error status, or a redirect to a different path. The external scanners test one header
+  pattern per URL type and follow redirects, so a negotiation middleware that 404s `.md` URLs or
+  redirects index files for markdown-preferring agents passed all of them.
+- `scanners/ora.js` is the other exception to the npx-runner rule above: Ora
   (https://ora.ai/, the engine Vercel's Is Agentic wraps with a simplified `include=essentials`
   subset) has no CLI, only a public, keyless-for-reads API, so the adapter calls `fetch()`
   directly against `POST https://ora.ai/api/scan?format=audit`. **Rate-limited per IP** — 10

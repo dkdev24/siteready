@@ -153,13 +153,18 @@ async function runFixture(fixture) {
     await fixture.strip(target);
 
     console.log(`\n=== ${fixture.name}: running scan-local -> enhance -> rescan-local against stripped fixture copy at ${target} ===`);
-    const scanOpts = { scanners: ["afdocs"], sampling: "deterministic", onProgress: (msg) => console.log(msg) };
+    const scanOpts = { scanners: ["afdocs", "agent-headers"], sampling: "deterministic", onProgress: (msg) => console.log(msg) };
     const { report: baseline } = await runScanLocal(target, scanOpts);
     const enhanceResult = await enhance(target);
     const { report: rescan } = await runScanLocal(target, scanOpts);
     buildDiffReport(baseline, rescan); // exercised here too, same as a real rescan-local run
 
     await fixture.verify({ baseline, rescan, enhanceResult });
+    // The middleware enhance writes must never serve agents worse than a plain request.
+    const agentFailures = (rescan.scanners["agent-headers"]?.checks ?? []).filter((c) => c.status === "fail");
+    if (agentFailures.length) {
+      throw new Error(`${fixture.name}: agent-headers failed after enhance: ${agentFailures.map((c) => c.message).join(" | ")}`);
+    }
     console.log(`OK: ${fixture.name} verified.`);
   } finally {
     await rm(tmpDir, { recursive: true, force: true });

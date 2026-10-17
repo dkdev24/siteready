@@ -46,7 +46,7 @@ function localScanCaveatFor(platform) {
  */
 export async function runLoop(
   repoPath,
-  { scanners = ["afdocs"], sampling = "deterministic", siteType, distDir = "dist", port, onProgress } = {}
+  { scanners = ["afdocs", "agent-headers"], sampling = "deterministic", siteType, distDir = "dist", port, onProgress } = {}
 ) {
   const resolved = path.resolve(repoPath);
   const stack = await detectStack(resolved);
@@ -104,7 +104,7 @@ export async function runLoop(
  */
 export async function runScanLocal(
   repoPath,
-  { scanners = ["afdocs"], sampling = "deterministic", siteType, distDir = "dist", port, onProgress } = {}
+  { scanners = ["afdocs", "agent-headers"], sampling = "deterministic", siteType, distDir = "dist", port, onProgress } = {}
 ) {
   const resolved = path.resolve(repoPath);
   const stack = await detectStack(resolved);

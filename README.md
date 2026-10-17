@@ -56,7 +56,7 @@ Full install guide (npx, source checkout, Claude Code skill setup, Node version)
 
 | Piece | Status |
 |---|---|
-| Scanners | [afdocs](https://agentdocsspec.com/) (doc-heavy sites), [Vercel Is Agentic](https://is-agentic.com/) (any content site) — both run by default. [Ora](https://ora.ai/) (the engine behind Is Agentic) is opt-in (`--scanners ora`) |
+| Scanners | [afdocs](https://agentdocsspec.com/) (doc-heavy sites), [Vercel Is Agentic](https://is-agentic.com/) (any content site), and siteready's own agent-headers check (requests every URL kind in llms.txt with real agent headers) — all three run by default. [Ora](https://ora.ai/) (the engine behind Is Agentic) is opt-in (`--scanners ora`) |
 | Fixer | Astro + Starlight or plain Astro, on Cloudflare Pages, Netlify, or GitLab Pages; Next.js (App Router) on Vercel or Netlify; Jekyll on GitHub Pages or GitLab Pages |
 | Loop | `scan → enhance → rescan → diff-report`, fully local (no live deployment needed) |
 | Scan-local | Baseline scan against a repo checkout, no public URL — for a site not deployed yet |

@@ -60,7 +60,7 @@ their detail; don't load them just because a session started.
 | Path | Purpose |
 |---|---|
 | `src/cli.js` | CLI entrypoint (scan / enhance / rescan / diff-report / scan-local / rescan-local) |
-| `src/scan.js`, `src/scanners/` | Scanner orchestration (afdocs, is-agentic, ora) |
+| `src/scan.js`, `src/scanners/` | Scanner orchestration (afdocs, is-agentic, ora, agent-headers) |
 | `src/enhance.js`, `src/fixers/` | Framework/platform detection + auto-fixers |
 | `src/skill-install.js`, `src/installers/` | `install-skill` command — writes SKILL.md into an agent's skill-discovery path |
 | `src/report.js`, `src/diff-report.js` | Scorecard normalization + before/after diffing |

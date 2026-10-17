@@ -74,8 +74,8 @@ Options (scan / rescan / scan-local / rescan-local / loop):
   --scanners <list>       Comma-separated scanner list (supported: ${SUPPORTED_SCANNERS.join(", ")})
                           (default: ${DEFAULT_SCANNERS.join(", ")} for scan/rescan — ora is opt-in,
                           since it's the same engine as is-agentic's full ranker and running both by
-                          default just doubles the hosted-API cost for overlapping data; afdocs-only
-                          for scan-local/rescan-local unless you opt in — see below)
+                          default just doubles the hosted-API cost for overlapping data; afdocs +
+                          agent-headers for scan-local/rescan-local unless you opt in — see below)
   --port <n>              Local preview server port for scan-local/rescan-local (default: OS-assigned free port)
   --site-type <type>      content | api | application | auto (default: auto, unfiltered). Excludes
                           API-surface checks (openapi-spec, oauth-support, the Payments layer, etc.)
@@ -363,13 +363,13 @@ async function runLoopCommand(repoPath, args) {
     process.exit(1);
   }
 
-  const unsupported = (args.scanners ?? ["afdocs"]).filter((s) => !SUPPORTED_SCANNERS.includes(s));
+  const unsupported = (args.scanners ?? ["afdocs", "agent-headers"]).filter((s) => !SUPPORTED_SCANNERS.includes(s));
   if (unsupported.length) {
     console.error(`Unsupported scanner(s): ${unsupported.join(", ")}. Supported: ${SUPPORTED_SCANNERS.join(", ")}`);
     process.exit(1);
   }
 
-  const scanners = args.scanners ?? ["afdocs"];
+  const scanners = args.scanners ?? ["afdocs", "agent-headers"];
   const outDir = args.out ?? outDirFor(repoPath, "-loop");
 
   console.log(`Running full loop on ${path.resolve(repoPath)} with: ${scanners.join(", ")}`);
@@ -427,13 +427,13 @@ async function runScanLocalCommand(repoPath, args) {
     process.exit(1);
   }
 
-  const unsupported = (args.scanners ?? ["afdocs"]).filter((s) => !SUPPORTED_SCANNERS.includes(s));
+  const unsupported = (args.scanners ?? ["afdocs", "agent-headers"]).filter((s) => !SUPPORTED_SCANNERS.includes(s));
   if (unsupported.length) {
     console.error(`Unsupported scanner(s): ${unsupported.join(", ")}. Supported: ${SUPPORTED_SCANNERS.join(", ")}`);
     process.exit(1);
   }
 
-  const scanners = args.scanners ?? ["afdocs"];
+  const scanners = args.scanners ?? ["afdocs", "agent-headers"];
   const outDir = args.out ?? outDirFor(repoPath, "-local");
 
   console.log(`Scanning local build of ${path.resolve(repoPath)} with: ${scanners.join(", ")}`);

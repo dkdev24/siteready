@@ -71,7 +71,7 @@ and `diff-report` never need this — they only ever hit the live URL over HTTP.
 # scan + report (any public URL — no local repo needed, run from wherever)
 node <skill-dir>/src/cli.js https://example.com
 node <skill-dir>/src/cli.js https://example.com --out ./out/my-scan --sampling deterministic
-node <skill-dir>/src/cli.js https://example.com --scanners is-agentic   # or: afdocs, or both (default)
+node <skill-dir>/src/cli.js https://example.com --scanners is-agentic   # or: afdocs, agent-headers (all three by default)
 node <skill-dir>/src/cli.js https://example.com --site-type content   # a docs/content site with no public API
 
 # enhance a local repo checkout — run with that repo as your cwd, target it as "."
@@ -112,7 +112,7 @@ score's meaning.
 
 Read every command's own output before deciding what to do next — `enhance` prints exactly what it
 wrote, skipped (already present, won't overwrite), or warned about, and exits without touching git.
-`scan-local`/`rescan-local` default to afdocs; adding `--scanners is-agentic,ora` works too, but
+`scan-local`/`rescan-local` default to afdocs + agent-headers; adding `--scanners is-agentic,ora` works too, but
 each scan then routes through an ephemeral Cloudflare Quick Tunnel (those scanners crawl from their
 own infrastructure and can't reach `localhost`), which adds up to ~60-90s per scan and can fail
 outright on a bad network. Quick Tunnels are anonymous, best-effort, and each gets its own random

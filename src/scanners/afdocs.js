@@ -7,7 +7,7 @@ import { runNpxCli } from "../lib/npx-runner.js";
 // auto-float this. `npm run check-scanner-versions` reports when this pin
 // falls behind npm's latest published version.
 export const PACKAGE_NAME = "afdocs";
-export const PINNED_VERSION = "0.20.0";
+export const PINNED_VERSION = "0.22.2";
 // One-off override for trying a newer release without editing source — the
 // default stays pinned for everyone else. Re-verify normalize() before
 // promoting an override to the new PINNED_VERSION.

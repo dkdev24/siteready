@@ -97,7 +97,7 @@ their detail; don't load them just because a session started.
 - **A scanner CLI exiting non-zero is expected, not a tool failure** — it means the scanned site
   failed checks (the normal case for a "before" baseline). Only a missing/unparseable stdout is a
   real invocation failure.
-- **Scanner CLIs are pinned to exact versions** (e.g. `afdocs@0.20.0`, `is-agentic@1.0.1`) in each
+- **Scanner CLIs are pinned to exact versions** (e.g. `afdocs@0.22.2`, `is-agentic@1.0.1`) in each
   adapter file, not called via a bare/unpinned `npx`. Bump deliberately and re-verify that
   adapter's `normalize()` against the new output — both CLIs are young enough for breaking schema
   changes upstream. `npm run check-scanner-versions` reports drift against npm's latest without

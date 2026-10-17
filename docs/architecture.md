@@ -74,7 +74,7 @@ framework having no fixer yet degrades to "unsupported," never breaks the pipeli
   that returns `{ normalized, raw }`. `is-agentic`'s `issues[]` only lists non-passing checks
   (afdocs and Ora list every check they ran) — each adapter reconciles that into the same
   `checks[]`/`summary` shape so `report.js` needs no scanner-specific branching.
-- Both scanner CLIs are invoked at a **pinned version** (`afdocs@0.20.0`, `is-agentic@1.0.1`), not
+- Both scanner CLIs are invoked at a **pinned version** (`afdocs@0.22.2`, `is-agentic@1.0.1`), not
   a bare package name — an unpinned `npx` call always fetches whatever's newest, and either CLI is
   young enough that a breaking JSON-schema change upstream could silently break every scan. Bump
   deliberately, re-verify the adapter's `normalize()` against the new output.

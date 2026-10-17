@@ -1973,3 +1973,20 @@ Verified:
 - Live: three production sites score 100 (one now tests 5 index files, 5 `.md` links, 5 pages via
   its nested indexes). The docs site's pre-fix middleware, replayed under `wrangler pages dev`
   with its production URLs rewritten to localhost: score 50, index files and `.md` links fail.
+
+## 2026-10-17 — afdocs pin 0.20.0 → 0.22.2 (no version bump)
+
+Closes #1 (weekly `scanner-version-drift` issue). Ran both versions against the same production
+docs site with siteready's exact flags (`check --format json --score --fixes --sampling
+deterministic`): `results[]` keys and `scoring` keys (`checkScores` entries, `categoryScores`,
+`resolutions`) are unchanged, so `normalize()` needs no change. 0.22.2 adds top-level
+`requestSummary`/`networkContext` (ignored) and 5 checks (`bot-protection-interference`,
+`embedded-data-serialization`, `markdown-link-portability`, `page-size-transfer`,
+`single-fetch-completeness`); none removed or renamed, so `NOT_APPLICABLE_TO_CONTENT` ids still
+match. Same site: 94/A on both. A diff of a 0.20-era baseline against a 0.22 rescan will list the
+5 checks as new.
+
+Verified: `npm run lint`, `check-scanner-versions` (both pins up to date), `verify-loop` all three
+fixtures OK. Fixture baseline scores moved 0 → 41 under 0.22's new checks/weights (astro-cf-pages
+and nextjs-vercel stay 41 → 41 after enhance, same as 0 → 0 under 0.20; those fixtures verify
+specific checks, not the score).

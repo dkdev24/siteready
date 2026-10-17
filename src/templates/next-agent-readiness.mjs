@@ -14,7 +14,7 @@
 // Only prerendered (static) pages are covered; server-rendered routes have no HTML
 // at build time. Generated files are rebuilt every build: add them to .gitignore.
 import { existsSync } from "node:fs";
-import { mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -286,6 +286,7 @@ export function pageMeta(html) {
     title,
     description: metaContent(head, "description") || metaContent(head, "og:description", "property"),
     siteName: metaContent(head, "og:site_name", "property"),
+    canonical,
     canonicalOrigin: originOf(canonical) || originOf(metaContent(head, "og:url", "property")),
     noindex: /noindex/i.test(metaContent(head, "robots")),
   };
@@ -342,7 +343,7 @@ function groupLabel(segment) {
   return segment.replace(/[-_]+/g, " ").replace(/^./, (c) => c.toUpperCase());
 }
 
-function llmsFile({ name, summary, groups, root }) {
+function llmsFile({ name, summary, groups }) {
   const lines = [`# ${name}`, ""];
   if (summary) lines.push(`> ${summary}`, "");
   for (const [label, entries] of groups) {
@@ -389,8 +390,11 @@ export async function generate(cwd = process.cwd(), { log = console.log, warn = 
     return;
   }
 
-  const origin = process.env.AGENT_READINESS_ORIGIN?.replace(/\/$/, "") || pages.map((p) => p.meta.canonicalOrigin).find(Boolean) || "";
-  if (!origin) warn("agent-readiness: no canonical/og:url origin found, so links are root-relative. Set `alternates.canonical` in your metadata, or AGENT_READINESS_ORIGIN, for absolute links.");
+  // AGENT_READINESS_ORIGIN: an origin URL, or `none` to force root-relative links (local scans, where
+  // absolute production URLs would make a scanner follow the live site instead of the build).
+  const override = process.env.AGENT_READINESS_ORIGIN?.trim();
+  const origin = override === "none" ? "" : override?.replace(/\/$/, "") || pages.map((p) => p.meta.canonicalOrigin).find(Boolean) || "";
+  if (!origin && override !== "none") warn("agent-readiness: no canonical/og:url origin found, so links are root-relative. Set `alternates.canonical` in your metadata, or AGENT_READINESS_ORIGIN, for absolute links.");
   const url = (p) => `${origin}${p}`;
   const mdPathFor = (route) => (route === "/" ? "/index.md" : `${route}.md`);
 
@@ -399,19 +403,33 @@ export async function generate(cwd = process.cwd(), { log = console.log, warn = 
   const hasRootRoute = pages.some((p) => p.route === "/");
 
   const home = pages.find((p) => p.route === "/") ?? [...pages].sort((a, b) => a.route.length - b.route.length)[0];
+  // A page's mirror lives at its canonical URL + `.md` (what an agent gets by appending `.md` to the URL
+  // it was given), which differs from the route when the site rewrites, e.g. an unprefixed default locale.
+  const mdRouteOf = ({ route, meta }) => {
+    try {
+      const canon = new URL(meta.canonical);
+      if (override === "none" || (origin && canon.origin === origin)) return canon.pathname.length > 1 ? canon.pathname.replace(/\/$/, "") : "/";
+    } catch {}
+    return route;
+  };
+  const taken = new Set();
   const entries = [];
-  for (const { route, html, meta } of pages) {
+  for (const page of pages) {
+    const { route, html, meta } = page;
+    const mdRoute = mdRouteOf(page);
+    if (taken.has(mdRoute)) continue;
     const body = htmlToMarkdown(html, { origin });
     if (body.length < MIN_BODY_CHARS) continue;
     const title = body.match(/^#\s+(.+)$/m)?.[1].trim() || meta.title || route;
     const md = [llmsDirective("/llms.txt"), "", /^#\s/m.test(body) ? body : `# ${title}\n\n${body}`].join("\n");
-    const file = path.join(publicDir, mdPathFor(route).slice(1));
+    taken.add(mdRoute);
+    const file = path.join(publicDir, mdPathFor(mdRoute).slice(1));
     const result = await writeOwned(file, md);
     if (result === "skipped") skippedMd += 1;
     else written.add(path.resolve(file));
     // A site-wide description repeated on every page says nothing about this page.
     const description = route !== home.route && meta.description === home.meta.description ? "" : meta.description;
-    entries.push({ route, title, description, mdUrl: url(mdPathFor(route)), skipped: result === "skipped" });
+    entries.push({ route, title, description, mdUrl: url(mdPathFor(mdRoute)), skipped: result === "skipped" });
   }
 
   // llms.txt: skip if a route handler or a hand-written file already owns it.

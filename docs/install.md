@@ -75,8 +75,10 @@ app has a `build` script and no `postbuild` yet; npm, pnpm and OpenNext's build 
 (`<main>`, or the body minus header/nav/footer) to `public/<route>.md`, and writes `public/llms.txt`
 (split into per-section files above ~30 KB). It never fails the build, only replaces files it wrote
 itself (marked with a trailing comment), removes stale ones, and skips `llms.txt` if you have an
-`app/llms.txt` route. Links are absolute when a page declares a canonical URL (or
-`AGENT_READINESS_ORIGIN` is set), otherwise root-relative. Limits: App Router only; server-rendered
+`app/llms.txt` route. A page's mirror lives at its canonical path + `.md` (so a rewritten default locale gets `/x.md`, not
+`/en/x.md`), and links are absolute when a page declares a canonical URL (or `AGENT_READINESS_ORIGIN` is
+set to an origin), otherwise root-relative. `AGENT_READINESS_ORIGIN=none` forces root-relative links;
+`scan-local`/`rescan-local`/`loop` set it for their build so a local scan never follows production URLs. Limits: App Router only; server-rendered
 routes and `output: "export"` sites aren't covered; add the generated files to `.gitignore`; the
 `llms.txt` pointer in each page's HTML (afdocs `llms-txt-directive-html`) needs a layout change that
 siteready doesn't make. `fixtures/nextjs-vercel`

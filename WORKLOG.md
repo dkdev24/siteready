@@ -2151,3 +2151,28 @@ a score-less result, printing `n/a/100 (F)` and `is-agentic: undefined -> undefi
 tunnel run, `afdocs` 41, `is-agentic` reported as FAILED (partial scan). **Still open:** the `is-agentic`
 502 itself (ISSUES.md).
 
+---
+
+## v1.19.2 — Generator: mirrors at canonical paths, `AGENT_READINESS_ORIGIN=none`, local builds use it
+
+**Date:** 2026-10-17
+
+**Why:** Improving a real Next.js/AWS site with v1.19.1 exposed three things. (1) Its default locale is
+served unprefixed (`/academy`) through a rewrite of the prerendered `/en/academy`, so mirrors written at the
+route path (`/en/academy.md`) were not where an agent lands by appending `.md` to the canonical URL, and
+`/index.md` was never produced (no prerendered `/`). (2) Once pages declared a canonical, llms.txt linked
+absolute production URLs, so a local scan followed the live site (`llms-txt-links-resolve` 0/50). (3) ESLint
+flagged two unused bindings in the generated script.
+
+**Changes**
+- `next-agent-readiness.mjs`: a page's `.md` path is its canonical pathname when the canonical origin
+  matches (first page wins on a collision); llms.txt grouping stays by route (language), URLs by canonical.
+  `AGENT_READINESS_ORIGIN=none` forces root-relative links while keeping canonical paths. Removed an unused
+  import and parameter.
+- `lib/local-server.js`: `buildSite` runs the build with `AGENT_READINESS_ORIGIN=none`.
+- Check script covers canonical-path mirrors and `none`.
+
+**Dogfood:** with `--sampling none` and a production-mode build the site's local afdocs score is 95 (was 41);
+the default sampling shows 59 because the sitemap and canonical URLs name the live host, so afdocs samples
+only the start page. Not a site problem, but local scores are only final against a deployed URL.
+

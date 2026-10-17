@@ -104,6 +104,23 @@ try {
   assert.equal(r.status, 0, r.stderr);
   assert.ok(!existsSync(path.join(root, "public/llms.txt")));
 
+  // mirrors live at the canonical URL + .md even when the route differs (rewritten default locale)
+  root = await project({
+    ".next/prerender-manifest.json": manifest(["/en", "/en/x", "/ko/x"]),
+    ".next/server/app/en.html": page("Home", "Welcome", '<link rel="canonical" href="https://example.com/"/>'),
+    ".next/server/app/en/x.html": page("X", "English page", '<link rel="canonical" href="https://example.com/x"/>'),
+    ".next/server/app/ko/x.html": page("KX", "Korean page", '<link rel="canonical" href="https://example.com/ko/x"/>'),
+  });
+  r = run(root);
+  assert.equal(r.status, 0, r.stderr);
+  for (const rel of ["public/index.md", "public/x.md", "public/ko/x.md"]) assert.ok(existsSync(path.join(root, rel)), rel);
+  assert.ok(!existsSync(path.join(root, "public/en/x.md")));
+  assert.match(await read("public/llms.txt"), /- \[X\]\(https:\/\/example\.com\/x\.md\)/);
+  // AGENT_READINESS_ORIGIN=none: canonical paths kept, links root-relative, no warning
+  r = run(root, { AGENT_READINESS_ORIGIN: "none" });
+  assert.match(await read("public/llms.txt"), /- \[X\]\(\/x\.md\)/);
+  assert.ok(!/root-relative/.test(r.stderr));
+
   // origin override, and root-relative links with a warning when none is known
   root = await project({ ...files, ".next/server/app/index.html": page("Home", "Welcome") });
   r = run(root, { AGENT_READINESS_ORIGIN: "https://o.example/" });

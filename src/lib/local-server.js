@@ -80,7 +80,7 @@ export async function getFreePort() {
   });
 }
 
-function runNpmScript(args, repoPath) {
+function runNpmScript(args, repoPath, env = {}) {
   return new Promise((resolve, reject) => {
     // Windows can't exec a .cmd shim directly via spawn() without a shell
     // host (EINVAL) — same class of issue npx-runner.js works around for npx.
@@ -88,6 +88,7 @@ function runNpmScript(args, repoPath) {
       cwd: repoPath,
       stdio: "inherit",
       shell: process.platform === "win32",
+      env: { ...process.env, ...env },
     });
     child.on("error", reject);
     child.on("exit", (code) =>
@@ -112,7 +113,9 @@ export async function ensureInstalled(repoPath, { installRoot = repoPath, onProg
 
 export async function buildSite(repoPath, { onProgress } = {}) {
   onProgress?.("Building site (npm run build)...");
-  await runNpmScript(["run", "build"], repoPath);
+  // Local scans must test the local build: a site's build-time generators (e.g. the Next.js
+  // agent-readiness script) would otherwise write absolute production URLs into llms.txt.
+  await runNpmScript(["run", "build"], repoPath, { AGENT_READINESS_ORIGIN: "none" });
 }
 
 async function waitForReady(url, { timeoutMs = 30_000, intervalMs = 500 } = {}) {

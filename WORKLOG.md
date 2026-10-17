@@ -1990,3 +1990,7 @@ Verified: `npm run lint`, `check-scanner-versions` (both pins up to date), `veri
 fixtures OK. Fixture baseline scores moved 0 → 41 under 0.22's new checks/weights (astro-cf-pages
 and nextjs-vercel stay 41 → 41 after enhance, same as 0 → 0 under 0.20; those fixtures verify
 specific checks, not the score).
+
+## v1.16.1 — afdocs 0.22.2
+
+2026-10-17. Release of the afdocs pin bump above (0.20.0 → 0.22.2, closes #1). No other change.

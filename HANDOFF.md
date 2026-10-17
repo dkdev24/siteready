@@ -8,7 +8,7 @@ file under 80 lines. Detailed history and lists live in the linked docs below.
 ## Current Version
 
 **0.8.0** (doc-tracking system version, see WORKLOG.md). Engine/CLI is at
-package.json `1.16.0`, committed, tagged, and published to npm.
+package.json `1.16.1`, committed, tagged, and published to npm.
 
 ---
 
@@ -28,6 +28,8 @@ New default scanner **`agent-headers`** (in-house, plain fetch): requests every 
 one header pattern per URL type and follow redirects, so they passed the broken middleware.
 Regression check `scripts/check-agent-headers.js` (in `npm run lint`) runs the generated CF
 middleware; `verify-loop` asserts no agent-headers failure after enhance. Detail: WORKLOG v1.16.0.
+
+v1.16.1 (same day): afdocs pin 0.20.0 → 0.22.2, closes #1 (schema-compatible, 5 new checks).
 
 **#15 still open, not done** — the partial-report fix itself is unstarted.
 

@@ -8,7 +8,7 @@ file under 80 lines. Detailed history and lists live in the linked docs below.
 ## Current Version
 
 **0.8.0** (doc-tracking system version, see WORKLOG.md). Engine/CLI is at
-package.json `1.19.3`; v1.19.2 is published and tagged and has a **known production-breaking bug on OpenNext sites** (see below); v1.19.3 (fix) is **uncommitted, unpublished**.
+package.json `1.19.3`, published, tagged and pushed (2026-10-17). 1.19.0-1.19.2 are `npm deprecate`d (OpenNext mirror bug, see below).
 
 ---
 
@@ -34,7 +34,7 @@ v1.16.1 (same day): afdocs pin 0.20.0 → 0.22.2, closes #1 (schema-compatible, 
 (`src/lib/md-mirror.js`): absolute links, components → markdown. Existing raw-body routes get a
 warning (enhance never overwrites). Regression check `scripts/check-md-mirror.js` in lint.
 
-**v1.19.3** (2026-10-17, uncommitted, URGENT to publish): never wire the mirror generator on OpenNext: public/ directories become S3 CloudFront behaviors, so v1.19.0-v1.19.2 mirrors under public/<route-prefix>/ made those pages 403 on a real production site. Consider `npm deprecate` of 1.19.0-1.19.2 after publishing. WORKLOG v1.19.3.
+**v1.19.3** (2026-10-17, published): never wire the mirror generator on OpenNext: public/ directories become S3 CloudFront behaviors, so v1.19.0-v1.19.2 mirrors under public/<route-prefix>/ made those pages 403 on a real production site. 1.19.0-1.19.2 deprecated on npm. WORKLOG v1.19.3.
 **v1.19.2** (2026-10-17, published): generator writes mirrors at the canonical path + `.md`, `AGENT_READINESS_ORIGIN=none` (local scans set it), unused-binding lint fixes. Detail: WORKLOG v1.19.2.
 **v1.19.1** (2026-10-17, published): `scan-local` sends only hosted scanners through the tunnel (its Cloudflare edge 403s AI-crawler UAs, which misread as agent-headers failures); a failed is-agentic scan is now an error, not a score-less result. is-agentic still 502s on tunnel URLs (ISSUES.md).
 **v1.19.0** (2026-10-17, published, #25 done): the Next.js fixer now generates `llms.txt` + `.md` mirrors from the

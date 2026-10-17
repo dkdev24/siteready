@@ -1994,3 +1994,12 @@ specific checks, not the score).
 ## v1.16.1 — afdocs 0.22.2
 
 2026-10-17. Release of the afdocs pin bump above (0.20.0 → 0.22.2, closes #1). No other change.
+
+## 2026-10-17 — verify-loop: retry temp-dir cleanup on Windows EBUSY (no version bump)
+
+CI for v1.16.1 failed on `windows-latest` only: all three fixtures verified, then
+`rm(tmpDir)` threw `EBUSY: resource busy or locked, rmdir ...siteready-verify-loop-astro-cf-pages-...`
+(the previous commit, same code, passed). The killed `wrangler pages dev` tree can hold a handle
+briefly after exit. `scripts/verify-loop.js` now passes `maxRetries: 10, retryDelay: 500` to
+`rm`, which Node retries on EBUSY/ENOTEMPTY/EPERM. Test-only change; the published 1.16.1 package
+is unaffected.

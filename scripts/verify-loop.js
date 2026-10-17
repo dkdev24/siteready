@@ -167,7 +167,9 @@ async function runFixture(fixture) {
     }
     console.log(`OK: ${fixture.name} verified.`);
   } finally {
-    await rm(tmpDir, { recursive: true, force: true });
+    // Windows can keep a handle open for a moment after the preview server's
+    // process tree is killed, so the first rmdir fails with EBUSY; retry.
+    await rm(tmpDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
   }
 }
 

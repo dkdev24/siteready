@@ -13,6 +13,17 @@ export const SUPPORTED_SCANNERS = ["is-agentic", "afdocs", "ora", "agent-headers
 // with no fixer yet acting on ora's extra checks, so ora stays opt-in
 // (`--scanners ora`) until that changes. agent-headers is in-house plain
 // fetches (no API cost), so it runs by default.
+// Scanners that run on a hosted service and so need a publicly reachable URL
+// (for a local site, a Cloudflare Quick Tunnel). Every other scanner fetches the
+// site itself and should hit the local server directly: the tunnel's Cloudflare
+// edge answers AI-crawler user agents (what agent-headers sends) with 403.
+export const HOSTED_SCANNERS = ["is-agentic", "ora"];
+
+/** The URL a scanner should use: hosted ones get `target`, the rest `localTarget` when there is one. */
+export function targetFor(scannerName, target, localTarget) {
+  return !HOSTED_SCANNERS.includes(scannerName) && localTarget ? localTarget : target;
+}
+
 export const DEFAULT_SCANNERS = ["is-agentic", "afdocs", "agent-headers"];
 
 /**
@@ -22,7 +33,7 @@ export const DEFAULT_SCANNERS = ["is-agentic", "afdocs", "agent-headers"];
  * target after `enhance` uses exactly the same logic as the original
  * baseline scan.
  */
-export async function scanTarget(target, scannerNames, { sampling = "deterministic", siteType, onProgress } = {}) {
+export async function scanTarget(target, scannerNames, { sampling = "deterministic", siteType, localTarget, onProgress } = {}) {
   const unsupported = scannerNames.filter((s) => !SUPPORTED_SCANNERS.includes(s));
   if (unsupported.length) {
     throw new Error(
@@ -41,14 +52,15 @@ export async function scanTarget(target, scannerNames, { sampling = "determinist
     onProgress?.(`Running ${scannerName} (this can take a minute)...`);
     try {
       let result;
+      const url = targetFor(scannerName, target, localTarget);
       if (scannerName === "is-agentic") {
-        result = await runIsAgenticScan(target);
+        result = await runIsAgenticScan(url);
       } else if (scannerName === "afdocs") {
-        result = await runAfdocsScan(target, { sampling });
+        result = await runAfdocsScan(url, { sampling });
       } else if (scannerName === "ora") {
-        result = await runOraScan(target);
+        result = await runOraScan(url);
       } else if (scannerName === "agent-headers") {
-        result = await runAgentHeadersScan(target);
+        result = await runAgentHeadersScan(url);
       }
       scannerResults.push(result);
       rawByScanner[scannerName] = result.raw;

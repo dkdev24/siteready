@@ -2124,3 +2124,30 @@ prerendered (the root is rewritten), so no `/index.md`.
 text leaks into a page); `prerender-manifest.json` is a Next internal (version 4 today), and an
 unrecognized format only warns. Versions: this is 1.19.0; 1.18.0 (monorepo + AWS) is unreleased.
 
+---
+
+## v1.19.1 — Local scans: non-hosted scanners bypass the tunnel; failed is-agentic scans are errors
+
+**Date:** 2026-10-17
+
+**Why:** Dogfooding `scan-local` with all three default scanners on a real Next.js site: `agent-headers`
+scored 50 (then 25 after `enhance` added `.md` pages) against the tunnel URL but 100 against the same
+server directly. The Quick Tunnel's Cloudflare edge 403s AI-crawler user agents (`ClaudeBot`, `GPTBot`;
+confirmed with curl), which is what `agent-headers` sends, so it reported tunnel behavior as site failures.
+Separately, `is-agentic` got a 502 problem body from the hosted service and the adapter normalized it as
+a score-less result, printing `n/a/100 (F)` and `is-agentic: undefined -> undefined (NaN)` in the diff.
+
+**Changes**
+- `scan.js`: `HOSTED_SCANNERS` (moved from `loop.js`) and `targetFor(name, target, localTarget)`;
+  `scanTarget` takes `localTarget`, used for every scanner except the hosted ones.
+- `loop.js`: the tunnel target now returns `{ url: tunnel, localUrl: localhost }` and passes `localTarget`
+  through `runLoop` and `runScanLocal`. Hosted scanners still get the tunnel; `afdocs` and `agent-headers`
+  hit the local server.
+- `scanners/is-agentic.js`: `assertCompleted` throws on a problem body or missing score, so the failure is
+  recorded as a scanner error (partial report, skipped in the diff) instead of a result with no score.
+- `scripts/check-scan-routing.js` in `npm run lint`.
+
+**Verified:** `scan-local` on the same site with all three scanners: `agent-headers` 100 through the
+tunnel run, `afdocs` 41, `is-agentic` reported as FAILED (partial scan). **Still open:** the `is-agentic`
+502 itself (ISSUES.md).
+

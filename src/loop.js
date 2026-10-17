@@ -1,12 +1,11 @@
 import path from "node:path";
 import { detectStack } from "./detect-stack.js";
 import { enhance } from "./enhance.js";
-import { scanTarget } from "./scan.js";
+import { HOSTED_SCANNERS, scanTarget } from "./scan.js";
 import { buildDiffReport } from "./diff-report.js";
 import { buildSite, ensureInstalled, startLocalServer, PLATFORMS_WITH_EDGE_RUNTIME } from "./lib/local-server.js";
 import { startTunnel } from "./lib/tunnel.js";
 
-const HOSTED_SCANNERS = ["is-agentic", "ora"];
 
 /**
  * A local scan against a platform with no local edge-function runtime
@@ -80,7 +79,7 @@ export async function runLoop(
   let target = await startScanTarget(siteRoot, { platform: stack.platform, distDir, port, needsTunnel, onProgress });
   let baseline, baselineRaw;
   try {
-    ({ report: baseline, rawByScanner: baselineRaw } = await scanTarget(target.url, scanners, { sampling, siteType, onProgress }));
+    ({ report: baseline, rawByScanner: baselineRaw } = await scanTarget(target.url, scanners, { sampling, siteType, localTarget: target.localUrl, onProgress }));
   } finally {
     await target.stop();
   }
@@ -93,7 +92,7 @@ export async function runLoop(
   target = await startScanTarget(siteRoot, { platform: stack.platform, distDir, port, needsTunnel, onProgress });
   let rescan, rescanRaw;
   try {
-    ({ report: rescan, rawByScanner: rescanRaw } = await scanTarget(target.url, scanners, { sampling, siteType, onProgress }));
+    ({ report: rescan, rawByScanner: rescanRaw } = await scanTarget(target.url, scanners, { sampling, siteType, localTarget: target.localUrl, onProgress }));
   } finally {
     await target.stop();
   }
@@ -141,7 +140,7 @@ export async function runScanLocal(
 
   const target = await startScanTarget(siteRoot, { platform: stack.platform, distDir, port, needsTunnel, onProgress });
   try {
-    const { report, rawByScanner } = await scanTarget(target.url, scanners, { sampling, siteType, onProgress });
+    const { report, rawByScanner } = await scanTarget(target.url, scanners, { sampling, siteType, localTarget: target.localUrl, onProgress });
     return { stack, report, rawByScanner, localScanCaveat };
   } finally {
     await target.stop();
@@ -164,6 +163,8 @@ async function startScanTarget(siteRoot, { platform, distDir, port, needsTunnel,
     const tunnel = await startTunnel(server.url, { onProgress });
     return {
       url: tunnel.url,
+      // Non-hosted scanners skip the tunnel: its Cloudflare edge 403s AI-crawler user agents.
+      localUrl: server.url,
       async stop() {
         await tunnel.stop();
         await server.stop();

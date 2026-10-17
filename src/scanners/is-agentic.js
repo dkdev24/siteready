@@ -25,12 +25,25 @@ export async function runIsAgenticScan(url) {
     throw new Error(`is-agentic produced non-JSON output: ${parseError.message}`);
   }
 
+  assertCompleted(raw);
   return { normalized: normalize(raw), raw };
 }
 
 // is-agentic only lists non-passing checks in `issues[]` (result: "failed" |
 // "partial") — passing checks are counted in score_breakdown but never named
 // individually, unlike afdocs which reports every check it ran.
+/**
+ * The hosted service answers a scan it couldn't finish with an RFC 7807
+ * problem body (`{ title, status, detail, code }`) rather than a report. Treat
+ * that as a failed scanner, not a result with no score, so reports record it as
+ * an error and diffs don't compare against nothing.
+ */
+export function assertCompleted(raw) {
+  if (typeof raw.score !== "number") {
+    throw new Error(`is-agentic could not complete the scan: ${raw.detail ?? raw.title ?? "no score in its output"}${raw.code ? ` (${raw.code})` : ""}`);
+  }
+}
+
 function normalize(raw) {
   const essential = raw.score_breakdown?.essential ?? { earned: 0, available: 0, passing: 0, total: 0 };
   const recommended = raw.score_breakdown?.recommended ?? { earned: 0, available: 0, passing: 0, total: 0 };

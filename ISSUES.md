@@ -46,3 +46,13 @@ WORKLOG.md instead.
   resolved beyond that — there's no way to actually run Netlify's edge runtime locally short of a
   real Netlify CLI dev server, which is out of scope (see "CLI/API/MCP over UI scraping" — same
   principle: no bespoke per-platform tooling beyond what already exists).
+
+## `is-agentic` can't scan a local site through the Cloudflare Quick Tunnel (found 2026-10-17)
+
+On a real Next.js site, `scan-local --scanners is-agentic,...` returns HTTP 502 `scan_failed` from the
+hosted service for the tunnel URL (now recorded as a failed scanner, partial report). Likely cause:
+the Quick Tunnel's Cloudflare edge answers AI-crawler user agents with `403` (confirmed with curl for
+`ClaudeBot`/`GPTBot`), and the service's crawler hits the same block; unconfirmed. The `agent-headers`
+half of this issue (tunnel 403s misread as site failures) and the `undefined -> undefined (NaN)` diff
+line were fixed in v1.19.1 (WORKLOG). Workaround: scan the deployed URL for `is-agentic`.
+

@@ -8,7 +8,7 @@ file under 80 lines. Detailed history and lists live in the linked docs below.
 ## Current Version
 
 **0.8.0** (doc-tracking system version, see WORKLOG.md). Engine/CLI is at
-package.json `1.16.1`, committed, tagged, and published to npm.
+package.json `1.17.0`, committed, tagged, and published to npm.
 
 ---
 
@@ -30,6 +30,9 @@ Regression check `scripts/check-agent-headers.js` (in `npm run lint`) runs the g
 middleware; `verify-loop` asserts no agent-headers failure after enhance. Detail: WORKLOG v1.16.0.
 
 v1.16.1 (same day): afdocs pin 0.20.0 → 0.22.2, closes #1 (schema-compatible, 5 new checks).
+**v1.17.0** (same day): Starlight `.md` mirror runs the body through `toAgentMarkdown()`
+(`src/lib/md-mirror.js`): absolute links, components → markdown. Existing raw-body routes get a
+warning (enhance never overwrites). Regression check `scripts/check-md-mirror.js` in lint.
 
 **#15 still open, not done** — the partial-report fix itself is unstarted.
 

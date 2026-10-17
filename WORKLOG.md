@@ -2003,3 +2003,28 @@ CI for v1.16.1 failed on `windows-latest` only: all three fixtures verified, the
 briefly after exit. `scripts/verify-loop.js` now passes `maxRetries: 10, retryDelay: 500` to
 `rm`, which Node retries on EBUSY/ENOTEMPTY/EPERM. Test-only change; the published 1.16.1 package
 is unaffected.
+
+## v1.17.0 — Starlight `.md` mirror: absolute links, components as markdown
+
+2026-10-17. The same production Starlight docs site from v1.16.0 failed afdocs 0.22's
+`markdown-link-portability` (path-relative links in `.md` siblings) and `markdown-content-parity`
+(36–90% missing on card-based landing pages: `LinkCard` text lives in attributes, so raw JSX in the
+`.md` carried none of it as text). Its mirror had the same shape as `MD_MIRROR_ENDPOINT`, which
+served `entry.body` as-is, so every site enhanced by siteready inherited both failures.
+
+- New generated `src/lib/md-mirror.js` (plain JS so a strict TS project doesn't flag it):
+  `toAgentMarkdown(body, pageUrl, keepOrigin)` resolves markdown link/image targets and
+  `href`/`src` attributes against the page's HTML URL (absolute with `site`, root-relative
+  without), converts `LinkCard` (description on its own line: afdocs' substring match fails on
+  `Title: Description`), `LinkButton`, `Badge`, `Aside`, `Card`, `TabItem`, drops `Icon`,
+  `CardGrid`/`Steps`/`Tabs`/`FileTree` wrappers and import lines. Fenced code untouched.
+- `MD_MIRROR_ENDPOINT` uses it; page URL honors `import.meta.env.BASE_URL`, home slug `index` → root;
+  the llms.txt directive is absolute too.
+- Existing `[...slug].md.ts`: never overwritten (unchanged rule), but the lib is still written and a
+  warning names `toAgentMarkdown()` when the route serves `.body` without it.
+
+Verified: `scripts/check-md-mirror.js` (added to lint) fails on the v1.16.1 fixer and passes now;
+`verify-loop` all three fixtures OK (Starlight fixture 41 → 97 after enhance, 96 with the old
+mirror); a copy of the Starlight fixture enhanced and built with real Astro: the warning fires
+against the committed old route, and with it removed the new route builds, links come out absolute
+against `site`, no relative links or component tags remain.

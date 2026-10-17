@@ -305,8 +305,79 @@ export function buildLastmodMap(contentDocsDir: string): Map<string, string> {
 }
 `;
 
+// Shared by the `.md` mirror below; also written on its own when a repo already
+// has a `[...slug].md.ts`, so that route can adopt it (see applyAstroStarlightFixes).
+const MD_MIRROR_LIB = `// Turns a Starlight MDX entry body into markdown an agent can use on its own.
+// Starlight components become the markdown they stand for (cards as link
+// lists, buttons as links, badges and asides as text); layout-only wrappers
+// and import lines are dropped. Card text lives in attributes, so raw tags hid
+// it from agents and from markdown-vs-HTML parity checks. Every relative link
+// is resolved against the page's HTML URL: \`../foo/\` means something else
+// next to \`page.md\`, and nothing at all once an agent has the text without
+// its URL. Fenced code is left alone.
+//
+// Plain JavaScript on purpose (no type annotations), so it runs anywhere.
+
+const attrs = (source) =>
+	Object.fromEntries([...source.matchAll(/(\\w+)="([^"]*)"/g)].map((m) => [m[1], m[2]]));
+
+// Description on its own line: the rendered card reads "Title Description",
+// and a ": " separator keeps text-matching parity checks from seeing it.
+const cardItem = (indent, title, href, description) =>
+	\`\${indent}- [\${title}](\${href})\${description ? \`\\n\${indent}  \${description}\` : ''}\`;
+
+function convertComponents(text) {
+	return text
+		.replace(/^import\\s[^\\n]*\\sfrom\\s+['"][^'"]+['"];?[ \\t]*(\\r?\\n|$)/gm, '')
+		.replace(/^([ \\t]*)<LinkCard\\b([\\s\\S]*?)\\/>/gm, (_, indent, source) => {
+			const { title, href, description } = attrs(source);
+			return cardItem(indent, title, href, description);
+		})
+		.replace(/<LinkButton\\b([^>]*)>([\\s\\S]*?)<\\/LinkButton>/g, (_, source, text) =>
+			\`[\${text.trim()}](\${attrs(source).href})\`)
+		.replace(/<Badge\\b([^>]*?)\\/>/g, (_, source) => \`(\${attrs(source).text})\`)
+		.replace(/<Aside\\b([^>]*)>/g, (_, source) => {
+			const { type = 'note', title } = attrs(source);
+			return \`**\${title ?? type.charAt(0).toUpperCase() + type.slice(1)}:** \`;
+		})
+		.replace(/<Card\\b([^>]*)>/g, (_, source) => \`**\${attrs(source).title}**\\n\`)
+		.replace(/<TabItem\\b([^>]*)>/g, (_, source) => \`**\${attrs(source).label}**\\n\`)
+		.replace(/<Icon\\b[^>]*\\/>/g, '')
+		.replace(/^[ \\t]*<\\/?(CardGrid|Steps|Tabs|FileTree)\\b[^>]*>[ \\t]*(\\r?\\n|$)/gm, '')
+		.replace(/<\\/(Aside|Card|TabItem)>/g, '');
+}
+
+function absolutizeLinks(text, pageUrl, keepOrigin) {
+	const absolute = (target) => {
+		if (/^([a-z][a-z0-9+.-]*:|#|\\/\\/)/i.test(target)) return target;
+		try {
+			const url = new URL(target, pageUrl);
+			return keepOrigin ? url.href : \`\${url.pathname}\${url.search}\${url.hash}\`;
+		} catch {
+			return target;
+		}
+	};
+	return text
+		.replace(/\\]\\(\\s*<?([^)\\s>]+)>?/g, (_, target) => \`](\${absolute(target)}\`)
+		.replace(/\\b(href|src)="([^"]+)"/g, (_, attr, target) => \`\${attr}="\${absolute(target)}"\`);
+}
+
+/**
+ * \`pageUrl\` is the page's HTML URL (\`https://site/a/page/\`). With
+ * \`keepOrigin\` false (no \`site\` in astro.config), links come out
+ * root-relative instead of absolute.
+ */
+export function toAgentMarkdown(body, pageUrl, keepOrigin = true) {
+	return body
+		.split(/(^[ \\t]*\`\`\`[^\\n]*\\n[\\s\\S]*?^[ \\t]*\`\`\`)/m)
+		.map((part, i) => (i % 2 ? part : absolutizeLinks(convertComponents(part), pageUrl, keepOrigin)))
+		.join('');
+}
+`;
+
 const MD_MIRROR_ENDPOINT = `import type { APIRoute, GetStaticPaths } from 'astro';
 import { getCollection } from 'astro:content';
+import { toAgentMarkdown } from '../lib/md-mirror.js';
 
 function slugFromId(id: string): string {
 	const withoutExt = id.replace(/\\.(md|mdx)$/, '');
@@ -322,7 +393,7 @@ export const getStaticPaths: GetStaticPaths = async () => {
 	}));
 };
 
-export const GET: APIRoute = ({ props }) => {
+export const GET: APIRoute = ({ props, params, site }) => {
 	const { entry } = props as { entry: Awaited<ReturnType<typeof getCollection>>[number] };
 	const frontmatter = [
 		'---',
@@ -333,9 +404,16 @@ export const GET: APIRoute = ({ props }) => {
 		.filter(Boolean)
 		.join('\\n');
 
-	const directive = \`> For the complete documentation index, see [llms.txt](/llms.txt).\\n\\n\`;
+	// Relative links in the body resolve against the page's HTML URL. The home
+	// page arrives as slug \`index\`. Without \`site\` in astro.config, links come
+	// out root-relative instead of absolute.
+	const root = import.meta.env.BASE_URL.replace(/\\/?$/, '/');
+	const slug = params.slug === 'index' ? '' : params.slug;
+	const pageUrl = new URL(\`\${root}\${slug ? \`\${slug}/\` : ''}\`, site ?? 'http://localhost/');
+	const llmsTxt = site ? new URL(\`\${root}llms.txt\`, site).href : \`\${root}llms.txt\`;
+	const directive = \`> For the complete documentation index, see [llms.txt](\${llmsTxt}).\\n\\n\`;
 
-	return new Response(\`\${frontmatter}\\n\\n\${directive}\${entry.body ?? ''}\`, {
+	return new Response(\`\${frontmatter}\\n\\n\${directive}\${toAgentMarkdown(entry.body ?? '', pageUrl, Boolean(site))}\`, {
 		headers: { 'Content-Type': 'text/markdown; charset=utf-8' },
 	});
 };
@@ -471,7 +549,23 @@ export async function applyAstroStarlightFixes(repoPath) {
   await writeIfAbsent(path.join(repoPath, "src/pages/llms.txt.ts"), NAV_INDEX_ENDPOINT, written, skipped);
   await writeIfAbsent(path.join(repoPath, "src/pages/llms-full.txt.ts"), LLMS_FULL_ENDPOINT, written, skipped);
   await writeIfAbsent(path.join(repoPath, "src/pages/[section]/llms.txt.ts"), SECTION_LLMS_ENDPOINT, written, skipped);
-  await writeIfAbsent(path.join(repoPath, "src/pages/[...slug].md.ts"), MD_MIRROR_ENDPOINT, written, skipped);
+  const mdRoutePath = path.join(repoPath, "src/pages/[...slug].md.ts");
+  const hadMdRoute = existsSync(mdRoutePath);
+  await writeIfAbsent(path.join(repoPath, "src/lib/md-mirror.js"), MD_MIRROR_LIB, written, skipped);
+  await writeIfAbsent(mdRoutePath, MD_MIRROR_ENDPOINT, written, skipped);
+  // enhance never overwrites, so a mirror from an older siteready (or a
+  // hand-written one) keeps serving the raw MDX body: relative links that
+  // break outside the HTML page and component tags that hide card text.
+  if (hadMdRoute) {
+    const existingRoute = await readFile(mdRoutePath, "utf8");
+    if (/\.body\b/.test(existingRoute) && !/toAgentMarkdown/.test(existingRoute)) {
+      warnings.push(
+        `${mdRoutePath} serves the raw MDX body — wrap it in toAgentMarkdown() from src/lib/md-mirror.js ` +
+          "so relative links become absolute and Starlight components become markdown (afdocs' " +
+          "markdown-link-portability and markdown-content-parity checks fail otherwise)."
+      );
+    }
+  }
   await writeIfAbsent(path.join(repoPath, "src/components/Banner.astro"), BANNER_OVERRIDE, written, skipped);
   await writeIfAbsent(path.join(repoPath, "src/components/Head.astro"), buildHeadOverride(orgInfo), written, skipped);
   await writeIfAbsent(path.join(repoPath, "src/content/docs/404.md"), NOT_FOUND_PAGE, written, skipped);

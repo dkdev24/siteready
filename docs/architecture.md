@@ -178,6 +178,19 @@ framework having no fixer yet degrades to "unsupported," never breaks the pipeli
   noisier/less deterministic than afdocs, especially near category boundaries. `ora.js` hits the
   same underlying engine but its API does expose a `force` param to bypass the cache — `runOraScan`
   just doesn't default to it, to conserve the 6/day force-scan quota.
+- **The Starlight `.md` mirror runs the entry body through `toAgentMarkdown()`**
+  (`src/lib/md-mirror.js`, written by `fixers/astro-starlight.js`), not the raw body. Two failures
+  a raw body causes, both seen on a real production Starlight site: path-relative links (`../foo/`)
+  resolve against `page.md` instead of the HTML page, and nothing resolves once an agent has the text
+  without its URL (afdocs `markdown-link-portability`); and Starlight components stay as JSX, so
+  `LinkCard` text, which lives in attributes, isn't text at all (afdocs `markdown-content-parity`
+  reported 36–90% missing on card-based landing pages). `toAgentMarkdown()` resolves every link and
+  image against the page's HTML URL (absolute with `site`, root-relative without), turns cards,
+  buttons, badges, asides and tabs into markdown, and drops layout wrappers and imports; fenced
+  code is untouched. Card descriptions go on their own line under the link: the rendered card reads
+  "Title Description", and afdocs' substring match fails on `Title: Description`. An existing
+  `[...slug].md.ts` is never overwritten; `enhance` still writes the lib and warns when the route
+  serves `.body` without it.
 - **A hand-rolled markdown-mirror route (`.md.ts` serving `entry.body`/`doc.body` verbatim) will
   fail afdocs' `markdown-content-parity` check on any Astro site using the default markdown
   pipeline**, even when the served markdown is byte-for-byte the page's real source. Astro runs

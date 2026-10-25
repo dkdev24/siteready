@@ -1,1 +1,85 @@
 {% seo %}
+{% comment %}
+  Google Analytics loads only after Accept in the cookie banner, and only on the production host.
+  The choice lives in localStorage `siteready-consent` (its own key: every GitHub Pages project of
+  this account shares the dkdev24.github.io origin). The banner and its styles are injected by the
+  script, so a cached stylesheet can never leave it unstyled. The one Liquid expression is POLICY.
+{% endcomment %}
+<script>
+(function () {
+  var KEY = "siteready-consent";
+  var GA_ID = "G-8EB1Z0RX3W";
+  var HOST = "dkdev24.github.io";
+  var POLICY = "{{ '/privacy/' | relative_url }}";
+
+  function loadGA() {
+    window.dataLayer = window.dataLayer || [];
+    // gtag.js needs the `arguments` object itself, so a plain function, not an arrow.
+    function gtag() { window.dataLayer.push(arguments); }
+    gtag("js", new Date());
+    gtag("config", GA_ID);
+    var s = document.createElement("script");
+    s.async = true;
+    s.src = "https://www.googletagmanager.com/gtag/js?id=" + GA_ID;
+    document.head.appendChild(s);
+  }
+
+  var STYLE =
+    ".consent{position:fixed;right:16px;bottom:16px;left:16px;z-index:50;display:flex;flex-wrap:wrap;align-items:center;" +
+    "justify-content:space-between;gap:14px 20px;max-width:720px;margin:0 auto;padding:14px 18px;border:1px solid rgba(99,192,245,.45);" +
+    "border-radius:6px;background:#202020;color:#e6e6e6;box-shadow:0 10px 32px rgba(0,0,0,.7);font:14px/1.5 Arial,Helvetica,sans-serif}" +
+    ".consent p{flex:1 1 260px;margin:0;color:#e6e6e6}" +
+    ".consent a{color:#63c0f5;text-decoration:underline}" +
+    ".consent__actions{display:flex;gap:8px}" +
+    ".consent button{min-height:38px;padding:0 16px;border:1px solid #555;border-radius:4px;background:transparent;color:#e6e6e6;font:inherit;cursor:pointer}" +
+    ".consent button:hover{border-color:#999}" +
+    ".consent button.consent__accept{border-color:#63c0f5;background:#63c0f5;color:#151515;font-weight:bold}" +
+    ".consent button:focus-visible{outline:2px solid #63c0f5;outline-offset:2px}";
+
+  function banner() {
+    var st = document.createElement("style");
+    st.textContent = STYLE;
+    document.head.appendChild(st);
+    var el = document.createElement("div");
+    el.className = "consent";
+    el.setAttribute("role", "region");
+    el.setAttribute("aria-label", "Cookie consent");
+    el.innerHTML =
+      "<p>This site uses Google Analytics cookies to see which pages are read, only if you accept. " +
+      '<a href="' + POLICY + '">Privacy</a></p>' +
+      '<div class="consent__actions">' +
+      '<button type="button" data-choice="denied">Decline</button>' +
+      '<button type="button" data-choice="granted" class="consent__accept">Accept</button>' +
+      "</div>";
+    el.addEventListener("click", function (e) {
+      var b = e.target.closest && e.target.closest("[data-choice]");
+      if (!b) return;
+      var choice = b.getAttribute("data-choice");
+      try { localStorage.setItem(KEY, choice); } catch (err) {} // storage blocked: holds for this page only
+      el.remove();
+      if (choice === "granted") loadGA();
+    });
+    document.body.appendChild(el);
+  }
+
+  function init() {
+    if (location.hostname === HOST) {
+      try {
+        var stored = localStorage.getItem(KEY);
+        if (stored === "granted") loadGA();
+        else if (stored !== "denied") banner();
+      } catch (err) {} // storage blocked: no banner on every page, no tag
+    }
+    var reset = document.querySelectorAll("[data-consent-reset]");
+    for (var i = 0; i < reset.length; i++) {
+      reset[i].addEventListener("click", function () {
+        try { localStorage.removeItem(KEY); } catch (err) {}
+        location.reload();
+      });
+    }
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();
+</script>

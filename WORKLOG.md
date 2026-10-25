@@ -2201,3 +2201,19 @@ site on OpenNext with none of them in the checkout is detected as Vercel and wou
 Anyone who ran `enhance` with v1.19.0-v1.19.2 on an OpenNext site should remove `scripts/agent-readiness.mjs`
 and the `postbuild` hook, and check CloudFront behaviors for `public/` directories.
 
+
+## 2026-10-25 — Google Analytics behind a consent banner, privacy page (no version bump)
+
+Docs site only (`docs/`, GitHub Pages, Jekyll with `jekyll-theme-hacker`); no CLI change. Added Google Analytics 4
+(`G-8EB1Z0RX3W`) in `docs/_includes/head-custom.html`: an inline script shows an Accept/Decline banner (styles injected by
+the script, so a cached stylesheet can't leave it unstyled) and loads gtag only after Accept, only on `dkdev24.github.io`.
+Choice in `localStorage` `siteready-consent` (own key: all Pages projects of this account share the origin). New
+`docs/privacy.md` (`/privacy/`: GA, GitHub Pages logs, the storage key, the shared-domain note; the CLI is out of scope) and
+`docs/_layouts/default.html`, a copy of the theme layout plus a footer privacy link (the theme has no footer hook).
+Pattern from doverunner-lab's `Consent.tsx`; no internal identifiers. Not legally reviewed.
+
+**Verified:** built locally with Jekyll 4.4 (default-layout config added for the test only, since GitHub Pages adds it via
+plugins); real hostname served from the build with Playwright: banner shows, Accept loads the tag and persists, Decline
+loads nothing, "Change cookie settings" clears the choice, localhost shows nothing. **Not verified:** the GitHub Pages build
+itself (layout override + `relative_url` in an include), the live domain, GA Realtime. GitHub Pages cannot set a CSP header,
+so none was needed.

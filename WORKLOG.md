@@ -2217,3 +2217,9 @@ plugins); real hostname served from the build with Playwright: banner shows, Acc
 loads nothing, "Change cookie settings" clears the choice, localhost shows nothing. **Not verified:** the GitHub Pages build
 itself (layout override + `relative_url` in an include), the live domain, GA Realtime. GitHub Pages cannot set a CSP header,
 so none was needed.
+
+## 2026-10-25 — GA and consent banner confirmed live (no version bump)
+
+Follow-up to the entry above (past entries are never edited). The GitHub Pages build of `e2b4f28` succeeded: the layout
+override and `relative_url` in `head-custom.html` work on Pages, and `/privacy/` returns 200. Daniel accepted on the live
+site and GA Realtime showed the visit under `G-8EB1Z0RX3W`, so the consent-gated tag works end to end.

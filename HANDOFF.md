@@ -48,7 +48,7 @@ key or S3-served `public/*.md` locally; the fixer warns. Next: scan a real deplo
 as a test target (enhance on a copy only; an existing `proxy.ts` is skipped, not merged). Detail: WORKLOG v1.18.0.
 
 **#15 still open, not done** — the partial-report fix itself is unstarted.
-2026-10-25 (docs site, no bump): GA `G-8EB1Z0RX3W` behind a consent banner (`docs/_includes/head-custom.html`, key `siteready-consent`) + `/privacy/`; verify the Pages build and GA Realtime. WORKLOG.
+2026-10-25 (docs site, no bump): GA `G-8EB1Z0RX3W` behind a consent banner (`docs/_includes/head-custom.html`, key `siteready-consent`) + `/privacy/`; Pages build and GA Realtime confirmed live. WORKLOG.
 
 Next up: #2 (real-deploy score-movement verification, folds in #7's Ora
 residual) is the top open item in NEXT_ACTIONS.md.

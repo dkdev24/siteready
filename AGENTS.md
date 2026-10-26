@@ -117,6 +117,6 @@ their detail; don't load them just because a session started.
   `taskkill /t` (`child.kill()` alone leaves child processes like wrangler running).
 - **Node version note:** siteready itself needs Node ≥18, but the `fixtures/astro-starlight-cf-pages`
   fixture's Astro dependency currently requires Node ≥22.12 to build, and `fixtures/nextjs-vercel`'s
-  `next@16` dependency requires Node ≥20.9 — CI runs Node 22 for this reason. A "Node.js vX is not
+  `next@16` dependency requires Node ≥20.9 — CI runs Node 24 for this reason. A "Node.js vX is not
   supported" failure from `scan-local`/`verify-loop.js` is a fixture's dependency, not siteready itself —
   upgrade Node, don't downgrade a fixture's declared range.

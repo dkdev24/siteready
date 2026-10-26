@@ -2223,3 +2223,12 @@ so none was needed.
 Follow-up to the entry above (past entries are never edited). The GitHub Pages build of `e2b4f28` succeeded: the layout
 override and `relative_url` in `head-custom.html` work on Pages, and `/privacy/` returns 200. Daniel accepted on the live
 site and GA Realtime showed the visit under `G-8EB1Z0RX3W`, so the consent-gated tag works end to end.
+
+## v1.20.0 — Node 22 engines floor, Node 24 CI (not published to npm)
+
+**Date:** 2026-10-26
+
+- `package.json` `engines.node` `>=18` -> `>=22`: Node 20 and older are end of life and the Astro fixtures already need 22.12 or newer. Node 22 users stay supported. CI (`ci.yml`, `scanner-version-check.yml`) moved to Node 24, with `actions/checkout@v7`, `actions/setup-node@v7`, `actions/github-script@v9`. `npm run lint` and `npm run verify-loop` pass on Node 24.22.1; CI on `dff0343` is green on all OSes.
+- Trigger: Node2Shell (CVE-2026-111497); plan in basecamp `NODE24-MIGRATION.md`. No source change, so no CLI behavior change.
+- **Not published to npm** on Daniel's call: npm `latest` stays 1.19.3 (without the new engines floor) until `npm publish`. Tag `v1.20.0` and the GitHub release exist. Minor bump because the floor change is breaking for Node 18/20 users.
+

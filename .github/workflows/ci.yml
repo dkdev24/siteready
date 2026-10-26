@@ -18,9 +18,9 @@ jobs:
     # layout bugs are what this matrix exists to catch).
     continue-on-error: ${{ matrix.os == 'ubuntu-latest' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           # 22, not 20: the example fixture's Astro dependency requires
           # Node >=22.12.0 (this floated in on a caret-range bump — verify-loop

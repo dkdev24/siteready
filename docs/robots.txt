@@ -1,2 +1,4 @@
 User-agent: *
 Allow: /
+
+Sitemap: https://dkdev24.github.io/siteready/sitemap.xml

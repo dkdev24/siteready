@@ -11,6 +11,12 @@ agent with repo access could, in principle, call `afdocs`/`is-agentic`/Ora direc
 text itself, with no siteready involved. Worth asking honestly where that leaves this tool, because
 the answer isn't the same for every layer of it.
 
+| | Scores reproducible | Fixes are code | Verify before deploy |
+|---|---|---|---|
+| **siteready** | Yes — afdocs / Is Agentic / Ora; same URL, same score | Yes — idempotent fixers, verified cross-platform in CI | Yes — scan → enhance → rescan → diff-report, fully local |
+| **GEO skill packs** | No — model-graded, varies run to run | No — recommendations and templates | No — advice handed over, no falsification step |
+| **Calling scanners directly** | Yes — same third-party scanners | No — one-line `fix` suggestions you implement yourself | No — you'd deploy live and diff two scans yourself |
+
 **The scan/report layer is genuinely weaker in an agent-native world.** Normalizing three scanners'
 different JSON shapes into one scorecard is mostly a *human-readability* win (`report.md`, a
 diffable schema). An agent doesn't care that afdocs and is-agentic disagree on field names, so it

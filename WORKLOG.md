@@ -2258,3 +2258,12 @@ site and GA Realtime showed the visit under `G-8EB1Z0RX3W`, so the consent-gated
 - Live bug: every page at dkdev24.github.io/siteready/ emitted 2× `<title>`, 2× meta description, 2× canonical, 2× og:url, 2× twitter:card and 2× WebSite JSON-LD — `{% seo %}` was rendered both by `docs/_layouts/default.html:11` and by `docs/_includes/head-custom.html:1` (the latter added accidentally in the GA-consent work, e2b4f28).
 - Fix: deleted the `{% seo %}` line from `head-custom.html`; the layout's own tag is the canonical placement (jekyll-theme-hacker origin). Only one layout exists and it is the include's only consumer, so each page now emits exactly one set.
 - `npm run lint` passes (all 8 checks). Docs-only change; no `verify-loop` run (no core-logic change). Committed locally as `d6f6bc4`, not pushed.
+
+## 2026-10-31 — Docs site AEO pass (no version bump)
+
+- New `docs/faq.md`: 8 Q&As derived from existing copy (score meaning, scanners-vs-direct, GEO skill packs, MIT/commercial, supported frameworks, Node ≥22, no-deploy guarantee, privacy). Linked from `docs/index.md` Docs list.
+- `docs/_includes/head-custom.html`: added `FAQPage` JSON-LD conditional on `/faq.html` (8 questions mirroring the FAQ page) and `SoftwareApplication` JSON-LD on `/` only (name, DeveloperApplication, Node 22+, npm download URL, MIT, price 0). JSON validated; Liquid if/endif balanced.
+- `docs/llms.txt`: replaced the 2-line stub with a real index — "when to use this" section (the Jekyll fixer warns to add this by hand) plus a page list with one-liners and source links (absolute URLs).
+- `docs/why.md`: compact comparison table near the top (siteready / GEO skill packs / direct scanner use × scores reproducible / fixes are code / verify-before-deploy), prose untouched.
+- `docs/robots.txt`: appended `Sitemap:` line. `docs/404.md`: Home link now uses `{{ '/' | relative_url }}` (was hardcoded `/`, rendering as the dkdev24.github.io root).
+- `npm run lint` passes (all 8 checks). Docs-only change; no `verify-loop` run (no core-logic change). Committed locally, not pushed. Open: og:image still missing (needs image design).

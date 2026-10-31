@@ -50,6 +50,7 @@ Needs Node ≥22. No API keys, no accounts. The default scanners are invoked via
 - [Why siteready](why): vs. calling scanners directly, vs. GEO/prompt-based audit skills
 - [Architecture](architecture): directory layout, design notes, cross-platform notes
 - [Contributing](contributing): adding a scanner or a framework fixer
+- [FAQ](faq): the score, the fixers, GEO skill packs, pricing, supported frameworks
 
 ## What this is: a tool, not a skill
 

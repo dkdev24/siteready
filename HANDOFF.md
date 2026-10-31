@@ -16,7 +16,8 @@ GitHub release). 1.19.3 was published, tagged and pushed (2026-10-17). 1.19.0-1.
 
 ## Right Now
 
-No blocker. 2026-10-31 (docs site, no bump): fixed duplicate `{% seo %}` — `docs/_includes/head-custom.html:1` and `docs/_layouts/default.html:11` both rendered it (live: 2× title/description/canonical/JSON-LD on every page); removed from the include, the layout keeps it. `npm run lint` passes (8/8). Committed locally, not pushed.
+No blocker. 2026-10-31 (docs site AEO pass, no bump): new `docs/faq.md` (8 Q&As) + FAQPage JSON-LD conditional on `/faq.html` and SoftwareApplication JSON-LD on `/` in `head-custom.html`; `docs/llms.txt` stub replaced with a real index (page list + "when to use this"); comparison table added near the top of `docs/why.md`; `Sitemap:` appended to `docs/robots.txt`; `docs/404.md` Home link fixed to `relative_url`. `npm run lint` passes (8/8). Committed locally, not pushed. Open: og:image still missing (needs image design).
+2026-10-31 (docs site, no bump): fixed duplicate `{% seo %}` — `docs/_includes/head-custom.html:1` and `docs/_layouts/default.html:11` both rendered it (live: 2× title/description/canonical/JSON-LD on every page); removed from the include, the layout keeps it. `npm run lint` passes (8/8). Committed locally, not pushed.
 2026-10-17, **v1.16.0**: the Cloudflare Pages and Netlify markdown-negotiation
 templates treated every markdown-preferring or AI-bot request as a page request, so `.md` URLs
 (`page.md.md` lookup), `robots.txt`, `sitemap.xml` and nested `llms*.txt` indexes returned the
@@ -29,26 +30,15 @@ New default scanner **`agent-headers`** (in-house, plain fetch): requests every 
 `llms.txt` links to (one level of nested `llms*.txt`) with real agent headers and
 `redirect: "manual"`, fails on an error status or an off-path redirect. afdocs/is-agentic test
 one header pattern per URL type and follow redirects, so they passed the broken middleware.
-Regression check `scripts/check-agent-headers.js` (in `npm run lint`) runs the generated CF
-middleware; `verify-loop` asserts no agent-headers failure after enhance. Detail: WORKLOG v1.16.0.
+Detail: WORKLOG v1.16.0.
 
 v1.16.1 (same day): afdocs pin 0.20.0 → 0.22.2, closes #1 (schema-compatible, 5 new checks).
 **v1.17.0** (same day): Starlight `.md` mirror runs the body through `toAgentMarkdown()`
 (`src/lib/md-mirror.js`): absolute links, components → markdown. Existing raw-body routes get a
 warning (enhance never overwrites). Regression check `scripts/check-md-mirror.js` in lint.
 
-**v1.19.3** (2026-10-17, published): never wire the mirror generator on OpenNext: public/ directories become S3 CloudFront behaviors, so v1.19.0-v1.19.2 mirrors under public/<route-prefix>/ made those pages 403 on a real production site. 1.19.0-1.19.2 deprecated on npm. WORKLOG v1.19.3.
-**v1.19.2** (2026-10-17, published): generator writes mirrors at the canonical path + `.md`, `AGENT_READINESS_ORIGIN=none` (local scans set it), unused-binding lint fixes. Detail: WORKLOG v1.19.2.
-**v1.19.1** (2026-10-17, published): `scan-local` sends only hosted scanners through the tunnel (its Cloudflare edge 403s AI-crawler UAs, which misread as agent-headers failures); a failed is-agentic scan is now an error, not a score-less result. is-agentic still 502s on tunnel URLs (ISSUES.md).
-**v1.19.0** (2026-10-17, published, #25 done): the Next.js fixer now generates `llms.txt` + `.md` mirrors from the
-build output (`scripts/agent-readiness.mjs` wired as `postbuild`; zero-dep, ownership-marked, never fails the build). Dogfood on
-a real Next.js/pnpm/AWS monorepo, local: afdocs 41 → 89. Open: existing proxy skipped (#27), in-HTML directive (#28). Detail: WORKLOG v1.19.0.
-**v1.18.0** (2026-10-17, uncommitted): monorepo path detection (npm/yarn/pnpm workspaces, up and
-down) + `aws-cloudfront-opennext` platform for Next.js (CloudFront + OpenNext/SST/cdk-nextjs-standalone),
-new fixture `nextjs-opennext-monorepo`, `scripts/check-detect-stack.js` in lint. Also narrowed-bug fix in
-`fixers/nextjs.js` (skips existing nested/TS `not-found`, `app/robots.*`). Can't verify CloudFront cache
-key or S3-served `public/*.md` locally; the fixer warns. Next: scan a real deployed Next.js-on-AWS site
-as a test target (enhance on a copy only; an existing `proxy.ts` is skipped, not merged). Detail: WORKLOG v1.18.0.
+**v1.19.x** (2026-10-17, published): never wire the mirror generator on OpenNext (public/ → S3 behaviors 403; 1.19.0–1.19.2 deprecated on npm); generator writes mirrors at canonical path + `.md`; `scan-local` sends only hosted scanners through the tunnel. Detail: WORKLOG v1.19.x.
+**v1.18.0** (2026-10-17, uncommitted): monorepo path detection + `aws-cloudfront-opennext` platform. Detail: WORKLOG v1.18.0.
 
 **#15 still open, not done** — the partial-report fix itself is unstarted.
 2026-10-25 (docs site, no bump): GA `G-8EB1Z0RX3W` behind a consent banner (`docs/_includes/head-custom.html`, key `siteready-consent`) + `/privacy/`; Pages build and GA Realtime confirmed live. WORKLOG.

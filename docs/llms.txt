@@ -1,3 +1,28 @@
 # siteready
 
 > Scan a site for agent readiness, auto-fix what's fixable, prove the fix worked.
+
+## When to use this
+
+Use siteready when you want to know whether AI agents can actually use a website — and fix it
+when they can't. It orchestrates third-party agent-readiness scanners (afdocs, Is Agentic,
+optionally Ora) into one normalized scorecard, applies code fixers for supported
+framework/platform pairs, and re-scans locally to prove the fix worked before anything deploys.
+It is a CLI build tool, not a prompt-based advisor: scores are reproducible run-to-run, fixes
+are real code (idempotent, never overwriting your files), and nothing is deployed on your
+behalf. `enhance` writes to your working tree as an unstaged diff (or opens a PR with `--pr`).
+
+## Docs
+
+- [Install](https://dkdev24.github.io/siteready/install): every install path — global, npx, source checkout, Claude Code skill. Needs Node ≥22, no API keys or accounts for the default scanners.
+- [CLI reference](https://dkdev24.github.io/siteready/cli-reference): every command (scan, enhance, rescan, diff-report, scan-local, rescan-local, loop, compare, monitor, install-skill) and its options.
+- [Why siteready](https://dkdev24.github.io/siteready/why): vs. calling the scanners directly, vs. GEO/prompt-based audit skills — including the honest scope limits.
+- [Architecture](https://dkdev24.github.io/siteready/architecture): directory layout, design notes, cross-platform notes.
+- [Contributing](https://dkdev24.github.io/siteready/contributing): how to add a scanner adapter or a framework fixer.
+- [FAQ](https://dkdev24.github.io/siteready/faq): what the score means, pricing, supported frameworks, privacy.
+- [Privacy](https://dkdev24.github.io/siteready/privacy): what the docs website collects (GA4 behind a consent banner) and what stays on your machine.
+
+## Source
+
+- Repo: https://github.com/dkdev24/siteready
+- npm: https://www.npmjs.com/package/siteready (MIT license)

@@ -98,7 +98,7 @@ Options (scan / rescan / scan-local / rescan-local / loop):
 
 enhance requires a local checkout of the target site's own repo (not just a URL) — its fixes are
 source-file edits, so there's no way to apply them against a URL alone. Supports Astro (with or
-without Starlight) + Cloudflare Pages, Next.js + Vercel, and Jekyll + GitHub Pages. It never commits
+without Starlight) + Cloudflare Pages, Next.js + Vercel, SvelteKit + Cloudflare Pages, and Jekyll + GitHub Pages. It never commits
 or pushes unless --pr is passed explicitly; without it, review the diff yourself.
   --pr    Commit the written files to a new branch, push, and open a PR via \`gh\` (requires a git
           remote + an authenticated \`gh\`). Falls back to "left as an unstaged diff" if either is

@@ -5,6 +5,7 @@ import { applyAstroStarlightFixes } from "./fixers/astro-starlight.js";
 import { applyAstroFixes } from "./fixers/astro.js";
 import { applyNextjsFixes } from "./fixers/nextjs.js";
 import { applyJekyllFixes } from "./fixers/jekyll.js";
+import { applySveltekitFixes } from "./fixers/sveltekit.js";
 import { applyCloudflarePagesFixes } from "./platforms/cloudflare-pages.js";
 import { applyVercelFixes } from "./platforms/vercel.js";
 import { applyAwsCloudfrontOpennextFixes } from "./platforms/aws-cloudfront-opennext.js";
@@ -17,6 +18,7 @@ const FRAMEWORK_FIXERS = {
   astro: applyAstroFixes,
   nextjs: applyNextjsFixes,
   jekyll: applyJekyllFixes,
+  sveltekit: applySveltekitFixes,
 };
 
 const PLATFORM_FIXERS = {
@@ -46,7 +48,7 @@ export async function enhance(repoPath) {
     throw new Error(
       `enhance needs a local checkout of the target site's repo, and only supports ` +
         `Astro (with or without Starlight) + Cloudflare Pages, Netlify, or GitLab Pages; ` +
-        `Next.js + Vercel, Netlify, or AWS (CloudFront + OpenNext); or Jekyll + GitHub Pages or GitLab Pages, today. ${stack.reason}`
+        `Next.js + Vercel, Netlify, or AWS (CloudFront + OpenNext); SvelteKit + Cloudflare Pages; or Jekyll + GitHub Pages or GitLab Pages, today. ${stack.reason}`
     );
   }
 
@@ -54,7 +56,8 @@ export async function enhance(repoPath) {
   // than the repo root every other framework builds from.
   const siteRoot = stack.siteRoot ?? resolved;
   const framework = await FRAMEWORK_FIXERS[stack.framework](siteRoot, { platform: stack.platform });
-  const platform = await PLATFORM_FIXERS[stack.platform](siteRoot);
+  // SvelteKit repos often keep wrangler config (and so `functions/`) above the app dir.
+  const platform = await PLATFORM_FIXERS[stack.platform](stack.framework === "sveltekit" ? stack.platformRoot ?? siteRoot : siteRoot);
 
   return {
     stack,

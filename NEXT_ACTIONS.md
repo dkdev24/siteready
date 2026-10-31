@@ -202,3 +202,8 @@ append-only, unlike WORKLOG.md).
     new/internal identifiers introduced.
 25. **Next.js `llms.txt` + `.md` mirrors** — **done 2026-10-17 (v1.19.0)**: generated from the build
     output by a `postbuild` script; see WORKLOG v1.19.0.
+
+26. **SvelteKit fixer follow-ups** (v1.21.0 shipped locally, uncommitted): deploy a copy of a real SvelteKit
+    site and re-run is-agentic to confirm canonical/JSON-LD/negotiation checks flip and the hidden llms.txt
+    pointer is accepted; add Netlify; split llms.txt per section above 30KB like the Next template; extract
+    the shared HTML->markdown core out of the two templates.

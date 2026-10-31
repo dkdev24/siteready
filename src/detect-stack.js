@@ -35,7 +35,7 @@ function depsOf(dir) {
 }
 
 function frameworkOf(deps) {
-  return deps.astro ? (deps["@astrojs/starlight"] ? "astro-starlight" : "astro") : deps.next ? "nextjs" : null;
+  return deps.astro ? (deps["@astrojs/starlight"] ? "astro-starlight" : "astro") : deps.next ? "nextjs" : deps["@sveltejs/kit"] ? "sveltekit" : null;
 }
 
 // Workspace member globs: package.json `workspaces` (array or `{ packages }`)
@@ -172,6 +172,8 @@ export async function detectStack(repoPath) {
   // Platform signals: the app dir first, then the workspace root.
   const signalDirs = [...new Set([siteRoot, workspaceRoot].filter(Boolean))];
   const hasFile = (...names) => signalDirs.some((dir) => names.some((name) => existsSync(path.join(dir, name))));
+  // The dir holding wrangler config is the Pages project root, which is where `functions/` must live.
+  const platformRoot = signalDirs.find((dir) => ["wrangler.toml", "wrangler.jsonc"].some((n) => existsSync(path.join(dir, n)))) ?? siteRoot;
   const awsDirs = [...signalDirs, ...memberDirs, ...(workspaceRoot ? infraSiblingDirs(workspaceRoot, memberDirs) : [])];
 
   let platform = null;
@@ -206,10 +208,11 @@ export async function detectStack(repoPath) {
     // Next.js needs Vercel/Netlify's Edge Middleware runtime — GitLab Pages
     // is purely static hosting (same reason it's not paired with Next.js
     // below), no server-side route left for `next start` to serve.
-    (framework === "nextjs" && ["vercel", "netlify", "aws-cloudfront-opennext"].includes(platform));
+    (framework === "nextjs" && ["vercel", "netlify", "aws-cloudfront-opennext"].includes(platform)) ||
+    (framework === "sveltekit" && platform === "cloudflare-pages");
   const reason = supported
     ? null
-    : `No fixer for framework=${framework ?? "unknown"} + platform=${platform ?? "unknown"} yet (supports astro-starlight/astro + cloudflare-pages/netlify/gitlab-pages, nextjs + vercel/netlify/aws-cloudfront-opennext, and jekyll + github-pages/gitlab-pages)`;
+    : `No fixer for framework=${framework ?? "unknown"} + platform=${platform ?? "unknown"} yet (supports astro-starlight/astro + cloudflare-pages/netlify/gitlab-pages, sveltekit + cloudflare-pages, nextjs + vercel/netlify/aws-cloudfront-opennext, and jekyll + github-pages/gitlab-pages)`;
 
-  return { framework, platform, supported, reason, siteRoot, workspaceRoot };
+  return { framework, platform, supported, reason, siteRoot, workspaceRoot, platformRoot };
 }

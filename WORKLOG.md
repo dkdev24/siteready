@@ -2232,3 +2232,14 @@ site and GA Realtime showed the visit under `G-8EB1Z0RX3W`, so the consent-gated
 - Trigger: Node2Shell (CVE-2026-111497); plan in basecamp `NODE24-MIGRATION.md`. No source change, so no CLI behavior change.
 - **Not published to npm** on Daniel's call: npm `latest` stays 1.19.3 (without the new engines floor) until `npm publish`. Tag `v1.20.0` and the GitHub release exist. Minor bump because the floor change is breaking for Node 18/20 users.
 
+
+## v1.21.0 — SvelteKit + Cloudflare Pages fixer
+
+**Date:** 2026-10-31
+
+- Trigger: a scan of a public SvelteKit docs site (pele-animate, adapter-static on Cloudflare Pages, monorepo) scored 59/100 on is-agentic and 85/100 on afdocs, and `enhance` refused it (`framework=unknown`). Design rule from Daniel: fix as much as possible without major structural changes to the target; anything needing a content decision stays a warning for a human or coding agent.
+- New `src/fixers/sveltekit.js` + `src/templates/sveltekit-agent-readiness.mjs`. The template is wired as `postbuild` and post-processes the build output dir (`build/`, or adapter-static's `pages` option), so `src/` is never touched: missing `<link rel="canonical">` (from og:url), homepage JSON-LD (`WebSite`, override with `AGENT_READINESS_SCHEMA_TYPE`), a visually hidden llms.txt pointer in every page, `.md` mirrors incl. `/index.md` and `/404.md`, and `llms.txt`, each only when absent. Site-owned `.md`/`llms.txt` are never overwritten; path-relative links in them are reported as a warning.
+- `detect-stack.js`: `@sveltejs/kit` -> `sveltekit`; new `platformRoot` (dir holding wrangler config). `enhance.js` writes the Cloudflare Pages `functions/_middleware.js` at `platformRoot` for SvelteKit only, because Pages resolves `functions/` from the project root, which in a monorepo sits above the app dir. Supported: sveltekit + cloudflare-pages.
+- The parser/converter is duplicated from `next-agent-readiness.mjs` (each template is copied standalone into the target). Extract a shared core when a third framework needs it.
+- **Verified (local, on a copy of the site):** `enhance` wrote 3 files and edited 1 line of `site/package.json`; `pnpm build` ran the postbuild; with the origin rewritten to localhost so afdocs stays on the local build, afdocs went 85 (B) -> 95 (A) via `wrangler pages dev` (content-negotiation FAIL -> pass, llms-txt-directive-html and markdown-url-support WARN -> pass). curl confirmed `Accept: text/markdown` on `/` returns markdown with `Vary: Accept` and a markdown 404. `scripts/check-sveltekit-agent-readiness.js` added to lint.
+- **Not verified:** is-agentic's score (hosted scanner, needs a deployed URL) and the effect of the hidden pointer on it; Netlify/adapter-cloudflare SvelteKit; SSR routes (not covered). Not published, tagged or committed.

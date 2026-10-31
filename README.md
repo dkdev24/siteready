@@ -52,7 +52,7 @@ siteready https://example.com
 
 Full install guide (npx, source checkout, Claude Code skill setup, Node version): **[docs/install](https://dkdev24.github.io/siteready/install)**
 
-## Status: v1.10
+## Status: v1.21.0
 
 | Piece | Status |
 |---|---|

@@ -19,7 +19,7 @@ git clone https://github.com/dkdev24/siteready.git
 cd siteready && npm link      # puts `siteready` on your PATH
 ```
 
-Needs Node ≥18. No API keys and no accounts for the default scanners — they're invoked via `npx`
+Needs Node ≥22. No API keys and no accounts for the default scanners — they're invoked via `npx`
 on demand.
 
 From a source checkout without `npm link`/`npm install -g`, every command works the same with

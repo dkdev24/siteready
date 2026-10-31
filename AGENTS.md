@@ -115,7 +115,7 @@ their detail; don't load them just because a session started.
 - **Cross-platform is a real correctness bar** (Windows/macOS/Linux, tested in CI): `.cmd` shims on
   Windows need `spawn(..., { shell: true })`; killing a spawned process tree on Windows needs
   `taskkill /t` (`child.kill()` alone leaves child processes like wrangler running).
-- **Node version note:** siteready itself needs Node ≥18, but the `fixtures/astro-starlight-cf-pages`
+- **Node version note:** siteready itself needs Node ≥22, but the `fixtures/astro-starlight-cf-pages`
   fixture's Astro dependency currently requires Node ≥22.12 to build, and `fixtures/nextjs-vercel`'s
   `next@16` dependency requires Node ≥20.9 — CI runs Node 24 for this reason. A "Node.js vX is not
   supported" failure from `scan-local`/`verify-loop.js` is a fixture's dependency, not siteready itself —

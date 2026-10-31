@@ -2243,3 +2243,12 @@ site and GA Realtime showed the visit under `G-8EB1Z0RX3W`, so the consent-gated
 - The parser/converter is duplicated from `next-agent-readiness.mjs` (each template is copied standalone into the target). Extract a shared core when a third framework needs it.
 - **Verified (local, on a copy of the site):** `enhance` wrote 3 files and edited 1 line of `site/package.json`; `pnpm build` ran the postbuild; with the origin rewritten to localhost so afdocs stays on the local build, afdocs went 85 (B) -> 95 (A) via `wrangler pages dev` (content-negotiation FAIL -> pass, llms-txt-directive-html and markdown-url-support WARN -> pass). curl confirmed `Accept: text/markdown` on `/` returns markdown with `Vary: Accept` and a markdown 404. `scripts/check-sveltekit-agent-readiness.js` added to lint.
 - **Not verified:** is-agentic's score (hosted scanner, needs a deployed URL) and the effect of the hidden pointer on it; Netlify/adapter-cloudflare SvelteKit; SSR routes (not covered). Not published, tagged or committed.
+
+
+## 2026-10-31 — Stale version/Node wording fixes (no version bump)
+
+**Date:** 2026-10-31
+
+- Fixed stale user-facing wording left behind by the v1.21.0 release: `README.md` status header `v1.10` -> `v1.21.0` (table rows verified still accurate — scanners incl. agent-headers default + Ora opt-in, fixers incl. SvelteKit adapter-static on Cloudflare Pages); `docs/install.md` and `docs/index.md` "Needs Node ≥18" -> "Needs Node ≥22" (matches `package.json` `engines`); `AGENTS.md` Node version note "siteready itself needs Node ≥18" -> "≥22".
+- `HANDOFF.md` Current Version updated: `1.21.0` is committed, tagged `v1.21.0`, and published to npm (npm `latest` = 1.21.0, verified) — supersedes the "uncommitted / not on npm" note. Past WORKLOG entries left untouched per the append-only rule.
+- `npm run lint` passes (all 8 checks). Docs-only change; no `verify-loop` run (no core-logic change). Committed locally, not pushed.

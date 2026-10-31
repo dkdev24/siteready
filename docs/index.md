@@ -34,7 +34,7 @@ or without installing:
 npx siteready https://example.com
 ```
 
-Needs Node ≥18. No API keys, no accounts. The default scanners are invoked via `npx` on demand.
+Needs Node ≥22. No API keys, no accounts. The default scanners are invoked via `npx` on demand.
 
 ```
 1. Scan:    run the site through multiple agent-readiness scanners

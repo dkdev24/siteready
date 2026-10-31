@@ -2252,3 +2252,9 @@ site and GA Realtime showed the visit under `G-8EB1Z0RX3W`, so the consent-gated
 - Fixed stale user-facing wording left behind by the v1.21.0 release: `README.md` status header `v1.10` -> `v1.21.0` (table rows verified still accurate — scanners incl. agent-headers default + Ora opt-in, fixers incl. SvelteKit adapter-static on Cloudflare Pages); `docs/install.md` and `docs/index.md` "Needs Node ≥18" -> "Needs Node ≥22" (matches `package.json` `engines`); `AGENTS.md` Node version note "siteready itself needs Node ≥18" -> "≥22".
 - `HANDOFF.md` Current Version updated: `1.21.0` is committed, tagged `v1.21.0`, and published to npm (npm `latest` = 1.21.0, verified) — supersedes the "uncommitted / not on npm" note. Past WORKLOG entries left untouched per the append-only rule.
 - `npm run lint` passes (all 8 checks). Docs-only change; no `verify-loop` run (no core-logic change). Committed locally, not pushed.
+
+## 2026-10-31 — Duplicate {% seo %} tag on docs site (no version bump)
+
+- Live bug: every page at dkdev24.github.io/siteready/ emitted 2× `<title>`, 2× meta description, 2× canonical, 2× og:url, 2× twitter:card and 2× WebSite JSON-LD — `{% seo %}` was rendered both by `docs/_layouts/default.html:11` and by `docs/_includes/head-custom.html:1` (the latter added accidentally in the GA-consent work, e2b4f28).
+- Fix: deleted the `{% seo %}` line from `head-custom.html`; the layout's own tag is the canonical placement (jekyll-theme-hacker origin). Only one layout exists and it is the include's only consumer, so each page now emits exactly one set.
+- `npm run lint` passes (all 8 checks). Docs-only change; no `verify-loop` run (no core-logic change). Committed locally as `d6f6bc4`, not pushed.

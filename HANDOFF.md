@@ -16,7 +16,8 @@ GitHub release). 1.19.3 was published, tagged and pushed (2026-10-17). 1.19.0-1.
 
 ## Right Now
 
-No blocker. 2026-10-17, **v1.16.0**: the Cloudflare Pages and Netlify markdown-negotiation
+No blocker. 2026-10-31 (docs site, no bump): fixed duplicate `{% seo %}` — `docs/_includes/head-custom.html:1` and `docs/_layouts/default.html:11` both rendered it (live: 2× title/description/canonical/JSON-LD on every page); removed from the include, the layout keeps it. `npm run lint` passes (8/8). Committed locally, not pushed.
+2026-10-17, **v1.16.0**: the Cloudflare Pages and Netlify markdown-negotiation
 templates treated every markdown-preferring or AI-bot request as a page request, so `.md` URLs
 (`page.md.md` lookup), `robots.txt`, `sitemap.xml` and nested `llms*.txt` indexes returned the
 `/404.md` mirror (404) to agents. Found on a real production docs site whose agent sessions fell

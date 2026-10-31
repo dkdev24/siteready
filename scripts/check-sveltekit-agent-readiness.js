@@ -32,7 +32,8 @@ try {
   // --- fixer + generator on a fake build ---
   const site = path.join(ws, "site");
   const fix = await applySveltekitFixes(site);
-  assert.ok(fix.written.some((f) => f.endsWith("static/robots.txt")) && fix.written.some((f) => f.endsWith("package.json")));
+  const wrote = fix.written.map((f) => f.split(path.sep).join("/"));
+  assert.ok(wrote.some((f) => f.endsWith("static/robots.txt")) && wrote.some((f) => f.endsWith("package.json")));
   assert.equal(JSON.parse(await readFile(path.join(site, "package.json"), "utf8")).scripts.postbuild, "node scripts/agent-readiness.mjs");
   assert.match(await readFile(path.join(site, "scripts/agent-readiness.mjs"), "utf8"), /AGENT_READINESS_OUT \|\| "build"/);
   const again = await applySveltekitFixes(site);

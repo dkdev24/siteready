@@ -2267,3 +2267,9 @@ site and GA Realtime showed the visit under `G-8EB1Z0RX3W`, so the consent-gated
 - `docs/why.md`: compact comparison table near the top (siteready / GEO skill packs / direct scanner use × scores reproducible / fixes are code / verify-before-deploy), prose untouched.
 - `docs/robots.txt`: appended `Sitemap:` line. `docs/404.md`: Home link now uses `{{ '/' | relative_url }}` (was hardcoded `/`, rendering as the dkdev24.github.io root).
 - `npm run lint` passes (all 8 checks). Docs-only change; no `verify-loop` run (no core-logic change). Committed locally, not pushed. Open: og:image still missing (needs image design).
+
+## 2026-11-01 — Dependabot fixture bumps #3/#4 merged (no version bump)
+
+- Merged via `gh pr merge --squash` (repo forbids merge commits): #3 undici 8.10.2 → 8.12.3 and #4 postcss-selector-parser 6.1.4 → 6.1.5, both lockfile-only in `fixtures/astro-starlight-cf-pages/package-lock.json`. PR #2 (next 16.3.4 → 16.4.1, fixtures/nextjs-vercel) left open.
+- `npm run lint` passes (8/8). `npm run verify-loop` passes on all 4 fixtures (astro-starlight-cf-pages afdocs 41 → 97; astro-cf-pages, nextjs-vercel, nextjs-opennext-monorepo all verified). First loop run hit a 30s `wrangler pages dev` cold-start timeout (workerd download) and a later run hit ENOSPC on /tmp (512M tmpfs) — both environmental; re-ran with warm cache and TMPDIR on the home disk, full pass, exit 0.
+- No npm publish: package is at 1.21.0 = npm `latest`, and the merged changes are fixture-lockfile-only (`fixtures/` is not in the published `files`), so a bump would ship a byte-identical tarball. Skipped deliberately, reported to Daniel.

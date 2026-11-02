@@ -2279,3 +2279,11 @@ site and GA Realtime showed the visit under `G-8EB1Z0RX3W`, so the consent-gated
 - Merged via `gh pr merge --squash` (repo forbids merge commits): #2 next 16.3.4 → 16.4.1 in `fixtures/nextjs-vercel` (package.json + package-lock.json). No open dependabot PRs left.
 - `npm run lint` passes (8/8). `npm run verify-loop` passes on all 4 fixtures including nextjs-vercel on Next 16.4.1 (exit 0; TMPDIR on home disk to avoid the 512M /tmp tmpfs).
 - No npm publish: fixture-only change, same rationale as #3/#4 (1.21.0 = npm `latest`).
+
+## 2026-11-02 — dependabot #5/#6/#7/#8 merged (no version bump)
+
+- Per Daniel's "test then merge": merged all 4 PRs into a temp branch first, ran `npm run lint` (8/8 pass) and `npm run verify-loop` (all 4 fixtures pass — astro-starlight afdocs 41→97 on astro 7.4.4 + vite 8.3.5, nextjs-vercel OK; TMPDIR on home disk, /tmp tmpfs is only 512M), then squash-merged each PR and deleted the temp branch.
+- #5 source-map-js 1.2.1→1.2.2 (`fixtures/nextjs-vercel` lockfile); #6 zod 4.5.4→4.6.7, #7 vite 8.2.2→8.3.5, #8 astro 7.3.1→7.4.4 (package.json + lockfile) — all in `fixtures/astro-starlight-cf-pages`, none shipped.
+- PR #7's Windows CI failed once: `wrangler pages dev` local server not ready within 30s (cold-start workerd download — same environmental flake as the 2026-11-01 local runs; the Astro build itself succeeded). Reran the Windows job → passed, so not a vite regression. All 4 PRs green on macOS/Windows/Ubuntu before merge.
+- No npm publish: fixture-only changes, 1.21.0 = npm `latest` (same deliberate skip as #2/#3/#4). No open dependabot PRs left.
+- Note: `gh pr merge --squash` pushes straight to origin/main; local `git pull --ff-only` after.

@@ -2287,3 +2287,9 @@ site and GA Realtime showed the visit under `G-8EB1Z0RX3W`, so the consent-gated
 - PR #7's Windows CI failed once: `wrangler pages dev` local server not ready within 30s (cold-start workerd download — same environmental flake as the 2026-11-01 local runs; the Astro build itself succeeded). Reran the Windows job → passed, so not a vite regression. All 4 PRs green on macOS/Windows/Ubuntu before merge.
 - No npm publish: fixture-only changes, 1.21.0 = npm `latest` (same deliberate skip as #2/#3/#4). No open dependabot PRs left.
 - Note: `gh pr merge --squash` pushes straight to origin/main; local `git pull --ff-only` after.
+
+## 2026-11-03 — Dependabot #9/#10 merged (no version bump)
+
+- Per Daniel's "test then merge": squash-merged #9 sharp 0.35.4→0.35.5 (`fixtures/astro-starlight-cf-pages`, package.json + lockfile) and #10 zod 4.5.4→4.6.7 (`fixtures/astro-cf-pages`, lockfile-only).
+- `npm run lint` passes (8/8). `npm run verify-loop` passes on both touched fixtures. GitHub CI green on macos/ubuntu/windows for both PRs before merge.
+- No npm publish: fixture-only changes, 1.21.0 = npm `latest` (identical tarball). Issue #11 (Scanner CLI drift) deliberately left open — deliberate pin-bump, not auto-merge. No open dependabot PRs left.

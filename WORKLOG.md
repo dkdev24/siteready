@@ -2293,3 +2293,10 @@ site and GA Realtime showed the visit under `G-8EB1Z0RX3W`, so the consent-gated
 - Per Daniel's "test then merge": squash-merged #9 sharp 0.35.4→0.35.5 (`fixtures/astro-starlight-cf-pages`, package.json + lockfile) and #10 zod 4.5.4→4.6.7 (`fixtures/astro-cf-pages`, lockfile-only).
 - `npm run lint` passes (8/8). `npm run verify-loop` passes on both touched fixtures. GitHub CI green on macos/ubuntu/windows for both PRs before merge.
 - No npm publish: fixture-only changes, 1.21.0 = npm `latest` (identical tarball). Issue #11 (Scanner CLI drift) deliberately left open — deliberate pin-bump, not auto-merge. No open dependabot PRs left.
+
+## 2026-11-04 — Dependabot #12 merged (no version bump)
+
+- Per Daniel's "test then merge": squash-merged #12 astro 7.3.1→7.3.3 (`fixtures/astro-cf-pages`, package.json + lockfile) after testing on a temp branch first.
+- `npm run lint` passes (8/8). `npm run verify-loop` exit 0 — astro-cf-pages verified OK; nextjs-vercel's Next.js 16.4.1 Turbopack prerender error (`Cannot read properties of null (reading 'useContext')`) is the known pre-existing environmental flake, unrelated to this PR (same fixture untouched by it).
+- GitHub CI green on macos/ubuntu/windows for the PR before merge.
+- No npm publish: fixture-only change, 1.21.0 = npm `latest` (identical tarball). No open dependabot PRs left on siteready. doverunner-lab #19 (company repo) reported only, not touched.

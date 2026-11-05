@@ -2308,3 +2308,9 @@ site and GA Realtime showed the visit under `G-8EB1Z0RX3W`, so the consent-gated
 - GitHub CI green on macos/ubuntu/windows for the PR before merge.
 - No npm publish: fixture-only change, 1.21.0 = npm `latest` (identical tarball). No open dependabot PRs left on siteready.
 - New finding (documented for future reference): the recurring nextjs-vercel verify-loop failure root cause is now identified — `scripts/verify-loop.js`'s `fs.cp` copies `.bin` symlinks as absolute paths, so the tmp fixture tree loads `next` from the source tree together with `react` from the tmp tree → duplicate React → `useContext` null prerender crash. Only manifests when the fixture's node_modules is already installed; unrelated to any dependabot PR.
+
+## 2026-11-05 — verify-loop symlink fix verified (no version bump)
+
+- This morning's `scripts/verify-loop.js` one-liner (`fs.cp(..., { recursive: true, verbatimSymlinks: true })`) is now verified: full `npm run verify-loop` green on all fixtures, including nextjs-vercel (previously crashed with duplicate-React `useContext` null during prerender) and nextjs-opennext-monorepo.
+- Root cause (unchanged): `fs.cp`'s default symlink handling rewrites `.bin` relative symlinks as absolute paths into the source tree, so the tmp fixture copy loads `next` from the source tree while `react` resolves from the tmp copy.
+- Change is working-tree only (uncommitted) — ready for Daniel's commit approval.

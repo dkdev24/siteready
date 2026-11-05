@@ -195,7 +195,12 @@ async function runFixture(fixture) {
   const target = path.join(tmpDir, "fixture");
 
   try {
-    await cp(fixture.dir, target, { recursive: true });
+    // verbatimSymlinks: keep symlink targets as written (relative). The default
+    // (false) rewrites them as absolute paths into the source tree, so the tmp
+    // copy's .bin/* ends up loading e.g. `next` from the source fixture while
+    // `react` resolves from the tmp copy -> duplicate React -> useContext-null
+    // prerender crash. See WORKLOG 2026-11-05.
+    await cp(fixture.dir, target, { recursive: true, verbatimSymlinks: true });
     await fixture.strip(target);
 
     console.log(`\n=== ${fixture.name}: running scan-local -> enhance -> rescan-local against stripped fixture copy at ${target} ===`);

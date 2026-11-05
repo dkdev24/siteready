@@ -2300,3 +2300,11 @@ site and GA Realtime showed the visit under `G-8EB1Z0RX3W`, so the consent-gated
 - `npm run lint` passes (8/8). `npm run verify-loop` exit 0 — astro-cf-pages verified OK; nextjs-vercel's Next.js 16.4.1 Turbopack prerender error (`Cannot read properties of null (reading 'useContext')`) is the known pre-existing environmental flake, unrelated to this PR (same fixture untouched by it).
 - GitHub CI green on macos/ubuntu/windows for the PR before merge.
 - No npm publish: fixture-only change, 1.21.0 = npm `latest` (identical tarball). No open dependabot PRs left on siteready. doverunner-lab #19 (company repo) reported only, not touched.
+
+## 2026-11-05 — Dependabot #13 merged (no version bump)
+
+- Per Daniel's "test then merge": squash-merged #13 vite 8.2.2→8.3.5 (`fixtures/astro-cf-pages`, lockfile-only) after testing on temp branch `tmp-pr13-test` (deleted after merge).
+- `npm run lint` passes (8/8). `npm run verify-loop`: astro-cf-pages verified OK (afdocs baseline 41/100 → http-status-codes + content-negotiation fail→pass, agent-headers 100/100). Same vite 8.3.5 already verified via PR #7 on astro-starlight-cf-pages, so no new risk.
+- GitHub CI green on macos/ubuntu/windows for the PR before merge.
+- No npm publish: fixture-only change, 1.21.0 = npm `latest` (identical tarball). No open dependabot PRs left on siteready.
+- New finding (documented for future reference): the recurring nextjs-vercel verify-loop failure root cause is now identified — `scripts/verify-loop.js`'s `fs.cp` copies `.bin` symlinks as absolute paths, so the tmp fixture tree loads `next` from the source tree together with `react` from the tmp tree → duplicate React → `useContext` null prerender crash. Only manifests when the fixture's node_modules is already installed; unrelated to any dependabot PR.

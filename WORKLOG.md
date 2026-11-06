@@ -2314,3 +2314,10 @@ site and GA Realtime showed the visit under `G-8EB1Z0RX3W`, so the consent-gated
 - This morning's `scripts/verify-loop.js` one-liner (`fs.cp(..., { recursive: true, verbatimSymlinks: true })`) is now verified: full `npm run verify-loop` green on all fixtures, including nextjs-vercel (previously crashed with duplicate-React `useContext` null during prerender) and nextjs-opennext-monorepo.
 - Root cause (unchanged): `fs.cp`'s default symlink handling rewrites `.bin` relative symlinks as absolute paths into the source tree, so the tmp fixture copy loads `next` from the source tree while `react` resolves from the tmp copy.
 - Change is working-tree only (uncommitted) — ready for Daniel's commit approval.
+
+## 2026-11-06 — Dependabot #14/#15 merged (no version bump)
+
+- Per Daniel's "test then merge": squash-merged #14 sharp 0.35.4→0.35.5 and #15 devalue 5.9.2→5.9.4, both lockfile-only in `fixtures/astro-cf-pages`, after testing on temp branch `tmp-dependabot-14-15` (deleted after merge).
+- `npm run lint` passes (8/8). `npm run verify-loop`: astro-cf-pages verified OK (afdocs baseline 41/100 → http-status-codes + content-negotiation fail→pass, agent-headers 100/100 — same signature as the #13 verification).
+- GitHub CI green on macos/ubuntu/windows for both PRs before merge.
+- No npm publish: fixture-only changes, 1.21.0 = npm `latest` (identical tarball). No open dependabot PRs left on siteready.

@@ -81,10 +81,10 @@ append-only, unlike WORKLOG.md).
     with i18n/auth usually have one, so the platform fixer skips and `content-negotiation` stays failing.
     Options: emit a helper module the existing proxy can call, or an AST-free documented snippet.
 28. **In-HTML `llms.txt` directive for Next.js** (afdocs `llms-txt-directive-html`): needs a layout edit.
-30. **Detect + fix .md-sibling duplicate content** (proposed 2026-11-10, plan in `~/workspace/your_files/siteready-md-duplicate-feature-plan.md`): a `.md` URL with an existing HTML twin and no `Link: rel="canonical"` / `X-Robots-Tag: noindex` fails a new check (proposed: extend `agent-headers`, new check id `agent-headers-md-index-signal`); platform fixers add `/*.md` + `X-Robots-Tag: noindex` (CF Pages / Vercel / Netlify / CloudFront; GitHub Pages report-only). Origin: 2026-11-10 Search Console "duplicate without user-selected canonical" on danielkimdev.com, same pattern found manually on docs-starlight (540 .md), whatif-classics (784), pele-animate (40). Awaiting Daniel's decision on the plan's open questions (check location, Jekyll handling, fixer default, check-id name).
 
 ## Resolved (condensed — see WORKLOG.md for full history)
 
+30. **Detect + fix .md-sibling duplicate content** — **done 2026-11-10 (v1.22.0, local only)**. New `md-duplicate-signal` check in agent-headers + platform fixers (`_headers` CF Pages/Netlify, `vercel.json` Vercel, warning-only CloudFront, report-only GitHub/GitLab Pages). Also fixed `extractLinks` missing bare `.md` paths in Starlight-format llms.txt. New fixture + verify-loop case; lint 8/8, full verify-loop green; live scans pass on the two docs sites (story site's llms.txt lists no .md). Not pushed/published/tagged.
 19. **is-agentic "could not fetch homepage" on subfolder URLs** — **done
     2026-09-12**. Confirmed: it's a scanner-side bug that breaks on any
     non-root path, not a real fetch failure and nothing siteready can fix.

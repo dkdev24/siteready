@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { ensureMdNoindexHeader } from "../lib/headers-file.js";
 
 // Cloudflare Pages' static `_headers`/`_redirects` files can't branch on a
 // request header, so `Accept: text/markdown` negotiation needs a Pages
@@ -80,7 +81,7 @@ export async function onRequest(context) {
  * duplicates the file. Never writes to git — see `astro-starlight.js`'s
  * docstring.
  */
-export async function applyCloudflarePagesFixes(repoPath) {
+export async function applyCloudflarePagesFixes(repoPath, { framework, siteRoot } = {}) {
   const written = [];
   const skipped = [];
   const warnings = [];
@@ -96,6 +97,21 @@ export async function applyCloudflarePagesFixes(repoPath) {
     await mkdir(functionsDir, { recursive: true });
     await writeFile(middlewarePath, MIDDLEWARE, "utf8");
     written.push(middlewarePath);
+  }
+
+  // The `.md` siblings duplicate their HTML pages, so give them a duplicate
+  // signal: `X-Robots-Tag: noindex` for `/*.md` in the publish dir's
+  // `_headers`. SvelteKit serves static files from `static/`, every other
+  // framework from `public/`. `siteRoot` comes from enhance.js (for a
+  // SvelteKit monorepo app it is the app dir, while `repoPath` is the
+  // platform root holding the wrangler config).
+  const staticDir = framework === "sveltekit" ? "static" : "public";
+  const headersPath = path.join(siteRoot ?? repoPath, staticDir, "_headers");
+  const headersResult = await ensureMdNoindexHeader(headersPath);
+  if (headersResult.action === "skipped") {
+    skipped.push(`${headersPath} (${headersResult.reason})`);
+  } else {
+    written.push(headersPath);
   }
 
   return { written, skipped, warnings };

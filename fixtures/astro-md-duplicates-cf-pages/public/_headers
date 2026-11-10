@@ -1,0 +1,5 @@
+# .md siblings duplicate their HTML pages — keep them out of search results.
+# Agents keep reading them; this header only affects search indexing.
+/*.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Robots-Tag: noindex

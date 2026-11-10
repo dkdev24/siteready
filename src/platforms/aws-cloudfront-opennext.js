@@ -92,7 +92,11 @@ export async function applyAwsCloudfrontOpennextFixes(siteRoot) {
       "possibly markdown to browsers. siteready can't edit or verify your CDK/SST/Terraform cache policy; check it.",
     "AWS/OpenNext: the negotiation self-fetches `/<path>.md`. `public/` files are served by CloudFront from " +
       "S3, not by the server function, so confirm those `.md` URLs resolve on the deployed origin. A local " +
-      "`next start` run can't show either point; confirm with `siteready scan` against the deployed URL."
+      "`next start` run can't show either point; confirm with `siteready scan` against the deployed URL.",
+    "AWS/OpenNext: the `.md` siblings duplicate their HTML pages, so they need `X-Robots-Tag: noindex` " +
+      "too — add a `X-Robots-Tag: noindex` custom header for the `/*.md` path pattern in the CloudFront " +
+      "response headers policy attached to the behavior serving `public/` from S3. siteready never edits " +
+      "infra code, so this one stays a warning: the md-duplicate-signal check will keep failing until it is set."
   );
 
   return { written, skipped, warnings };

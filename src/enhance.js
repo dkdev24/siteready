@@ -57,7 +57,14 @@ export async function enhance(repoPath) {
   const siteRoot = stack.siteRoot ?? resolved;
   const framework = await FRAMEWORK_FIXERS[stack.framework](siteRoot, { platform: stack.platform });
   // SvelteKit repos often keep wrangler config (and so `functions/`) above the app dir.
-  const platform = await PLATFORM_FIXERS[stack.platform](stack.framework === "sveltekit" ? stack.platformRoot ?? siteRoot : siteRoot);
+  // Platform fixers also get the framework + both roots: the `.md` duplicate
+  // signal lives in the publish dir (`public/` or SvelteKit's `static/`) under
+  // the app dir, and in `vercel.json` at the Vercel project root.
+  const platform = await PLATFORM_FIXERS[stack.platform](stack.framework === "sveltekit" ? stack.platformRoot ?? siteRoot : siteRoot, {
+    framework: stack.framework,
+    siteRoot,
+    platformRoot: stack.platformRoot,
+  });
 
   return {
     stack,

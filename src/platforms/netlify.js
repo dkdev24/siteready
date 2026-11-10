@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { ensureMdNoindexHeader } from "../lib/headers-file.js";
 
 // Netlify's static `netlify.toml` headers/redirects can't branch on a
 // request header, so `Accept: text/markdown` negotiation needs an Edge
@@ -81,7 +82,7 @@ export const config = { path: '/*' };
  * request hits a dead path. Skips (never overwrites) if that file already
  * exists. Never writes to git — see `astro-starlight.js`'s docstring.
  */
-export async function applyNetlifyFixes(repoPath) {
+export async function applyNetlifyFixes(repoPath, { framework, siteRoot } = {}) {
   const written = [];
   const skipped = [];
   const warnings = [];
@@ -95,6 +96,19 @@ export async function applyNetlifyFixes(repoPath) {
     await mkdir(edgeFunctionsDir, { recursive: true });
     await writeFile(targetPath, EDGE_FUNCTION, "utf8");
     written.push(targetPath);
+  }
+
+  // Same `_headers` duplicate signal as Cloudflare Pages — Netlify reads the
+  // same format from the publish dir. (scan-local can't verify it: the
+  // generic static file server doesn't apply `_headers`, so a local rescan
+  // still fails the check — the rule only takes effect on a real deploy.)
+  const staticDir = framework === "sveltekit" ? "static" : "public";
+  const headersPath = path.join(siteRoot ?? repoPath, staticDir, "_headers");
+  const headersResult = await ensureMdNoindexHeader(headersPath);
+  if (headersResult.action === "skipped") {
+    skipped.push(`${headersPath} (${headersResult.reason})`);
+  } else {
+    written.push(headersPath);
   }
 
   return { written, skipped, warnings };

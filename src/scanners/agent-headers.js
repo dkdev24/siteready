@@ -48,6 +48,10 @@ export async function runAgentHeadersScan(url, { fetchImpl = fetch } = {}) {
   };
   const urlsByKind = await collectUrls(base, get);
   const results = [];
+  // Plain-response duplicate signal per .md URL, captured while the md-links
+  // kind is probed below — the md-duplicate-signal check reuses it instead of
+  // re-fetching every .md URL.
+  const plainMd = new Map();
 
   for (const kind of KINDS) {
     const urls = urlsByKind[kind.id];
@@ -58,6 +62,9 @@ export async function runAgentHeadersScan(url, { fetchImpl = fetch } = {}) {
     const failures = [];
     for (const target of urls) {
       const plain = await probe(target, PLAIN);
+      if (kind.id === "agent-headers-md-links") {
+        plainMd.set(target, { ok: plain.ok, hasSignal: hasDuplicateSignal(plain.headers) });
+      }
       if (!plain.ok) continue; // only compare against a URL that works for a plain request
       for (const [profile, headers] of Object.entries(PROFILES)) {
         const res = await probe(target, headers);
@@ -74,8 +81,83 @@ export async function runAgentHeadersScan(url, { fetchImpl = fetch } = {}) {
     });
   }
 
+  // A .md URL that duplicates an HTML page (same path minus `.md` serves 200)
+  // with no `Link: rel="canonical"` / `X-Robots-Tag: noindex` on the .md
+  // response is a duplicate-content signal for search engines — the
+  // 2026-11-10 "duplicate without user-selected canonical" pattern. A .md
+  // with no HTML twin passes; a robots.txt Disallow does not count, because
+  // it doesn't stop the URL from being indexed as a duplicate.
+  results.push({
+    kind: { id: "md-duplicate-signal", label: ".md duplicate signal" },
+    ...(await checkMdDuplicateSignal(urlsByKind["agent-headers-md-links"], plainMd, fetchImpl)),
+  });
+
   const raw = { target: base.toString(), urlsByKind, results: results.map((r) => ({ id: r.kind.id, status: r.status, message: r.message })) };
   return { normalized: normalize(raw), raw };
+}
+
+// A .md response carries a duplicate signal when it points search engines
+// at the HTML twin (`Link: rel="canonical"`) or opts out of indexing
+// (`X-Robots-Tag: noindex`). Either one counts.
+function hasDuplicateSignal(headers) {
+  const link = headers.get("link") ?? "";
+  if (/rel\s*=\s*"?canonical"?/i.test(link)) return true;
+  const robots = headers.get("x-robots-tag") ?? "";
+  return /\bnoindex\b/i.test(robots);
+}
+
+// HTML-twin candidates for a .md URL, most likely first: the same path minus
+// `.md`, then the trailing-slash form (some servers only serve the directory
+// index that way), then — for `/index.md` — the directory itself.
+function twinCandidates(mdUrl) {
+  const u = new URL(mdUrl);
+  const noExt = u.pathname.replace(/\.md$/i, "");
+  const paths = [noExt, `${noExt}/`];
+  if (/\/index$/i.test(noExt)) {
+    const dir = noExt.replace(/\/index$/i, "") || "/";
+    paths.push(dir);
+    if (dir !== "/") paths.push(`${dir}/`);
+  }
+  return [...new Set(paths)].map((p) => {
+    const twin = new URL(u);
+    twin.pathname = p;
+    twin.search = "";
+    twin.hash = "";
+    return twin.toString();
+  });
+}
+
+async function checkMdDuplicateSignal(mdUrls, plainMd, fetchImpl) {
+  const probed = mdUrls.filter((t) => plainMd.get(t)?.ok);
+  if (!probed.length) {
+    return { status: "skip", message: "No .md links found in llms.txt." };
+  }
+  const duplicates = [];
+  for (const target of probed) {
+    if (plainMd.get(target).hasSignal) continue;
+    for (const twin of twinCandidates(target)) {
+      let res;
+      try {
+        res = await fetchImpl(twin, { headers: PLAIN, redirect: "follow" });
+      } catch {
+        break;
+      }
+      await res.body?.cancel();
+      if (res.ok) {
+        duplicates.push(new URL(target).pathname);
+        break;
+      }
+    }
+  }
+  return duplicates.length
+    ? {
+        status: "fail",
+        message: `${duplicates.length} .md URL(s) duplicate an HTML page with no canonical/noindex signal: ${duplicates.slice(0, 5).join(", ")}`,
+      }
+    : {
+        status: "pass",
+        message: `${probed.length} .md link(s) carry a canonical/noindex signal or have no HTML twin`,
+      };
 }
 
 // A redirect to the same path with or without a trailing slash is fine;
@@ -140,13 +222,19 @@ async function collectUrls(base, get) {
 }
 
 // Same-origin links in document order (deterministic, so a rescan tests the
-// same URLs): bare absolute URLs and root-relative markdown link targets.
+// same URLs): bare absolute URLs, root-relative markdown link targets, and
+// bare root-relative `.md` paths — the form the Starlight fixer generates
+// (`- [Title](/slug/): desc — markdown: /slug.md`). Without the third
+// alternative the `.md` links in a Starlight-generated llms.txt are never
+// probed at all. The lookbehind keeps the bare form from matching the path
+// part of an absolute URL to another host (which would otherwise resolve
+// against this origin and probe a URL the index never pointed at).
 function extractLinks(text, origin) {
   const links = [];
-  for (const match of text.matchAll(/https?:\/\/[^\s)<>"']+|\]\((\/[^\s)]+)\)/g)) {
+  for (const match of text.matchAll(/https?:\/\/[^\s)<>"']+|\]\((\/[^\s)]+)\)|(?<![\w:/.])(\/[^\s)<>"']*\.md)/g)) {
     let link;
     try {
-      link = new URL((match[1] ?? match[0]).replace(/[.,:;]+$/, ""), origin);
+      link = new URL((match[1] ?? match[2] ?? match[0]).replace(/[.,:;]+$/, ""), origin);
     } catch {
       continue;
     }
@@ -165,7 +253,9 @@ function normalize(raw) {
     message: r.message,
     fix:
       r.status === "fail"
-        ? "Serve files with their own extension (.md, .txt, .xml) as-is in your markdown-negotiation middleware, and don't redirect agents to a different path; re-run `siteready enhance` for the fixed Cloudflare Pages/Netlify middleware."
+        ? r.id === "md-duplicate-signal"
+          ? "Give every .md sibling a duplicate signal: `X-Robots-Tag: noindex` for `/*.md` (re-run `siteready enhance` — Cloudflare Pages/Netlify write it to `_headers`, Vercel to `vercel.json`); GitHub/GitLab Pages can't set response headers, so remove the .md from public serving or accept the gap. A `Link: rel=\"canonical\"` header to the HTML twin also counts."
+          : "Serve files with their own extension (.md, .txt, .xml) as-is in your markdown-negotiation middleware, and don't redirect agents to a different path; re-run `siteready enhance` for the fixed Cloudflare Pages/Netlify middleware."
         : null,
     earnedScore: r.status === "pass" ? 1 : 0,
     maxScore: r.status === "skip" ? 0 : 1,

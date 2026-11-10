@@ -1,0 +1,1 @@
+{"dependencies":{"astro":"^7.3.3"},"name":"fixtures-astro-md-duplicates-cf-pages","scripts":{"astro":"astro","build":"astro build","dev":"astro dev","preview":"astro preview","start":"astro dev"},"type":"module","version":"0.0.1"}

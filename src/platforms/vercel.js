@@ -1,6 +1,86 @@
 import { existsSync } from "node:fs";
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+
+// The duplicate signal for Vercel: a `vercel.json` headers rule matching
+// every `.md` response. `/:path*.md` is Vercel's named-group syntax for
+// "any path ending in .md".
+const MD_NOINDEX_RULE = {
+  source: "/:path*.md",
+  headers: [{ key: "X-Robots-Tag", value: "noindex" }],
+};
+
+function ruleAlreadyCovered(headers) {
+  if (!Array.isArray(headers)) return false;
+  return headers.some(
+    (entry) =>
+      typeof entry?.source === "string" &&
+      entry.source.includes(".md") &&
+      Array.isArray(entry.headers) &&
+      entry.headers.some(
+        (h) =>
+          typeof h?.key === "string" &&
+          h.key.toLowerCase() === "x-robots-tag" &&
+          typeof h.value === "string" &&
+          /\bnoindex\b/i.test(h.value)
+      )
+  );
+}
+
+function detectIndent(text) {
+  const match = text.match(/^(?:\{\r?\n)?([ \t]+)"/m);
+  return match ? match[1] : "  ";
+}
+
+/**
+ * Ensures `vercel.json` at the project root has a headers rule sending
+ * `X-Robots-Tag: noindex` for every `.md` response. Creates the file when
+ * absent; merges into the existing `headers` array otherwise, preserving
+ * every other key and the file's indent/EOL. Never clobbers an unparseable
+ * file — that becomes a warning with the rule to add by hand.
+ */
+async function ensureVercelMdNoindex(vercelJsonPath) {
+  let existing = null;
+  try {
+    existing = await readFile(vercelJsonPath, "utf8");
+  } catch (err) {
+    if (err.code !== "ENOENT") throw err;
+  }
+
+  if (existing == null) {
+    await writeFile(vercelJsonPath, `${JSON.stringify({ headers: [MD_NOINDEX_RULE] }, null, 2)}\n`, "utf8");
+    return { action: "created" };
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(existing);
+  } catch {
+    return {
+      action: "skipped",
+      warning:
+        `${vercelJsonPath} could not be parsed as JSON — not modified; add the rule by hand: ` +
+        JSON.stringify(MD_NOINDEX_RULE),
+    };
+  }
+  if (parsed == null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return {
+      action: "skipped",
+      warning:
+        `${vercelJsonPath} is not a JSON object — not modified; add the rule by hand: ` +
+        JSON.stringify(MD_NOINDEX_RULE),
+    };
+  }
+  if (ruleAlreadyCovered(parsed.headers)) {
+    return { action: "skipped", reason: "already sends X-Robots-Tag: noindex for .md responses" };
+  }
+
+  const eol = existing.includes("\r\n") ? "\r\n" : "\n";
+  const indent = detectIndent(existing);
+  const next = { ...parsed, headers: [...(Array.isArray(parsed.headers) ? parsed.headers : []), MD_NOINDEX_RULE] };
+  await writeFile(vercelJsonPath, `${JSON.stringify(next, null, indent).replace(/\n/g, eol)}${eol}`, "utf8");
+  return { action: "appended" };
+}
 
 // Vercel's static `headers`/`rewrites` in vercel.json can't branch on a
 // request header, so `Accept: text/markdown` negotiation needs Proxy
@@ -58,7 +138,7 @@ export default async function proxy(request) {
  * proxy/middleware may already do something else. Never touches git — see
  * `fixers/astro-starlight.js`'s docstring.
  */
-export async function applyVercelFixes(repoPath) {
+export async function applyVercelFixes(repoPath, { siteRoot } = {}) {
   const written = [];
   const skipped = [];
   const warnings = [];
@@ -72,6 +152,18 @@ export async function applyVercelFixes(repoPath) {
   } else {
     await writeFile(proxyPath, PROXY, "utf8");
     written.push(proxyPath);
+  }
+
+  // The `.md` siblings duplicate their HTML pages, so give them a duplicate
+  // signal in `vercel.json` at the project root (the app dir for a monorepo
+  // app, which enhance.js passes as `siteRoot`).
+  const vercelJsonPath = path.join(siteRoot ?? repoPath, "vercel.json");
+  const headersResult = await ensureVercelMdNoindex(vercelJsonPath);
+  if (headersResult.action === "skipped") {
+    if (headersResult.warning) warnings.push(headersResult.warning);
+    else skipped.push(`${vercelJsonPath} (${headersResult.reason})`);
+  } else {
+    written.push(vercelJsonPath);
   }
 
   return { written, skipped, warnings };

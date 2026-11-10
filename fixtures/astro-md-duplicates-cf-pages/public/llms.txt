@@ -1,0 +1,10 @@
+# Example
+
+> Machine-readable index of this example site. Written by hand in the format
+> the Starlight fixer generates: bare root-relative `.md` paths after
+> `markdown:` (not `](...)` links) — the form `extractLinks` in
+> `src/scanners/agent-headers.js` must also match, or the `.md` links are
+> never probed at all.
+
+- [Home](/): Home page — markdown: /index.md
+- [About](/about): About page — markdown: /about.md

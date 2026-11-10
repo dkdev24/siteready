@@ -127,6 +127,33 @@ const FIXTURES = [
     },
   },
   {
+    name: "astro-md-duplicates-cf-pages",
+    dir: path.join(__dirname, "..", "fixtures", "astro-md-duplicates-cf-pages"),
+    async strip(dir) {
+      await removeIfPresent(dir, ["public/_headers", "functions"]);
+    },
+    // The fixture's static .md siblings duplicate HTML pages with no signal
+    // in the "before" state, so md-duplicate-signal must flip fail -> pass
+    // across scan -> enhance -> rescan, and enhance must write public/_headers.
+    // (The middleware is stripped too: enhance re-adds it, and the rescan
+    // runs with it — the _headers rule has to survive the middleware's
+    // next() passthrough, which is exactly the production path.)
+    async verify({ baseline, rescan, enhanceResult }) {
+      const before = checkStatus(baseline.scanners["agent-headers"], "md-duplicate-signal");
+      const after = checkStatus(rescan.scanners["agent-headers"], "md-duplicate-signal");
+      console.log(`agent-headers check md-duplicate-signal: ${before} -> ${after}`);
+      if (before !== "fail") {
+        throw new Error(`Expected baseline md-duplicate-signal to fail pre-enhance, got ${before}.`);
+      }
+      if (after !== "pass") {
+        throw new Error(`Expected md-duplicate-signal to pass post-enhance, got ${after}.`);
+      }
+      if (!enhanceResult.written.some((f) => f.endsWith(`${path.sep}public${path.sep}_headers`))) {
+        throw new Error("Expected enhance to write public/_headers.");
+      }
+    },
+  },
+  {
     name: "nextjs-vercel",
     dir: path.join(__dirname, "..", "fixtures", "nextjs-vercel"),
     async strip(dir) {
@@ -158,6 +185,19 @@ const FIXTURES = [
         if (a !== "pass") throw new Error(`Expected ${id} to pass post-enhance, got ${a}.`);
       }
       if (!existsSync(path.join(dir, "public", "llms.txt"))) throw new Error("Expected the generator to write public/llms.txt.");
+      // The duplicate-signal fix for Vercel is a vercel.json headers rule,
+      // which `next start` never applies — the rescan can't flip
+      // md-duplicate-signal locally. Assert the rule was written correctly
+      // instead; the deployed behavior is the rule itself, confirmed by a
+      // scan of the deployed URL.
+      const vercelJson = JSON.parse(await readFile(path.join(dir, "vercel.json"), "utf8"));
+      const mdRule = (vercelJson.headers ?? []).find((h) => h.source === "/:path*.md");
+      if (
+        !mdRule ||
+        !mdRule.headers?.some((h) => h.key === "X-Robots-Tag" && /\bnoindex\b/i.test(h.value ?? ""))
+      ) {
+        throw new Error("Expected enhance to write a vercel.json /:path*.md X-Robots-Tag: noindex rule.");
+      }
     },
   },
   {
@@ -181,6 +221,9 @@ const FIXTURES = [
         throw new Error(`The mirror generator must not be wired on OpenNext, got: ${enhanceResult.written.join(", ")}`);
       }
       if (!enhanceResult.warnings.some((w) => /NOT set up/.test(w))) throw new Error("Expected the OpenNext warning about mirrors.");
+      if (!enhanceResult.warnings.some((w) => /X-Robots-Tag: noindex/.test(w) && /response headers policy/.test(w))) {
+        throw new Error("Expected the OpenNext warning about the .md noindex response headers policy.");
+      }
       const before = checkStatus(baseline.scanners.afdocs, "content-negotiation");
       const after = checkStatus(rescan.scanners.afdocs, "content-negotiation");
       console.log(`afdocs check content-negotiation: ${before} -> ${after}`);
@@ -212,7 +255,17 @@ async function runFixture(fixture) {
 
     await fixture.verify({ baseline, rescan, enhanceResult, dir: target });
     // The middleware enhance writes must never serve agents worse than a plain request.
-    const agentFailures = (rescan.scanners["agent-headers"]?.checks ?? []).filter((c) => c.status === "fail");
+    // md-duplicate-signal is exempt here unless the platform applies its fix
+    // locally: only Cloudflare Pages does (`wrangler pages dev` honors
+    // `_headers`). `next start` never applies vercel.json, the generic static
+    // server ignores `_headers`, and CloudFront is warning-only — for those
+    // the fixture's own verify asserts the fix file/warning instead, and the
+    // deployed behavior is confirmed by a scan of the deployed URL.
+    const agentFailures = (rescan.scanners["agent-headers"]?.checks ?? []).filter(
+      (c) =>
+        c.status === "fail" &&
+        (c.id !== "md-duplicate-signal" || enhanceResult.stack.platform === "cloudflare-pages")
+    );
     if (agentFailures.length) {
       throw new Error(`${fixture.name}: agent-headers failed after enhance: ${agentFailures.map((c) => c.message).join(" | ")}`);
     }

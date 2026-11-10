@@ -8,8 +8,7 @@ file under 80 lines. Detailed history and lists live in the linked docs below.
 ## Current Version
 
 **0.8.0** (doc-tracking system version, see WORKLOG.md). Engine/CLI is at
-package.json `1.22.0` (2026-11-10: .md-sibling duplicate check + fixer, #30; local only, not
-pushed/published/tagged; WORKLOG v1.22.0). 1.21.0 (2026-10-31: SvelteKit + Cloudflare Pages fixer, #29; tagged `v1.21.0`,
+package.json `1.22.0` (2026-11-10: .md-sibling duplicate check + fixer, #30; pushed + tagged `v1.22.0`, npm publish pending — no npm auth on this VM). 1.21.0 (2026-10-31: SvelteKit + Cloudflare Pages fixer, #29; tagged `v1.21.0`,
 published to npm). 1.20.0 (2026-10-26: engines `>=22`, CI on Node 24; tagged +
 GitHub release). 1.19.3 was published, tagged and pushed (2026-10-17). 1.19.0-1.19.2 are `npm deprecate`d (OpenNext mirror bug, see below).
 

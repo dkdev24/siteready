@@ -2334,3 +2334,14 @@ site and GA Realtime showed the visit under `G-8EB1Z0RX3W`, so the consent-gated
 - Local-verification gap, handled honestly: `next start` never applies `vercel.json`, the generic static server ignores `_headers`, and CloudFront is warning-only — so for those platforms the rescan can't flip the check. The verify-loop runner now exempts `md-duplicate-signal` failures unless the platform is `cloudflare-pages`; the nextjs-vercel case instead asserts the `vercel.json` rule was written, and the nextjs-opennext case asserts the CloudFront noindex warning. `scripts/check-agent-headers.js` updated: the in-memory assets model a site with the `_headers` fix (`.md` responses carry noindex), a no-signal scenario proves the check fails on the twinned page but not on a twin-less orphan `.md`, and `scripts/check-middleware-dedup.js` now asserts on the middleware write specifically (the fixer also writes `_headers`).
 - **Verified:** `npm run lint` green (8/8 checks). Full `npm run verify-loop` green on all 5 fixtures (note: `/tmp` is a 512M tmpfs and the OpenNext fixture copy needs 461M — the loop failed with ENOSPC there; reran with `TMPDIR` on the home disk). Live scans of the three manually fixed sites: the docs site and the SvelteKit docs site pass `md-duplicate-signal` (5/5 `.md` links each carry the signal); the story site's llms.txt advertises no `.md` links so the check skips — 10/10 sampled story `.md` URLs return 200 + `X-Robots-Tag: noindex` by direct curl, so the condition holds there too. All three repos left clean (read-only scans).
 - **Not done:** not pushed, not published to npm, no tag — needs Daniel's approval per repo rules. GitHub CI not run (no push yet).
+
+---
+
+## 2026-11-11 — afdocs pin 0.22.2 → 0.23.0, closes #11 (no version bump)
+
+- `PINNED_VERSION` in `src/scanners/afdocs.js` bumped to 0.23.0; pin mentions in AGENTS.md and
+  docs/architecture.md updated.
+- Verified before bumping: `AFDOCS_VERSION=0.23.0 npm run verify-loop` green on all fixtures;
+  `npm run lint` passes; live scan of a docs site gives a byte-identical report (apart from timestamp)
+  under 0.22.2 and 0.23.0, so `normalize()` needs no change.
+- `check-scanner-versions` now reports all pins up to date.

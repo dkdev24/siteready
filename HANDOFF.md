@@ -39,6 +39,7 @@ one header pattern per URL type and follow redirects, so they passed the broken 
 Detail: WORKLOG v1.16.0.
 
 v1.16.1 (same day): afdocs pin 0.20.0 → 0.22.2, closes #1 (schema-compatible, 5 new checks).
+2026-11-11: afdocs pin 0.22.2 → 0.23.0, closes #11 (verify-loop green, live scan identical). Local commit, not pushed.
 **v1.17.0** (same day): Starlight `.md` mirror runs the body through `toAgentMarkdown()`
 (`src/lib/md-mirror.js`): absolute links, components → markdown. Existing raw-body routes get a
 warning (enhance never overwrites). Regression check `scripts/check-md-mirror.js` in lint.

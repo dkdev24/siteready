@@ -8,7 +8,7 @@ file under 80 lines. Detailed history and lists live in the linked docs below.
 ## Current Version
 
 **0.8.0** (doc-tracking system version, see WORKLOG.md). Engine/CLI is at
-package.json `1.22.0` (2026-11-10: .md-sibling duplicate check + fixer, #30; pushed, tagged, GitHub release, published to npm 2026-11-11 — built from the tag, so it ships afdocs 0.22.2). 1.21.0 (2026-10-31: SvelteKit + Cloudflare Pages fixer, #29; tagged `v1.21.0`,
+package.json `1.22.1` (2026-11-11: afdocs 0.23.0 pin + fixture undici bump; tagged, released, on npm). 1.22.0 (2026-11-10: .md-sibling duplicate check + fixer, #30; pushed, tagged, GitHub release, published to npm 2026-11-11 — built from the tag, so it ships afdocs 0.22.2). 1.21.0 (2026-10-31: SvelteKit + Cloudflare Pages fixer, #29; tagged `v1.21.0`,
 published to npm). 1.20.0 (2026-10-26: engines `>=22`, CI on Node 24; tagged +
 GitHub release). 1.19.3 was published, tagged and pushed (2026-10-17). 1.19.0-1.19.2 are `npm deprecate`d (OpenNext mirror bug, see below).
 
@@ -39,7 +39,7 @@ one header pattern per URL type and follow redirects, so they passed the broken 
 Detail: WORKLOG v1.16.0.
 
 v1.16.1 (same day): afdocs pin 0.20.0 → 0.22.2, closes #1 (schema-compatible, 5 new checks).
-2026-11-11: afdocs pin 0.22.2 → 0.23.0, closes #11 (verify-loop green, live scan identical). Pushed on `main`, not yet released (ships in the next version, 1.22.1 TBD — Daniel said not yet).
+2026-11-11: afdocs pin 0.22.2 → 0.23.0, closes #11 (verify-loop green, live scan identical). Released in 1.22.1.
 **v1.17.0** (same day): Starlight `.md` mirror runs the body through `toAgentMarkdown()`
 (`src/lib/md-mirror.js`): absolute links, components → markdown. Existing raw-body routes get a
 warning (enhance never overwrites). Regression check `scripts/check-md-mirror.js` in lint.

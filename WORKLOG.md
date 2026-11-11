@@ -2362,3 +2362,13 @@ site and GA Realtime showed the visit under `G-8EB1Z0RX3W`, so the consent-gated
 - No open Dependabot PRs existed for this — bumped by hand.
 - Verified: `npm run lint` 8/8; full `npm run verify-loop` green on all 5 fixtures (TMPDIR on home disk — /tmp is a 512M tmpfs and the OpenNext fixture copy needs 461M).
 - No npm publish — fixture-only change, 1.22.0 = npm `latest`, same tarball. Pushed to `main`.
+
+---
+
+## v1.22.1 — afdocs 0.23.0 pin + fixture undici bump
+
+**Date:** 2026-11-11
+
+- afdocs pin 0.22.2 → 0.23.0 (closes #11; verify-loop green, live scan identical, no `normalize()` change).
+- `fixtures/astro-cf-pages` lockfile: undici 8.10.2 → 8.12.4 (fixes 8 Dependabot alerts; fixture-only, not in the npm tarball).
+- `npm run lint` passes. Published from `main` at the version-bump commit; tag `v1.22.1` + GitHub release.

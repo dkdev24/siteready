@@ -2373,6 +2373,8 @@ site and GA Realtime showed the visit under `G-8EB1Z0RX3W`, so the consent-gated
 - `fixtures/astro-cf-pages` lockfile: undici 8.10.2 → 8.12.4 (fixes 8 Dependabot alerts; fixture-only, not in the npm tarball).
 - `npm run lint` passes. Published from `main` at the version-bump commit; tag `v1.22.1` + GitHub release.
 
-## 2026-11-12 — Code scanning fixes (no version bump)
+## v1.22.2 — Code scanning fixes (backslash escape in agent-readiness templates)
 
-- Closed 3 `js/incomplete-sanitization` alerts (agent-readiness template pipe escape, in `next` and `sveltekit` templates plus the `nextjs-vercel` fixture copy): `.replace(/\|/g, "\\|")` became `.replace(/[\\|]/g, "\\$&")` so backslashes are escaped with the delimiter. Added workflow-level `permissions: contents: read` to `ci.yml` (`actions/missing-workflow-permissions`). `npm run lint` (incl. template checks) passes. Commit `1696201`.
+**Date:** 2026-11-12
+
+- Closed 3 `js/incomplete-sanitization` alerts (agent-readiness template pipe escape, in `next` and `sveltekit` templates plus the `nextjs-vercel` fixture copy): `.replace(/\|/g, "\\|")` became `.replace(/[\\|]/g, "\\$&")` so backslashes are escaped with the delimiter. Added workflow-level `permissions: contents: read` to `ci.yml` (`actions/missing-workflow-permissions`). `npm run lint` (incl. template checks) passes. Commit `1696201`. Published from `main` at the version-bump commit; tag `v1.22.2` + GitHub release. The templates under `src/templates/` ship in the npm tarball, so users generating the script now get the escaped version.

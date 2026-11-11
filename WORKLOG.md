@@ -2345,3 +2345,11 @@ site and GA Realtime showed the visit under `G-8EB1Z0RX3W`, so the consent-gated
   `npm run lint` passes; live scan of a docs site gives a byte-identical report (apart from timestamp)
   under 0.22.2 and 0.23.0, so `normalize()` needs no change.
 - `check-scanner-versions` now reports all pins up to date.
+
+---
+
+## 2026-11-11 — v1.22.0 shipped (GitHub release + npm) (no version bump)
+
+- Pushed `main` (afdocs pin bump, #11 auto-closed). v1.22.0 tag already existed at `5433dce` (before the pin bump).
+- Published `siteready@1.22.0` to npm from a `git archive v1.22.0` extract in a temp dir, not from `main`, so the tarball matches the tag (afdocs pin 0.22.2). Created GitHub release `v1.22.0` with generic notes (public repo: no site names).
+- Not released: the afdocs 0.23.0 pin sits on `main` only. Daniel asked not to cut a version yet; next release (likely 1.22.1) picks it up.

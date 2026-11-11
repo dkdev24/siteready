@@ -8,7 +8,7 @@ file under 80 lines. Detailed history and lists live in the linked docs below.
 ## Current Version
 
 **0.8.0** (doc-tracking system version, see WORKLOG.md). Engine/CLI is at
-package.json `1.22.0` (2026-11-10: .md-sibling duplicate check + fixer, #30; pushed + tagged `v1.22.0`, npm publish pending — no npm auth on this VM). 1.21.0 (2026-10-31: SvelteKit + Cloudflare Pages fixer, #29; tagged `v1.21.0`,
+package.json `1.22.0` (2026-11-10: .md-sibling duplicate check + fixer, #30; pushed, tagged, GitHub release, published to npm 2026-11-11 — built from the tag, so it ships afdocs 0.22.2). 1.21.0 (2026-10-31: SvelteKit + Cloudflare Pages fixer, #29; tagged `v1.21.0`,
 published to npm). 1.20.0 (2026-10-26: engines `>=22`, CI on Node 24; tagged +
 GitHub release). 1.19.3 was published, tagged and pushed (2026-10-17). 1.19.0-1.19.2 are `npm deprecate`d (OpenNext mirror bug, see below).
 
@@ -16,7 +16,7 @@ GitHub release). 1.19.3 was published, tagged and pushed (2026-10-17). 1.19.0-1.
 
 ## Right Now
 
-No blocker. 2026-11-10 (v1.22.0, #30, local only — not pushed/published/tagged): new `md-duplicate-signal` check in agent-headers + platform fixers (`_headers` for CF Pages/Netlify, `vercel.json` for Vercel, warning-only for CloudFront/OpenNext, report-only for GitHub/GitLab Pages). Found + fixed `extractLinks` missing bare `.md` paths in Starlight-format llms.txt. New fixture `astro-md-duplicates-cf-pages`, verify-loop case flips fail→pass. `npm run lint` 8/8, full verify-loop green on all 5 fixtures. Live scans: docs + SvelteKit sites pass the check; story site's llms.txt lists no .md (check skips) but 10/10 sampled .md URLs carry noindex. Detail: WORKLOG v1.22.0.
+No blocker. 2026-11-10 (v1.22.0, #30, shipped 2026-11-11): new `md-duplicate-signal` check in agent-headers + platform fixers (`_headers` for CF Pages/Netlify, `vercel.json` for Vercel, warning-only for CloudFront/OpenNext, report-only for GitHub/GitLab Pages). Found + fixed `extractLinks` missing bare `.md` paths in Starlight-format llms.txt. New fixture `astro-md-duplicates-cf-pages`, verify-loop case flips fail→pass. `npm run lint` 8/8, full verify-loop green on all 5 fixtures. Live scans: docs + SvelteKit sites pass the check; story site's llms.txt lists no .md (check skips) but 10/10 sampled .md URLs carry noindex. Detail: WORKLOG v1.22.0.
 2026-11-06 (verify-loop symlink fix, no version bump): `scripts/verify-loop.js` now copies fixture trees with `verbatimSymlinks: true` — the default rewrote `.bin` relative symlinks as absolute paths into the source tree, causing duplicate-React `useContext`-null prerender crashes on nextjs-vercel; full verify-loop green on all fixtures after the fix. Detail: WORKLOG 2026-11-05.
 2026-11-06 (dependabot #14/#15 merged, no version bump): per Daniel's "test then merge", squash-merged #14 (sharp 0.35.4→0.35.5) and #15 (devalue 5.9.2→5.9.4), both lockfile-only in `fixtures/astro-cf-pages`. Tested on temp branch first: `npm run lint` 8/8 pass; `npm run verify-loop` astro-cf-pages OK; GitHub CI 3 OS all pass on both PRs. No npm publish — fixture-only (1.21.0 = npm `latest`, same tarball). No open dependabot PRs left. Detail: WORKLOG 2026-11-06.
 2026-11-05 (dependabot #13 merged, no version bump): per Daniel's "test then merge", squash-merged #13 (vite 8.2.2→8.3.5, fixtures/astro-cf-pages, lockfile-only) after testing on temp branch: `npm run lint` 8/8 pass; `npm run verify-loop` astro-cf-pages verified OK (afdocs baseline 41/100 → http-status-codes + content-negotiation fail→pass, agent-headers 100/100; same vite 8.3.5 already verified via PR #7, no new risk); GitHub CI 3 OS all pass. No npm publish — fixture-only (1.21.0 = npm `latest`, same tarball). New finding: nextjs-vercel verify-loop failure root cause identified — `scripts/verify-loop.js`'s `fs.cp` copies `.bin` symlinks as absolute paths, so the tmp tree loads `next` from source tree + `react` from tmp tree → duplicate React → useContext-null prerender crash; only when fixture node_modules pre-installed; PR-unrelated. Detail: WORKLOG 2026-11-05.
@@ -39,7 +39,7 @@ one header pattern per URL type and follow redirects, so they passed the broken 
 Detail: WORKLOG v1.16.0.
 
 v1.16.1 (same day): afdocs pin 0.20.0 → 0.22.2, closes #1 (schema-compatible, 5 new checks).
-2026-11-11: afdocs pin 0.22.2 → 0.23.0, closes #11 (verify-loop green, live scan identical). Local commit, not pushed.
+2026-11-11: afdocs pin 0.22.2 → 0.23.0, closes #11 (verify-loop green, live scan identical). Pushed on `main`, not yet released (ships in the next version, 1.22.1 TBD — Daniel said not yet).
 **v1.17.0** (same day): Starlight `.md` mirror runs the body through `toAgentMarkdown()`
 (`src/lib/md-mirror.js`): absolute links, components → markdown. Existing raw-body routes get a
 warning (enhance never overwrites). Regression check `scripts/check-md-mirror.js` in lint.

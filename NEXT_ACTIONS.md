@@ -84,7 +84,7 @@ append-only, unlike WORKLOG.md).
 
 ## Resolved (condensed — see WORKLOG.md for full history)
 
-30. **Detect + fix .md-sibling duplicate content** — **done 2026-11-10 (v1.22.0, local only)**. New `md-duplicate-signal` check in agent-headers + platform fixers (`_headers` CF Pages/Netlify, `vercel.json` Vercel, warning-only CloudFront, report-only GitHub/GitLab Pages). Also fixed `extractLinks` missing bare `.md` paths in Starlight-format llms.txt. New fixture + verify-loop case; lint 8/8, full verify-loop green; live scans pass on the two docs sites (story site's llms.txt lists no .md). Not pushed/published/tagged.
+30. **Detect + fix .md-sibling duplicate content** — **done 2026-11-10 (v1.22.0)**. New `md-duplicate-signal` check in agent-headers + platform fixers (`_headers` CF Pages/Netlify, `vercel.json` Vercel, warning-only CloudFront, report-only GitHub/GitLab Pages). Also fixed `extractLinks` missing bare `.md` paths in Starlight-format llms.txt. New fixture + verify-loop case; lint 8/8, full verify-loop green; live scans pass on the two docs sites (story site's llms.txt lists no .md). Pushed + tagged `v1.22.0`, GitHub release created, published to npm 2026-11-11 (built from the tag, so it ships afdocs 0.22.2).
 19. **is-agentic "could not fetch homepage" on subfolder URLs** — **done
     2026-09-12**. Confirmed: it's a scanner-side bug that breaks on any
     non-root path, not a real fetch failure and nothing siteready can fix.

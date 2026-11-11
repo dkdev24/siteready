@@ -260,7 +260,7 @@ export function htmlToMarkdown(html, { origin = "" } = {}) {
     const rows = [];
     const walk = (n) => {
       for (const c of n.children) {
-        if (c.tag === "tr") rows.push(c.children.filter((x) => x.tag === "th" || x.tag === "td").map((cell) => inline(cell, ctx).replace(/\|/g, "\\|").replace(/\s+/g, " ").trim()));
+        if (c.tag === "tr") rows.push(c.children.filter((x) => x.tag === "th" || x.tag === "td").map((cell) => inline(cell, ctx).replace(/[\\|]/g, "\\$&").replace(/\s+/g, " ").trim()));
         else if (c.tag === "thead" || c.tag === "tbody" || c.tag === "tfoot") walk(c);
       }
     };

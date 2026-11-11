@@ -2353,3 +2353,12 @@ site and GA Realtime showed the visit under `G-8EB1Z0RX3W`, so the consent-gated
 - Pushed `main` (afdocs pin bump, #11 auto-closed). v1.22.0 tag already existed at `5433dce` (before the pin bump).
 - Published `siteready@1.22.0` to npm from a `git archive v1.22.0` extract in a temp dir, not from `main`, so the tarball matches the tag (afdocs pin 0.22.2). Created GitHub release `v1.22.0` with generic notes (public repo: no site names).
 - Not released: the afdocs 0.23.0 pin sits on `main` only. Daniel asked not to cut a version yet; next release (likely 1.22.1) picks it up.
+
+## 2026-11-11 — undici 8.10.2 → 8.12.4 in astro-cf-pages fixture, fixes 8 Dependabot alerts (no version bump)
+
+- 8 open Dependabot alerts (#65, #64, #63 high; #62, #61 medium; #23 high; #22, #21 medium), all undici, transitive via `unifont -> ^8.0.0`, resolved 8.10.2 in `fixtures/astro-cf-pages/package-lock.json`. Vulnerable range >= 8.0.0 < 8.12.2; first patched 8.12.2.
+- `npm update undici` in the fixture: undici 8.10.2 → 8.12.4, still transitive via unifont (no override/direct dep needed — `^8.0.0` range allows it). Only undici's version/resolved/integrity changed; the 81 deleted lines are `libc`/`glibc`/`musl` optional-dep platform arrays npm 10 prunes when rewriting the lockfile (regenerated from package metadata, not needed by `npm ci`).
+- Other fixture lockfiles already patched: astro-starlight-cf-pages 8.12.3, astro-md-duplicates-cf-pages 8.12.4. No other fixture pins undici < 8.12.2.
+- No open Dependabot PRs existed for this — bumped by hand.
+- Verified: `npm run lint` 8/8; full `npm run verify-loop` green on all 5 fixtures (TMPDIR on home disk — /tmp is a 512M tmpfs and the OpenNext fixture copy needs 461M).
+- No npm publish — fixture-only change, 1.22.0 = npm `latest`, same tarball. Pushed to `main`.

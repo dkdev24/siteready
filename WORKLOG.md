@@ -2378,3 +2378,10 @@ site and GA Realtime showed the visit under `G-8EB1Z0RX3W`, so the consent-gated
 **Date:** 2026-11-12
 
 - Closed 3 `js/incomplete-sanitization` alerts (agent-readiness template pipe escape, in `next` and `sveltekit` templates plus the `nextjs-vercel` fixture copy): `.replace(/\|/g, "\\|")` became `.replace(/[\\|]/g, "\\$&")` so backslashes are escaped with the delimiter. Added workflow-level `permissions: contents: read` to `ci.yml` (`actions/missing-workflow-permissions`). `npm run lint` (incl. template checks) passes. Commit `1696201`. Published from `main` at the version-bump commit; tag `v1.22.2` + GitHub release. The templates under `src/templates/` ship in the npm tarball, so users generating the script now get the escaped version.
+
+## 2026-11-15 — Dependabot #16/#17 merged (no version bump)
+
+- Per Daniel's "test then merge": squash-merged #16 astro 7.3.3→7.4.7 in `fixtures/astro-cf-pages` (`04b8a1d`) and #17 astro 7.4.4→7.4.12 in `fixtures/astro-starlight-cf-pages` (`23baeba`), both package.json + lockfile, after testing on temp branch `temp-pr16-17-test` (deleted after merge).
+- `npm run lint` passes (8/8). Full `npm run verify-loop` green on all 5 fixtures (TMPDIR on home disk). First verify-loop run failed on the known wrangler cold-start flake (local server not ready within 30s — workerd first-run download); warmed up with `npx -y wrangler pages dev` once and re-ran green.
+- Dependabot astro alerts #72/#74 (astro-cf-pages) show `fixed` after the merge; #73/#75 (astro-starlight-cf-pages) still `open` pending Dependabot rescan — lockfiles already at astro 7.4.12, above the 7.4.7 patch floor. Remaining 7.3.3/7.4.4 strings in the lockfiles are p-limit/uploadthing, not astro.
+- No npm publish: fixture-only changes, 1.22.2 = npm `latest` (identical tarball). No open dependabot PRs left on siteready.

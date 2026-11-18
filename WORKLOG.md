@@ -2385,3 +2385,11 @@ site and GA Realtime showed the visit under `G-8EB1Z0RX3W`, so the consent-gated
 - `npm run lint` passes (8/8). Full `npm run verify-loop` green on all 5 fixtures (TMPDIR on home disk). First verify-loop run failed on the known wrangler cold-start flake (local server not ready within 30s — workerd first-run download); warmed up with `npx -y wrangler pages dev` once and re-ran green.
 - Dependabot astro alerts #72/#74 (astro-cf-pages) show `fixed` after the merge; #73/#75 (astro-starlight-cf-pages) still `open` pending Dependabot rescan — lockfiles already at astro 7.4.12, above the 7.4.7 patch floor. Remaining 7.3.3/7.4.4 strings in the lockfiles are p-limit/uploadthing, not astro.
 - No npm publish: fixture-only changes, 1.22.2 = npm `latest` (identical tarball). No open dependabot PRs left on siteready.
+
+## 2026-11-18 — Dependabot #18/#19 merged (no version bump)
+
+- Per Daniel's "test then merge": squash-merged #18 next 16.4.1→16.4.5 in `fixtures/nextjs-vercel` (`49f3953`) and #19 next 16.4.2→16.4.5 in `fixtures/nextjs-opennext-monorepo` (`959f42d`), both package.json + lockfile, after testing on temp branch `temp-pr18-19-test` (deleted after merge).
+- `npm run lint` passes (8/8). Full `npm run verify-loop` green on all 5 fixtures (TMPDIR on home disk; wrangler pre-warmed, no cold-start flake this time). Catch: the first verify-loop run built Next.js 16.4.2, not 16.4.5 — verify-loop copies fixture trees including pre-installed node_modules and never runs install, so the bumped lockfile wasn't exercised. Ran `npm ci` in both fixtures (next 16.4.5 confirmed in node_modules, no lockfile changes) and re-ran verify-loop green with 16.4.5 actually built. Lesson for future dep-bump tests: `npm ci` the touched fixtures before verify-loop, or the test silently validates the old version.
+- Dependabot next alerts #76/#77/#78 all show `fixed` after the merge (fast rescan).
+- New open alerts #79/#80/#81 (picomatch, high, ReDoS via single-branch repeated extglobs) appeared during this session — no patched version exists yet, so not actionable; left for Daniel's call.
+- No npm publish: fixture-only changes, 1.22.2 = npm `latest` (identical tarball). No open dependabot PRs left on siteready.
